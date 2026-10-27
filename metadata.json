@@ -1,0 +1,6 @@
+{
+  "name": "Purchase Management Dashboard",
+  "description": "Enterprise dashboard featuring a purchase module with Monthly Demand Form, Purchase Form, and Suppliers management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
