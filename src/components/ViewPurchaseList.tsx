@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ShoppingBag, 
   ChevronDown, 
@@ -14,9 +14,13 @@ import {
   Unlock,
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  RotateCcw
 } from 'lucide-react';
-import { PurchaseDocument, PurchaseSummaryItem, DocumentStatus } from '../types';
+import { PurchaseDocument, PurchaseSummaryItem, DocumentStatus, PaymentType } from '../types';
 
 interface ViewPurchaseListProps {
   purchases: PurchaseDocument[];
@@ -27,6 +31,8 @@ interface ViewPurchaseListProps {
   onUpdatePurchaseItems: (id: string, updatedItems: PurchaseSummaryItem[]) => void;
   onNavigateToCreate: () => void;
 }
+
+export type PurchaseSortField = 'none' | 'paymentType' | 'date' | 'totalAmount' | 'reference';
 
 export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
   purchases,
@@ -41,6 +47,9 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
   const [selectedFinalizedIds, setSelectedFinalizedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>('All');
+  const [sortField, setSortField] = useState<PurchaseSortField>('none');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [notification, setNotification] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
@@ -55,17 +64,82 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
     setExpandedIds(map);
   };
 
-  const filteredPurchases = purchases.filter((p) => {
-    const matchesSearch =
-      p.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.items.some(
-        (i) =>
-          i.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          i.itemName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Sort toggle handler for column headers
+  const handleSort = (field: PurchaseSortField) => {
+    if (sortField === field) {
+      if (sortOrder === 'asc') {
+        setSortOrder('desc');
+      } else {
+        setSortField('none');
+        setSortOrder('asc');
+      }
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const renderSortIcon = (field: PurchaseSortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-slate-400 opacity-60 group-hover:opacity-100" />;
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3 h-3 text-blue-600" />
+    ) : (
+      <ArrowDown className="w-3 h-3 text-blue-600" />
+    );
+  };
+
+  const hasActiveFilters =
+    searchTerm !== '' ||
+    statusFilter !== 'All' ||
+    paymentTypeFilter !== 'All' ||
+    sortField !== 'none';
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('All');
+    setPaymentTypeFilter('All');
+    setSortField('none');
+    setSortOrder('asc');
+  };
+
+  // Filtered & Sorted Purchases
+  const filteredPurchases = useMemo(() => {
+    return [...purchases]
+      .filter((p) => {
+        const matchesSearch =
+          p.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.paymentType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.items.some(
+            (i) =>
+              i.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              i.itemName.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+        const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+        const matchesPaymentType = paymentTypeFilter === 'All' || p.paymentType === paymentTypeFilter;
+        return matchesSearch && matchesStatus && matchesPaymentType;
+      })
+      .sort((a, b) => {
+        if (sortField === 'paymentType') {
+          // Cash vs Cheque
+          const cmp = a.paymentType.localeCompare(b.paymentType);
+          return sortOrder === 'asc' ? cmp : -cmp;
+        }
+        if (sortField === 'date') {
+          const cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
+          return sortOrder === 'asc' ? cmp : -cmp;
+        }
+        if (sortField === 'totalAmount') {
+          return sortOrder === 'asc' ? a.totalAmount - b.totalAmount : b.totalAmount - a.totalAmount;
+        }
+        if (sortField === 'reference') {
+          const cmp = a.reference.localeCompare(b.reference);
+          return sortOrder === 'asc' ? cmp : -cmp;
+        }
+        return 0;
+      });
+  }, [purchases, searchTerm, statusFilter, paymentTypeFilter, sortField, sortOrder]);
 
   const finalizedPurchases = filteredPurchases.filter((p) => p.status === 'Finalized');
 
@@ -176,9 +250,10 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
       )}
 
       {/* Search, Filter & Bulk Actions Bar */}
-      <div className="bg-white p-3.5 border border-slate-200 rounded-xl shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2.5 flex-1">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="bg-white p-3.5 border border-slate-200 rounded-xl shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -189,12 +264,64 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
             />
           </div>
 
+          {/* Quick Payment Type Filter Tabs / Pills: Cash & Cheque */}
+          <div className="inline-flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setPaymentTypeFilter('All')}
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                paymentTypeFilter === 'All'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All ({purchases.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentTypeFilter('Cash')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                paymentTypeFilter === 'Cash'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-emerald-700'
+              }`}
+            >
+              <span>Cash</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                paymentTypeFilter === 'Cash' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {purchases.filter((p) => p.paymentType === 'Cash').length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentTypeFilter('Cheque')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                paymentTypeFilter === 'Cheque'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-blue-700'
+              }`}
+            >
+              <span>Cheque</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                paymentTypeFilter === 'Cheque' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {purchases.filter((p) => p.paymentType === 'Cheque').length}
+              </span>
+            </button>
+          </div>
+
+          {/* Status Filter */}
           <div className="flex items-center gap-1.5">
             <Filter className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 text-slate-700 font-medium"
+              className={`px-2.5 py-1.5 text-xs border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 font-medium transition-colors ${
+                statusFilter !== 'All'
+                  ? 'bg-blue-50 border-blue-300 text-blue-900 font-semibold'
+                  : 'bg-slate-50 border-slate-300 text-slate-700'
+              }`}
             >
               <option value="All">All Statuses ({purchases.length})</option>
               <option value="Draft">Drafts ({purchases.filter((p) => p.status === 'Draft').length})</option>
@@ -205,11 +332,64 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
             </select>
           </div>
 
+          {/* Sort Selector Dropdown */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden sm:inline">
+              Sort:
+            </span>
+            <select
+              value={
+                sortField === 'none'
+                  ? 'default'
+                  : `${sortField}-${sortOrder}`
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'default') {
+                  setSortField('none');
+                  setSortOrder('asc');
+                } else {
+                  const [field, order] = val.split('-') as [PurchaseSortField, 'asc' | 'desc'];
+                  setSortField(field);
+                  setSortOrder(order);
+                }
+              }}
+              className={`px-2.5 py-1.5 text-xs border rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 font-medium transition-colors ${
+                sortField !== 'none'
+                  ? 'bg-blue-50 border-blue-300 text-blue-900 font-semibold'
+                  : 'bg-slate-50 border-slate-300 text-slate-700'
+              }`}
+            >
+              <option value="default">Default Sort</option>
+              <option value="paymentType-asc">Payment Type (Cash first)</option>
+              <option value="paymentType-desc">Payment Type (Cheque first)</option>
+              <option value="date-desc">Date (Newest first)</option>
+              <option value="date-asc">Date (Oldest first)</option>
+              <option value="totalAmount-desc">Total Amount (High → Low)</option>
+              <option value="totalAmount-asc">Total Amount (Low → High)</option>
+              <option value="reference-asc">Reference (A → Z)</option>
+            </select>
+          </div>
+
+          {/* Reset Filters Button */}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+              title="Reset all search, filters, and sorting"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset Filters</span>
+            </button>
+          )}
+
+          {/* Expand/Collapse All Actions */}
           <div className="flex items-center gap-1 ml-auto">
             <button
               type="button"
               onClick={() => toggleAll(true)}
-              className="px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+              className="px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors cursor-pointer"
             >
               Expand All
             </button>
@@ -217,7 +397,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
             <button
               type="button"
               onClick={() => toggleAll(false)}
-              className="px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors"
+              className="px-2.5 py-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors cursor-pointer"
             >
               Collapse All
             </button>
@@ -226,9 +406,9 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
 
         {/* 3.3 Batch Submission Action */}
         {selectedFinalizedIds.length > 0 && (
-          <div className="flex items-center gap-2.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shrink-0">
+          <div className="flex items-center justify-between gap-2.5 bg-blue-50 border border-blue-200 px-3.5 py-2 rounded-lg">
             <span className="text-xs font-semibold text-blue-900">
-              {selectedFinalizedIds.length} Selected
+              {selectedFinalizedIds.length} finalized purchase summary/summaries selected
             </span>
             <button
               type="button"
@@ -236,7 +416,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
               className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors shadow-xs cursor-pointer"
             >
               <Send className="w-3 h-3" />
-              <span>Submit for Approval</span>
+              <span>Submit for Approval ({selectedFinalizedIds.length})</span>
             </button>
           </div>
         )}
@@ -263,11 +443,63 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                   )}
                 </th>
                 <th className="py-3 px-3 w-12 text-center">Sr.</th>
-                <th className="py-3 px-4">Date</th>
-                <th className="py-3 px-4">Reference</th>
-                <th className="py-3 px-4">Payment Type</th>
+
+                {/* Date Header - Sortable */}
+                <th className="py-3 px-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('date')}
+                    className="group inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-blue-600 uppercase tracking-wider cursor-pointer"
+                    title="Click to sort by Date"
+                  >
+                    <span>Date</span>
+                    {renderSortIcon('date')}
+                  </button>
+                </th>
+
+                {/* Reference Header - Sortable */}
+                <th className="py-3 px-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('reference')}
+                    className="group inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-blue-600 uppercase tracking-wider cursor-pointer"
+                    title="Click to sort by Reference"
+                  >
+                    <span>Reference</span>
+                    {renderSortIcon('reference')}
+                  </button>
+                </th>
+
+                {/* Payment Type Header - Sortable (Cash vs Cheque) */}
+                <th className="py-3 px-4">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('paymentType')}
+                    className="group inline-flex items-center gap-1.5 font-semibold text-slate-800 hover:text-blue-600 uppercase tracking-wider cursor-pointer"
+                    title="Click to sort by Payment Type (Cash / Cheque)"
+                  >
+                    <span className={sortField === 'paymentType' ? 'text-blue-700 font-bold' : ''}>
+                      Payment Type (Cash / Cheque)
+                    </span>
+                    {renderSortIcon('paymentType')}
+                  </button>
+                </th>
+
                 <th className="py-3 px-4 text-center">No. of Items</th>
-                <th className="py-3 px-4 text-right">Total Amount</th>
+
+                {/* Total Amount Header - Sortable */}
+                <th className="py-3 px-4 text-right">
+                  <button
+                    type="button"
+                    onClick={() => handleSort('totalAmount')}
+                    className="group inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-blue-600 uppercase tracking-wider cursor-pointer ml-auto"
+                    title="Click to sort by Total Amount"
+                  >
+                    <span>Total Amount</span>
+                    {renderSortIcon('totalAmount')}
+                  </button>
+                </th>
+
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-center">Itemized Table</th>
                 <th className="py-3 px-4 text-center">Actions</th>
