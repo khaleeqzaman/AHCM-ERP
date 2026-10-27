@@ -91,7 +91,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
             <span>Total Value:</span>
             <span className="font-mono font-medium text-slate-800">
-              ${totalDemandAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {totalDemandAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
@@ -111,7 +111,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
             <span>Total Value:</span>
             <span className="font-mono font-medium text-slate-800">
-              ${totalPurchaseAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {totalPurchaseAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="text-[11px] text-slate-400 mt-1">

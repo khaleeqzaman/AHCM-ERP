@@ -280,8 +280,8 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
                 <th className="py-3 px-4">Classification</th>
                 <th className="py-3 px-4">Group</th>
                 <th className="py-3 px-4 text-center">Normal</th>
-                <th className="py-3 px-4 text-right">Opening Bal ($)</th>
-                <th className="py-3 px-4 text-right">Current Bal ($)</th>
+                <th className="py-3 px-4 text-right">Opening Bal</th>
+                <th className="py-3 px-4 text-right">Current Bal</th>
                 <th className="py-3 px-4 text-center">Status</th>
               </tr>
             </thead>
@@ -348,12 +348,12 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
 
                     {/* Opening Bal */}
                     <td className="py-3 px-4 text-right font-mono tabular-nums text-slate-600 whitespace-nowrap">
-                      ${acc.openingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {acc.openingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
 
                     {/* Current Bal */}
                     <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                      ${acc.currentBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {acc.currentBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
 
                     {/* Status */}
@@ -528,7 +528,7 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-medium text-slate-700 mb-1">
-                    Opening Balance ($)
+                    Opening Balance
                   </label>
                   <input
                     type="number"

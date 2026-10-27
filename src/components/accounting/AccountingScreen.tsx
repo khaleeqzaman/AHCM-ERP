@@ -109,7 +109,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
             <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-slate-500 block text-[11px]">Total Ledger Turnover</span>
               <span className="text-sm font-bold font-mono tabular-nums text-emerald-700">
-                ${totalVoucherVolume.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {totalVoucherVolume.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>

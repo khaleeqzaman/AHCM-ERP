@@ -320,7 +320,7 @@ export const PurchaseFormView: React.FC<PurchaseFormViewProps> = ({
                 <th className="py-2.5 px-3 w-48">Company Name</th>
                 <th className="py-2.5 px-3">Item Name</th>
                 <th className="py-2.5 px-3 w-24 text-right">Quantity</th>
-                <th className="py-2.5 px-3 w-32 text-right">Amount ($)</th>
+                <th className="py-2.5 px-3 w-32 text-right">Amount</th>
                 <th className="py-2.5 px-3 w-56">Remarks</th>
                 <th className="py-2.5 px-3 w-16 text-center">Action</th>
               </tr>
@@ -401,7 +401,7 @@ export const PurchaseFormView: React.FC<PurchaseFormViewProps> = ({
                   Total Amount ({items.length} items):
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-blue-700 text-sm font-bold">
-                  ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td colSpan={2}></td>
               </tr>

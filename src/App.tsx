@@ -335,7 +335,7 @@ export default function App() {
                 {currentModule === 'purchase'
                   ? 'Purchase Module'
                   : currentModule === 'accounting'
-                  ? 'Accounting Module (Accountant)'
+                  ? 'Accounts'
                   : currentModule === 'admin_approvals'
                   ? 'Admin Approval Console'
                   : currentModule}
@@ -370,7 +370,7 @@ export default function App() {
               }`}
             >
               <Scale className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Accountant (COA & Ledgers)</span>
+              <span>Accounts</span>
             </button>
 
             {/* Direct Switch: Admin Approvals */}
@@ -489,7 +489,7 @@ export default function App() {
                   onClick={() => setCurrentModule('accounting')}
                   className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors cursor-pointer"
                 >
-                  Go to Accounting Module
+                  Go to Accounts
                 </button>
               </div>
             </div>
@@ -520,7 +520,7 @@ export default function App() {
                   onClick={() => setCurrentModule('accounting')}
                   className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors cursor-pointer"
                 >
-                  Go to Accounting Module
+                  Go to Accounts
                 </button>
               </div>
             </div>

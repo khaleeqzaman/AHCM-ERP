@@ -226,7 +226,7 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
     if (!validate()) return;
 
     if (status === 'Posted' && !isBalanced) {
-      setFormError(`Cannot post unbalanced voucher. Total Debits ($${totalDebit.toFixed(2)}) must equal Total Credits ($${totalCredit.toFixed(2)}). Discrepancy: $${difference.toFixed(2)}.`);
+      setFormError(`Cannot post unbalanced voucher. Total Debits (${totalDebit.toFixed(2)}) must equal Total Credits (${totalCredit.toFixed(2)}). Discrepancy: ${difference.toFixed(2)}.`);
       return;
     }
 
@@ -419,8 +419,8 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
                 <th className="py-2.5 px-3 w-14 text-center">Sr.</th>
                 <th className="py-2.5 px-3 w-80">Account Title (T-C-GG-SSS)</th>
                 <th className="py-2.5 px-3">Line Particulars / Remarks</th>
-                <th className="py-2.5 px-3 w-36 text-right">Debit ($)</th>
-                <th className="py-2.5 px-3 w-36 text-right">Credit ($)</th>
+                <th className="py-2.5 px-3 w-36 text-right">Debit</th>
+                <th className="py-2.5 px-3 w-36 text-right">Credit</th>
                 <th className="py-2.5 px-3 w-14 text-center"></th>
               </tr>
             </thead>
@@ -511,10 +511,10 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
                   Double-Entry Totals:
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-900 font-bold text-sm">
-                  ${totalDebit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {totalDebit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-900 font-bold text-sm">
-                  ${totalCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {totalCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td></td>
               </tr>
@@ -543,12 +543,12 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
             <div className="text-xs">
               {isBalanced ? (
                 <>
-                  <span className="font-bold">Balanced:</span> Debits equal Credits ($
+                  <span className="font-bold">Balanced:</span> Debits equal Credits (
                   {totalDebit.toFixed(2)}). Voucher is ready to post to General Ledger.
                 </>
               ) : (
                 <>
-                  <span className="font-bold">Out of Balance:</span> Difference of $
+                  <span className="font-bold">Out of Balance:</span> Difference of{' '}
                   {difference.toFixed(2)}. Adjust debits or credits to achieve equilibrium before posting.
                 </>
               )}

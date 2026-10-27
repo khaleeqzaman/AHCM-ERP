@@ -200,7 +200,7 @@ export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({
                             {demand.items.length}
                           </td>
                           <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                            ${demand.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {demand.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="py-3 px-4 text-center whitespace-nowrap">
                             <button
@@ -273,10 +273,10 @@ export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({
                                           {it.quantity}
                                         </td>
                                         <td className="py-1.5 px-3 text-right font-mono tabular-nums">
-                                          ${it.rate.toFixed(2)}
+                                          {it.rate.toFixed(2)}
                                         </td>
                                         <td className="py-1.5 px-3 text-right font-mono tabular-nums font-semibold">
-                                          ${it.amount.toFixed(2)}
+                                          {it.amount.toFixed(2)}
                                         </td>
                                       </tr>
                                     ))}
@@ -287,7 +287,7 @@ export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({
                                         Total Amount:
                                       </td>
                                       <td className="py-2 px-3 text-right font-mono text-blue-700">
-                                        ${demand.totalAmount.toFixed(2)}
+                                        {demand.totalAmount.toFixed(2)}
                                       </td>
                                     </tr>
                                   </tfoot>
@@ -364,7 +364,7 @@ export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({
                             {purchase.items.length}
                           </td>
                           <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                            ${purchase.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {purchase.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="py-3 px-4 text-center whitespace-nowrap">
                             <button
@@ -441,7 +441,7 @@ export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({
                                           {it.quantity}
                                         </td>
                                         <td className="py-1.5 px-3 text-right font-mono tabular-nums font-semibold">
-                                          ${it.amount.toFixed(2)}
+                                          {it.amount.toFixed(2)}
                                         </td>
                                         <td className="py-1.5 px-3 text-slate-500 text-[11px]">
                                           {it.remarks || '—'}
@@ -455,7 +455,7 @@ export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({
                                         Total Amount:
                                       </td>
                                       <td className="py-2 px-3 text-right font-mono text-blue-700">
-                                        ${purchase.totalAmount.toFixed(2)}
+                                        {purchase.totalAmount.toFixed(2)}
                                       </td>
                                       <td></td>
                                     </tr>

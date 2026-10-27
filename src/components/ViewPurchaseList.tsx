@@ -336,7 +336,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                         </td>
 
                         <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                          ${purchase.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {purchase.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
 
                         <td className="py-3 px-4 whitespace-nowrap">
@@ -491,7 +491,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                                       <th className="py-2 px-3 w-48">Company Name</th>
                                       <th className="py-2 px-3">Item Name</th>
                                       <th className="py-2 px-3 w-24 text-right">Quantity</th>
-                                      <th className="py-2 px-3 w-32 text-right">Amount ($)</th>
+                                      <th className="py-2 px-3 w-32 text-right">Amount</th>
                                       <th className="py-2 px-3 w-48">Remarks</th>
                                       {isDraft && <th className="py-2 px-2 w-12 text-center"></th>}
                                     </tr>
@@ -585,7 +585,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                                             />
                                           ) : (
                                             <span className="font-mono tabular-nums font-semibold text-slate-900">
-                                              ${it.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                              {it.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                           )}
                                         </td>
@@ -632,7 +632,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                                         Total Amount:
                                       </td>
                                       <td className="py-2 px-3 text-right font-mono tabular-nums text-blue-700 font-bold">
-                                        ${purchase.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {purchase.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </td>
                                       <td colSpan={isDraft ? 2 : 1}></td>
                                     </tr>

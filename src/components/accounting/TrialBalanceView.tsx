@@ -118,8 +118,8 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
             </h3>
             <p className="text-xs opacity-90">
               {isBalanced
-                ? `Total Debit Balances ($${totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2 })}) exactly balance Total Credit Balances ($${totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2 })}).`
-                : `Net Discrepancy of $${difference.toFixed(2)}. Check unposted or modified double-entry vouchers.`}
+                ? `Total Debit Balances (${totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2 })}) exactly balance Total Credit Balances (${totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2 })}).`
+                : `Net Discrepancy of ${difference.toFixed(2)}. Check unposted or modified double-entry vouchers.`}
             </p>
           </div>
         </div>
@@ -129,14 +129,14 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
             <span className="text-[10px] text-slate-500 uppercase block font-sans">
               Total Dr
             </span>
-            <span>${totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+            <span>{totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
           </div>
           <span className="text-slate-300">|</span>
           <div>
             <span className="text-[10px] text-slate-500 uppercase block font-sans">
               Total Cr
             </span>
-            <span>${totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+            <span>{totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
           </div>
         </div>
       </div>
@@ -151,8 +151,8 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
                 <th className="py-3 px-4">Account Title</th>
                 <th className="py-3 px-4">Type</th>
                 <th className="py-3 px-4 text-center">Normal</th>
-                <th className="py-3 px-4 text-right">Debit Balance ($)</th>
-                <th className="py-3 px-4 text-right">Credit Balance ($)</th>
+                <th className="py-3 px-4 text-right">Debit Balance</th>
+                <th className="py-3 px-4 text-right">Credit Balance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -172,12 +172,12 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
                   </td>
                   <td className="py-2.5 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">
                     {row.debitBal > 0
-                      ? `$${row.debitBal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                      ? `${row.debitBal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                       : '—'}
                   </td>
                   <td className="py-2.5 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">
                     {row.creditBal > 0
-                      ? `$${row.creditBal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                      ? `${row.creditBal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                       : '—'}
                   </td>
                 </tr>
@@ -189,10 +189,10 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
                   Total Trial Balance:
                 </td>
                 <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-800 font-bold text-sm">
-                  ${totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </td>
                 <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-800 font-bold text-sm">
-                  ${totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
             </tfoot>

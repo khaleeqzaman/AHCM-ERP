@@ -116,8 +116,8 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
                 <th className="py-3 px-4">Type</th>
                 <th className="py-3 px-4">Reference</th>
                 <th className="py-3 px-4">Narration</th>
-                <th className="py-3 px-4 text-right">Debit ($)</th>
-                <th className="py-3 px-4 text-right">Credit ($)</th>
+                <th className="py-3 px-4 text-right">Debit</th>
+                <th className="py-3 px-4 text-right">Credit</th>
                 <th className="py-3 px-4 text-center">Status</th>
                 <th className="py-3 px-4 text-center">Lines</th>
                 <th className="py-3 px-4 text-center">Actions</th>
@@ -168,10 +168,10 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
                           {voucher.narration}
                         </td>
                         <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                          ${voucher.totalDebit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          {voucher.totalDebit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                          ${voucher.totalCredit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          {voucher.totalCredit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="py-3 px-4 text-center whitespace-nowrap">
                           <span
@@ -227,7 +227,7 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
                                   Double-Entry Breakdown for <span className="font-mono text-emerald-700">{voucher.voucherNo}</span>
                                 </span>
                                 <span className="text-slate-500 font-normal">
-                                  Balanced sum: ${voucher.totalDebit.toFixed(2)}
+                                  Balanced sum: {voucher.totalDebit.toFixed(2)}
                                 </span>
                               </div>
 
@@ -238,8 +238,8 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
                                     <th className="py-1.5 px-3 w-28 font-mono">T-C-GG-SSS</th>
                                     <th className="py-1.5 px-3">Account Title</th>
                                     <th className="py-1.5 px-3">Line Particulars</th>
-                                    <th className="py-1.5 px-3 w-28 text-right">Debit ($)</th>
-                                    <th className="py-1.5 px-3 w-28 text-right">Credit ($)</th>
+                                    <th className="py-1.5 px-3 w-28 text-right">Debit</th>
+                                    <th className="py-1.5 px-3 w-28 text-right">Credit</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -258,10 +258,10 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
                                         {line.description || voucher.narration}
                                       </td>
                                       <td className="py-1.5 px-3 text-right font-mono tabular-nums font-semibold text-slate-900">
-                                        {line.debit > 0 ? `$${line.debit.toFixed(2)}` : '—'}
+                                        {line.debit > 0 ? `${line.debit.toFixed(2)}` : '—'}
                                       </td>
                                       <td className="py-1.5 px-3 text-right font-mono tabular-nums font-semibold text-slate-900">
-                                        {line.credit > 0 ? `$${line.credit.toFixed(2)}` : '—'}
+                                        {line.credit > 0 ? `${line.credit.toFixed(2)}` : '—'}
                                       </td>
                                     </tr>
                                   ))}
@@ -272,10 +272,10 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
                                       Total:
                                     </td>
                                     <td className="py-2 px-3 text-right font-mono text-emerald-800 font-bold">
-                                      ${voucher.totalDebit.toFixed(2)}
+                                      {voucher.totalDebit.toFixed(2)}
                                     </td>
                                     <td className="py-2 px-3 text-right font-mono text-emerald-800 font-bold">
-                                      ${voucher.totalCredit.toFixed(2)}
+                                      {voucher.totalCredit.toFixed(2)}
                                     </td>
                                   </tr>
                                 </tfoot>

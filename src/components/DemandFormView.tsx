@@ -348,8 +348,8 @@ export const DemandFormView: React.FC<DemandFormViewProps> = ({
                 <th className="py-2.5 px-3 w-16 text-center">Sr. No.</th>
                 <th className="py-2.5 px-3">Item Name</th>
                 <th className="py-2.5 px-3 w-28 text-right">Quantity</th>
-                <th className="py-2.5 px-3 w-32 text-right">Rate ($)</th>
-                <th className="py-2.5 px-3 w-36 text-right">Amount ($)</th>
+                <th className="py-2.5 px-3 w-32 text-right">Rate</th>
+                <th className="py-2.5 px-3 w-36 text-right">Amount</th>
                 <th className="py-2.5 px-3 w-16 text-center">Action</th>
               </tr>
             </thead>
@@ -390,7 +390,7 @@ export const DemandFormView: React.FC<DemandFormViewProps> = ({
                     />
                   </td>
                   <td className="py-2 px-3 text-right font-mono tabular-nums font-semibold text-slate-900">
-                    ${item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                   <td className="py-2 px-3 text-center">
                     <button
@@ -412,7 +412,7 @@ export const DemandFormView: React.FC<DemandFormViewProps> = ({
                   Total Amount ({items.length} items):
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-blue-700 text-sm font-bold">
-                  ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td></td>
               </tr>

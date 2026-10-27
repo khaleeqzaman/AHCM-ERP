@@ -46,9 +46,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       id: 'accounting',
-      label: 'Accounting (Accountant)',
+      label: 'Accounts',
       icon: <Scale className="w-4 h-4" />,
-      badge: 'Accountant',
     },
     {
       id: 'admin_approvals',

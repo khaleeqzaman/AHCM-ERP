@@ -356,7 +356,7 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
 
                         {/* Total Amount */}
                         <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                          ${demand.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {demand.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
 
                         {/* Status */}
@@ -509,8 +509,8 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
                                       <th className="py-2 px-3 w-16 text-center">Sr. No.</th>
                                       <th className="py-2 px-3">Item Name</th>
                                       <th className="py-2 px-3 w-28 text-right">Quantity</th>
-                                      <th className="py-2 px-3 w-28 text-right">Rate ($)</th>
-                                      <th className="py-2 px-3 w-32 text-right">Amount ($)</th>
+                                      <th className="py-2 px-3 w-28 text-right">Rate</th>
+                                      <th className="py-2 px-3 w-32 text-right">Amount</th>
                                       {isDraft && <th className="py-2 px-2 w-12 text-center"></th>}
                                     </tr>
                                   </thead>
@@ -582,12 +582,12 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
                                             />
                                           ) : (
                                             <span className="font-mono tabular-nums text-slate-700">
-                                              ${it.rate.toFixed(2)}
+                                              {it.rate.toFixed(2)}
                                             </span>
                                           )}
                                         </td>
                                         <td className="py-2 px-3 text-right font-mono tabular-nums font-semibold text-slate-900">
-                                          ${it.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          {it.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </td>
                                         {isDraft && (
                                           <td className="py-2 px-2 text-center">
@@ -611,7 +611,7 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
                                         Total Amount:
                                       </td>
                                       <td className="py-2 px-3 text-right font-mono tabular-nums text-blue-700 font-bold">
-                                        ${demand.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {demand.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </td>
                                       {isDraft && <td></td>}
                                     </tr>

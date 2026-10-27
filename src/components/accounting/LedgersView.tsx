@@ -238,19 +238,19 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
               <div>
                 <span className="text-slate-500 block text-[11px]">Opening Balance</span>
                 <span className="font-bold text-slate-900 font-mono tabular-nums">
-                  ${selectedAccount.openingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {selectedAccount.openingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[11px]">Period Debits / Credits</span>
                 <span className="font-bold text-slate-700 font-mono tabular-nums">
-                  +${totalPeriodDebits.toFixed(2)} / -${totalPeriodCredits.toFixed(2)}
+                  +{totalPeriodDebits.toFixed(2)} / -{totalPeriodCredits.toFixed(2)}
                 </span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[11px]">Closing Balance</span>
                 <span className="font-bold text-emerald-700 font-mono tabular-nums text-sm">
-                  ${closingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {closingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -290,9 +290,9 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                 <th className="py-2.5 px-3 w-32">Voucher No.</th>
                 <th className="py-2.5 px-3 w-28">Type</th>
                 <th className="py-2.5 px-3">Particulars / Narration</th>
-                <th className="py-2.5 px-3 w-28 text-right">Debit ($)</th>
-                <th className="py-2.5 px-3 w-28 text-right">Credit ($)</th>
-                <th className="py-2.5 px-3 w-32 text-right">Running Balance ($)</th>
+                <th className="py-2.5 px-3 w-28 text-right">Debit</th>
+                <th className="py-2.5 px-3 w-28 text-right">Credit</th>
+                <th className="py-2.5 px-3 w-32 text-right">Running Balance</th>
                 <th className="py-2.5 px-3 w-20 text-center">Action</th>
               </tr>
             </thead>
@@ -307,16 +307,16 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                   <td className="py-2.5 px-3 italic">Opening Account Balance Brought Forward</td>
                   <td className="py-2.5 px-3 text-right font-mono tabular-nums">
                     {selectedAccount.normalBalance === 'Debit'
-                      ? `$${selectedAccount.openingBalance.toFixed(2)}`
+                      ? `${selectedAccount.openingBalance.toFixed(2)}`
                       : '—'}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono tabular-nums">
                     {selectedAccount.normalBalance === 'Credit'
-                      ? `$${selectedAccount.openingBalance.toFixed(2)}`
+                      ? `${selectedAccount.openingBalance.toFixed(2)}`
                       : '—'}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold text-slate-800">
-                    ${selectedAccount.openingBalance.toFixed(2)}
+                    {selectedAccount.openingBalance.toFixed(2)}
                   </td>
                   <td className="py-2.5 px-3 text-center text-slate-400 text-[11px]">Locked</td>
                 </tr>
@@ -387,7 +387,7 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                           />
                         ) : entry.debit > 0 ? (
                           <span className="font-semibold text-slate-900">
-                            ${entry.debit.toFixed(2)}
+                            {entry.debit.toFixed(2)}
                           </span>
                         ) : (
                           <span className="text-slate-400">—</span>
@@ -411,7 +411,7 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                           />
                         ) : entry.credit > 0 ? (
                           <span className="font-semibold text-slate-900">
-                            ${entry.credit.toFixed(2)}
+                            {entry.credit.toFixed(2)}
                           </span>
                         ) : (
                           <span className="text-slate-400">—</span>
@@ -420,7 +420,7 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
 
                       {/* Running Balance */}
                       <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                        ${entry.runningBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {entry.runningBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
 
                       {/* Action */}
@@ -467,13 +467,13 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                   Total Activity & Closing Position:
                 </td>
                 <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 font-bold">
-                  ${totalPeriodDebits.toFixed(2)}
+                  {totalPeriodDebits.toFixed(2)}
                 </td>
                 <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 font-bold">
-                  ${totalPeriodCredits.toFixed(2)}
+                  {totalPeriodCredits.toFixed(2)}
                 </td>
                 <td className="py-2.5 px-3 text-right font-mono tabular-nums text-emerald-800 font-bold text-sm">
-                  ${closingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {closingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </td>
                 <td></td>
               </tr>
