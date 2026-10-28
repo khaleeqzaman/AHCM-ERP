@@ -10,7 +10,8 @@ import {
   CheckCircle,
   FileText,
   Table,
-  Scale
+  Scale,
+  Vault
 } from 'lucide-react';
 import { 
   NavModule, 
@@ -20,12 +21,24 @@ import {
   PurchaseSummaryItem
 } from './types';
 import { ChartAccount, VoucherDocument } from './types/accounting';
+import { 
+  CashBookEntry, 
+  BankRecord, 
+  BankAccountRecord, 
+  BankTransaction 
+} from './types/treasury';
 import { initialDemands, initialPurchases } from './data/mockData';
 import { initialChartOfAccounts, initialVouchers } from './data/mockAccountingData';
+import { 
+  initialCashBookEntries, 
+  initialBanks, 
+  initialBankAccounts 
+} from './data/mockTreasuryData';
 import { Sidebar } from './components/Sidebar';
 import { PurchaseScreen } from './components/PurchaseScreen';
 import { AdminApprovalView } from './components/AdminApprovalView';
 import { AccountingScreen } from './components/accounting/AccountingScreen';
+import { TreasuryScreen } from './components/treasury/TreasuryScreen';
 import { DashboardOverview } from './components/DashboardOverview';
 
 export default function App() {
@@ -39,6 +52,11 @@ export default function App() {
   // 100% ISOLATED ACCOUNTANT DATA STATE (Completely independent from Purchase)
   const [accounts, setAccounts] = useState<ChartAccount[]>(initialChartOfAccounts);
   const [vouchers, setVouchers] = useState<VoucherDocument[]>(initialVouchers);
+
+  // 100% ISOLATED TREASURY (CASHIER) DATA STATE (Completely separate from Accounts & Purchase)
+  const [cashBookEntries, setCashBookEntries] = useState<CashBookEntry[]>(initialCashBookEntries);
+  const [banks, setBanks] = useState<BankRecord[]>(initialBanks);
+  const [bankAccounts, setBankAccounts] = useState<BankAccountRecord[]>(initialBankAccounts);
 
   // Demand Handlers
   const handleSaveDemand = (demand: DemandDocument) => {
@@ -292,6 +310,99 @@ export default function App() {
     );
   };
 
+  // TREASURY / CASHIER HANDLERS (Completely isolated)
+  const handleAddCashBookEntry = (entry: CashBookEntry) => {
+    setCashBookEntries((prev) => [...prev, entry]);
+  };
+
+  const handleUpdateCashBookEntry = (
+    id: string,
+    field: 'date' | 'description' | 'credit' | 'debit',
+    value: string | number
+  ) => {
+    setCashBookEntries((prev) =>
+      prev.map((entry) => {
+        if (entry.id !== id) return entry;
+        const updated = { ...entry, [field]: value };
+        // Auto-calculated balance: Credit - Debit
+        updated.balance = (Number(updated.credit) || 0) - (Number(updated.debit) || 0);
+        return updated;
+      })
+    );
+  };
+
+  const handleDeleteCashBookEntry = (id: string) => {
+    setCashBookEntries((prev) => {
+      const filtered = prev.filter((e) => e.id !== id);
+      return filtered.map((e, idx) => ({ ...e, srNo: idx + 1 }));
+    });
+  };
+
+  const handleAddBank = (bank: BankRecord) => {
+    setBanks((prev) => [...prev, bank]);
+  };
+
+  const handleDeleteBank = (id: string) => {
+    setBanks((prev) => {
+      const filtered = prev.filter((b) => b.id !== id);
+      return filtered.map((b, idx) => ({ ...b, srNo: idx + 1 }));
+    });
+  };
+
+  const handleAddBankAccount = (account: BankAccountRecord) => {
+    setBankAccounts((prev) => [...prev, account]);
+  };
+
+  const handleAddBankTransaction = (accountId: string, transaction: BankTransaction) => {
+    setBankAccounts((prev) =>
+      prev.map((acc) => {
+        if (acc.id !== accountId) return acc;
+        return {
+          ...acc,
+          transactions: [...acc.transactions, transaction],
+        };
+      })
+    );
+  };
+
+  const handleUpdateBankTransaction = (
+    accountId: string,
+    transactionId: string,
+    field: 'date' | 'payeeDescription' | 'category' | 'depositDebit' | 'withdrawalPayment',
+    value: string | number
+  ) => {
+    setBankAccounts((prev) =>
+      prev.map((acc) => {
+        if (acc.id !== accountId) return acc;
+        const updatedTxs = acc.transactions.map((tx) => {
+          if (tx.id !== transactionId) return tx;
+          const updated = { ...tx, [field]: value };
+          // Auto-calculated balance: Deposit - Withdrawal
+          updated.balance = (Number(updated.depositDebit) || 0) - (Number(updated.withdrawalPayment) || 0);
+          return updated;
+        });
+        return {
+          ...acc,
+          transactions: updatedTxs,
+        };
+      })
+    );
+  };
+
+  const handleDeleteBankTransaction = (accountId: string, transactionId: string) => {
+    setBankAccounts((prev) =>
+      prev.map((acc) => {
+        if (acc.id !== accountId) return acc;
+        const filtered = acc.transactions.filter((tx) => tx.id !== transactionId);
+        const renumbered = filtered.map((tx, idx) => ({ ...tx, srNo: idx + 1 }));
+        return {
+          ...acc,
+          transactions: renumbered,
+        };
+      })
+    );
+  };
+
   const pendingApprovalsCount =
     demands.filter((d) => d.status === 'Submitted for Approval').length +
     purchases.filter((p) => p.status === 'Submitted for Approval').length;
@@ -336,6 +447,8 @@ export default function App() {
                   ? 'Purchase Module'
                   : currentModule === 'accounting'
                   ? 'Accounts'
+                  : currentModule === 'treasury'
+                  ? 'Treasury (Cashier)'
                   : currentModule === 'admin_approvals'
                   ? 'Admin Approval Console'
                   : currentModule}
@@ -371,6 +484,20 @@ export default function App() {
             >
               <Scale className="w-3.5 h-3.5 text-emerald-700" />
               <span>Accounts</span>
+            </button>
+
+            {/* Direct Switch: Treasury (Cashier) */}
+            <button
+              type="button"
+              onClick={() => setCurrentModule('treasury')}
+              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
+                currentModule === 'treasury'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200 font-semibold shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Vault className="w-3.5 h-3.5 text-amber-700" />
+              <span>Treasury</span>
             </button>
 
             {/* Direct Switch: Admin Approvals */}
@@ -439,6 +566,24 @@ export default function App() {
               onSaveVoucher={handleSaveVoucher}
               onPostDraftVoucher={handlePostDraftVoucher}
               onUpdateLedgerEntry={handleUpdateLedgerEntry}
+            />
+          )}
+
+          {/* ISOLATED TREASURY MODULE (CASHIER) */}
+          {currentModule === 'treasury' && (
+            <TreasuryScreen
+              cashBookEntries={cashBookEntries}
+              banks={banks}
+              bankAccounts={bankAccounts}
+              onAddCashBookEntry={handleAddCashBookEntry}
+              onUpdateCashBookEntry={handleUpdateCashBookEntry}
+              onDeleteCashBookEntry={handleDeleteCashBookEntry}
+              onAddBank={handleAddBank}
+              onDeleteBank={handleDeleteBank}
+              onAddBankAccount={handleAddBankAccount}
+              onAddBankTransaction={handleAddBankTransaction}
+              onUpdateBankTransaction={handleUpdateBankTransaction}
+              onDeleteBankTransaction={handleDeleteBankTransaction}
             />
           )}
 
