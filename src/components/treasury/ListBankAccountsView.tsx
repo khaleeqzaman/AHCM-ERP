@@ -1,19 +1,23 @@
 import React, { useState } from 'react';
-import { CreditCard, Plus, Search, Eye, Building2, ArrowRight } from 'lucide-react';
+import { CreditCard, Plus, Search, Eye, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { BankAccountRecord } from '../../types/treasury';
 
 interface ListBankAccountsViewProps {
   bankAccounts: BankAccountRecord[];
   onNavigateToAddAccount: () => void;
   onSelectAccountDetails: (accountId: string) => void;
+  onDeleteBankAccount: (accountId: string) => void;
 }
 
 export const ListBankAccountsView: React.FC<ListBankAccountsViewProps> = ({
   bankAccounts,
   onNavigateToAddAccount,
   onSelectAccountDetails,
+  onDeleteBankAccount,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [accountToDelete, setAccountToDelete] = useState<BankAccountRecord | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
 
   const calculateAccountBalance = (account: BankAccountRecord) => {
     const totalDeposit = account.transactions.reduce((sum, t) => sum + (Number(t.depositDebit) || 0), 0);
@@ -33,6 +37,23 @@ export const ListBankAccountsView: React.FC<ListBankAccountsViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {notification && (
+        <div className="flex items-center justify-between p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-medium shadow-xs">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600" />
+            <span>{notification}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNotification(null)}
+            className="text-emerald-700 hover:text-emerald-900 font-bold ml-2 cursor-pointer"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
@@ -93,7 +114,7 @@ export const ListBankAccountsView: React.FC<ListBankAccountsViewProps> = ({
                 <th className="py-3 px-4 font-mono text-center">Opening Date</th>
                 <th className="py-3 px-4 text-right">Opening Balance</th>
                 <th className="py-3 px-4 text-right">Current Balance</th>
-                <th className="py-3 px-4 text-center w-36">Actions</th>
+                <th className="py-3 px-4 text-center w-48">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -146,14 +167,26 @@ export const ListBankAccountsView: React.FC<ListBankAccountsViewProps> = ({
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => onSelectAccountDetails(account.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-200 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View Details</span>
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => onSelectAccountDetails(account.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:text-white bg-blue-50 hover:bg-blue-600 border border-blue-200 rounded-lg transition-colors cursor-pointer"
+                            title="Open account transactions"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Details</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAccountToDelete(account)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                            title="Delete bank account and all details"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -163,6 +196,64 @@ export const ListBankAccountsView: React.FC<ListBankAccountsViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {accountToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden p-6 space-y-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  Delete Bank Account?
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Are you sure you want to delete bank account{' '}
+                  <strong className="text-slate-900 font-mono">{accountToDelete.accountNumber}</strong>{' '}
+                  ({accountToDelete.bankName} - {accountToDelete.accountTitle})?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 space-y-1">
+              <p className="font-semibold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600 inline-block" />
+                Complete Data Removal:
+              </p>
+              <p className="text-[11px] text-rose-700 leading-relaxed">
+                This will delete this bank account with all its details and data, including{' '}
+                <strong>{accountToDelete.transactions.length}</strong> transaction entries, opening balance, and history. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setAccountToDelete(null)}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer border border-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const accNum = accountToDelete.accountNumber;
+                  onDeleteBankAccount(accountToDelete.id);
+                  setAccountToDelete(null);
+                  setNotification(`Bank account ${accNum} and all its details have been deleted.`);
+                  setTimeout(() => setNotification(null), 3500);
+                }}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Yes, Delete Account</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

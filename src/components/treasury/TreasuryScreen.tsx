@@ -42,6 +42,7 @@ interface TreasuryScreenProps {
   onAddBank: (bank: BankRecord) => void;
   onDeleteBank?: (id: string) => void;
   onAddBankAccount: (account: BankAccountRecord) => void;
+  onDeleteBankAccount: (accountId: string) => void;
   onAddBankTransaction: (accountId: string, transaction: BankTransaction) => void;
   onUpdateBankTransaction: (
     accountId: string,
@@ -62,6 +63,7 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
   onAddBank,
   onDeleteBank,
   onAddBankAccount,
+  onDeleteBankAccount,
   onAddBankTransaction,
   onUpdateBankTransaction,
   onDeleteBankTransaction,
@@ -349,6 +351,13 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
                   setBankSubPage('add_bank_account');
                 }}
                 onSelectAccountDetails={handleOpenAccountDetails}
+                onDeleteBankAccount={(accountId) => {
+                  onDeleteBankAccount(accountId);
+                  if (selectedAccountId === accountId) {
+                    const remaining = bankAccounts.filter((a) => a.id !== accountId);
+                    setSelectedAccountId(remaining[0]?.id || '');
+                  }
+                }}
               />
             )}
 

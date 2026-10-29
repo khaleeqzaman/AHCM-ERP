@@ -10,7 +10,8 @@ import {
   Wallet,
   ArrowDownLeft,
   ArrowUpRight,
-  Search
+  Search,
+  AlertTriangle
 } from 'lucide-react';
 import { BankAccountRecord, BankTransaction } from '../../types/treasury';
 
@@ -40,6 +41,11 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
 }) => {
   const [notification, setNotification] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [txToDelete, setTxToDelete] = useState<{
+    id: string;
+    srNo: number;
+    payeeDescription: string;
+  } | null>(null);
 
   const getTodayDDMMYYYY = () => {
     const d = new Date();
@@ -81,18 +87,19 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
   const currentBalance = currentAccount.openingBalance + netTransactionBalance;
 
   const handleAddNewTransaction = () => {
+    // Row fields are not pre-filled; all fields are empty for user input
     const newTx: BankTransaction = {
       id: `tx-${Date.now()}`,
       srNo: currentAccount.transactions.length + 1,
-      date: getTodayDDMMYYYY(),
-      payeeDescription: 'Direct bank transaction description',
-      category: 'General Operations',
+      date: '',
+      payeeDescription: '',
+      category: '',
       depositDebit: 0,
       withdrawalPayment: 0,
       balance: 0,
     };
     onAddTransaction(currentAccount.id, newTx);
-    setNotification('New transaction row added.');
+    setNotification('New empty transaction row added. Fields are ready for input.');
     setTimeout(() => setNotification(null), 3000);
   };
 
@@ -390,7 +397,13 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
                       <td className="py-2.5 px-3 text-center">
                         <button
                           type="button"
-                          onClick={() => onDeleteTransaction(currentAccount.id, tx.id)}
+                          onClick={() =>
+                            setTxToDelete({
+                              id: tx.id,
+                              srNo: tx.srNo,
+                              payeeDescription: tx.payeeDescription,
+                            })
+                          }
                           className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                           title="Delete Row"
                         >
@@ -431,6 +444,69 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Delete Transaction Confirmation Modal */}
+      {txToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden p-6 space-y-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  Confirm Transaction Deletion
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Are you sure you want to delete transaction row{' '}
+                  <strong className="font-mono text-slate-900">#{txToDelete.srNo}</strong>
+                  {txToDelete.payeeDescription ? (
+                    <>
+                      {' '}
+                      (<span className="font-medium text-slate-800">{txToDelete.payeeDescription}</span>)
+                    </>
+                  ) : null}
+                  ?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 space-y-1">
+              <p className="font-semibold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 inline-block" />
+                Recalculation Notice:
+              </p>
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                Deleting this row will permanently remove it and automatically recalculate total deposits, withdrawals, and the account current balance.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setTxToDelete(null)}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer border border-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetSr = txToDelete.srNo;
+                  onDeleteTransaction(currentAccount.id, txToDelete.id);
+                  setTxToDelete(null);
+                  setNotification(`Transaction row #${targetSr} deleted successfully.`);
+                  setTimeout(() => setNotification(null), 3000);
+                }}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Yes, Delete Row</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

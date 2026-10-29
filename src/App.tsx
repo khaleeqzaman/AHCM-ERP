@@ -353,6 +353,13 @@ export default function App() {
     setBankAccounts((prev) => [...prev, account]);
   };
 
+  const handleDeleteBankAccount = (id: string) => {
+    setBankAccounts((prev) => {
+      const filtered = prev.filter((a) => a.id !== id);
+      return filtered.map((a, idx) => ({ ...a, srNo: idx + 1 }));
+    });
+  };
+
   const handleAddBankTransaction = (accountId: string, transaction: BankTransaction) => {
     setBankAccounts((prev) =>
       prev.map((acc) => {
@@ -581,6 +588,7 @@ export default function App() {
               onAddBank={handleAddBank}
               onDeleteBank={handleDeleteBank}
               onAddBankAccount={handleAddBankAccount}
+              onDeleteBankAccount={handleDeleteBankAccount}
               onAddBankTransaction={handleAddBankTransaction}
               onUpdateBankTransaction={handleUpdateBankTransaction}
               onDeleteBankTransaction={handleDeleteBankTransaction}
