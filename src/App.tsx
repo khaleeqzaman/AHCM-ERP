@@ -25,14 +25,16 @@ import {
   CashBookEntry, 
   BankRecord, 
   BankAccountRecord, 
-  BankTransaction 
+  BankTransaction,
+  CreditBookEntry
 } from './types/treasury';
 import { initialDemands, initialPurchases } from './data/mockData';
 import { initialChartOfAccounts, initialVouchers } from './data/mockAccountingData';
 import { 
   initialCashBookEntries, 
   initialBanks, 
-  initialBankAccounts 
+  initialBankAccounts,
+  initialCreditBookEntries
 } from './data/mockTreasuryData';
 import { Sidebar } from './components/Sidebar';
 import { PurchaseScreen } from './components/PurchaseScreen';
@@ -55,6 +57,7 @@ export default function App() {
 
   // 100% ISOLATED TREASURY (CASHIER) DATA STATE (Completely separate from Accounts & Purchase)
   const [cashBookEntries, setCashBookEntries] = useState<CashBookEntry[]>(initialCashBookEntries);
+  const [creditBookEntries, setCreditBookEntries] = useState<CreditBookEntry[]>(initialCreditBookEntries);
   const [banks, setBanks] = useState<BankRecord[]>(initialBanks);
   const [bankAccounts, setBankAccounts] = useState<BankAccountRecord[]>(initialBankAccounts);
 
@@ -312,7 +315,7 @@ export default function App() {
 
   // TREASURY / CASHIER HANDLERS (Completely isolated)
   const handleAddCashBookEntry = (entry: CashBookEntry) => {
-    setCashBookEntries((prev) => [...prev, entry]);
+    setCashBookEntries((prev) => [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 })));
   };
 
   const handleUpdateCashBookEntry = (
@@ -336,6 +339,39 @@ export default function App() {
       const filtered = prev.filter((e) => e.id !== id);
       return filtered.map((e, idx) => ({ ...e, srNo: idx + 1 }));
     });
+  };
+
+  // CREDIT BOOK REGISTER HANDLERS
+  const handleAddCreditBookEntry = (entry: CreditBookEntry) => {
+    setCreditBookEntries((prev) => [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 })));
+  };
+
+  const handleUpdateCreditBookEntry = (
+    id: string,
+    field: 'date' | 'name' | 'purpose' | 'amount',
+    value: string | number
+  ) => {
+    setCreditBookEntries((prev) =>
+      prev.map((entry) => {
+        if (entry.id !== id) return entry;
+        return { ...entry, [field]: value };
+      })
+    );
+  };
+
+  const handleDeleteCreditBookEntry = (id: string) => {
+    setCreditBookEntries((prev) => {
+      const filtered = prev.filter((e) => e.id !== id);
+      return filtered.map((e, idx) => ({ ...e, srNo: idx + 1 }));
+    });
+  };
+
+  const handleResetCreditBook = () => {
+    setCreditBookEntries([]);
+  };
+
+  const handleBulkUpdateCreditBookEntries = (updatedEntries: CreditBookEntry[]) => {
+    setCreditBookEntries(updatedEntries);
   };
 
   const handleAddBank = (bank: BankRecord) => {
@@ -366,7 +402,7 @@ export default function App() {
         if (acc.id !== accountId) return acc;
         return {
           ...acc,
-          transactions: [...acc.transactions, transaction],
+          transactions: [transaction, ...acc.transactions].map((t, idx) => ({ ...t, srNo: idx + 1 })),
         };
       })
     );
@@ -580,11 +616,17 @@ export default function App() {
           {currentModule === 'treasury' && (
             <TreasuryScreen
               cashBookEntries={cashBookEntries}
+              creditBookEntries={creditBookEntries}
               banks={banks}
               bankAccounts={bankAccounts}
               onAddCashBookEntry={handleAddCashBookEntry}
               onUpdateCashBookEntry={handleUpdateCashBookEntry}
               onDeleteCashBookEntry={handleDeleteCashBookEntry}
+              onAddCreditBookEntry={handleAddCreditBookEntry}
+              onUpdateCreditBookEntry={handleUpdateCreditBookEntry}
+              onDeleteCreditBookEntry={handleDeleteCreditBookEntry}
+              onResetCreditBook={handleResetCreditBook}
+              onBulkUpdateCreditBookEntries={handleBulkUpdateCreditBookEntries}
               onAddBank={handleAddBank}
               onDeleteBank={handleDeleteBank}
               onAddBankAccount={handleAddBankAccount}

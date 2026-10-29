@@ -41,7 +41,16 @@ export interface BankAccountRecord {
   transactions: BankTransaction[];
 }
 
-export type TreasurySection = 'cash_book' | 'bank_management';
+export interface CreditBookEntry {
+  id: string;
+  srNo: number;
+  date: string; // format: DD-MM-YYYY
+  name: string;
+  purpose: string;
+  amount: number;
+}
+
+export type TreasurySection = 'cash_book' | 'credit_book' | 'bank_management';
 
 export type BankManagementPage =
   | 'add_bank'

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { 
   Vault, 
   BookOpen, 
+  BookMarked,
   Landmark, 
   Plus, 
   CreditCard, 
@@ -17,10 +18,12 @@ import {
   BankRecord, 
   BankAccountRecord, 
   BankTransaction,
+  CreditBookEntry,
   TreasurySection, 
   BankManagementPage 
 } from '../../types/treasury';
 import { CashBookRegisterView } from './CashBookRegisterView';
+import { CreditBookRegisterView } from './CreditBookRegisterView';
 import { AddBankForm } from './AddBankForm';
 import { ListBanksView } from './ListBanksView';
 import { AddBankAccountForm } from './AddBankAccountForm';
@@ -30,6 +33,7 @@ import { BanksSummaryView } from './BanksSummaryView';
 
 interface TreasuryScreenProps {
   cashBookEntries: CashBookEntry[];
+  creditBookEntries: CreditBookEntry[];
   banks: BankRecord[];
   bankAccounts: BankAccountRecord[];
   onAddCashBookEntry: (entry: CashBookEntry) => void;
@@ -39,6 +43,15 @@ interface TreasuryScreenProps {
     value: string | number
   ) => void;
   onDeleteCashBookEntry: (id: string) => void;
+  onAddCreditBookEntry: (entry: CreditBookEntry) => void;
+  onUpdateCreditBookEntry: (
+    id: string,
+    field: 'date' | 'name' | 'purpose' | 'amount',
+    value: string | number
+  ) => void;
+  onDeleteCreditBookEntry: (id: string) => void;
+  onResetCreditBook: () => void;
+  onBulkUpdateCreditBookEntries?: (updatedEntries: CreditBookEntry[]) => void;
   onAddBank: (bank: BankRecord) => void;
   onDeleteBank?: (id: string) => void;
   onAddBankAccount: (account: BankAccountRecord) => void;
@@ -55,11 +68,17 @@ interface TreasuryScreenProps {
 
 export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
   cashBookEntries,
+  creditBookEntries,
   banks,
   bankAccounts,
   onAddCashBookEntry,
   onUpdateCashBookEntry,
   onDeleteCashBookEntry,
+  onAddCreditBookEntry,
+  onUpdateCreditBookEntry,
+  onDeleteCreditBookEntry,
+  onResetCreditBook,
+  onBulkUpdateCreditBookEntries,
   onAddBank,
   onDeleteBank,
   onAddBankAccount,
@@ -68,7 +87,7 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
   onUpdateBankTransaction,
   onDeleteBankTransaction,
 }) => {
-  // Main Section: 'cash_book' or 'bank_management'
+  // Main Section: 'cash_book', 'credit_book', or 'bank_management'
   const [activeSection, setActiveSection] = useState<TreasurySection>('cash_book');
 
   // Sub-page for Bank Management
@@ -79,6 +98,11 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
   // Totals
   const totalCashBookBalance = cashBookEntries.reduce(
     (sum, e) => sum + ((Number(e.credit) || 0) - (Number(e.debit) || 0)),
+    0
+  );
+
+  const totalCreditBookBalance = creditBookEntries.reduce(
+    (sum, e) => sum + (Number(e.amount) || 0),
     0
   );
 
@@ -122,11 +146,18 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
           </div>
 
           {/* KPI Strip */}
-          <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
+          <div className="flex items-center gap-3 text-xs font-medium text-slate-600 flex-wrap">
             <div className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200">
               <span className="text-amber-700 block text-[11px] font-semibold">Cash Book Balance</span>
               <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
                 {totalCashBookBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-200">
+              <span className="text-indigo-700 block text-[11px] font-semibold">Credit Book Total</span>
+              <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
+                {totalCreditBookBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
 
@@ -157,7 +188,7 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
             </span>
 
             {/* Main Section Switcher */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
               <button
                 type="button"
                 id="btn-cash-book-register"
@@ -172,6 +203,23 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
                 <span>Cash Book Register</span>
                 <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-amber-700/30 text-white">
                   {cashBookEntries.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                id="btn-credit-book-register"
+                onClick={() => setActiveSection('credit_book')}
+                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer ${
+                  activeSection === 'credit_book'
+                    ? 'bg-indigo-600 text-white ring-2 ring-indigo-600/30'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
+                }`}
+              >
+                <BookMarked className="w-3.5 h-3.5" />
+                <span>Credit Book Register</span>
+                <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-700/30 text-white">
+                  {creditBookEntries.length}
                 </span>
               </button>
 
@@ -307,6 +355,17 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
             onAddEntry={onAddCashBookEntry}
             onUpdateEntry={onUpdateCashBookEntry}
             onDeleteEntry={onDeleteCashBookEntry}
+          />
+        )}
+
+        {activeSection === 'credit_book' && (
+          <CreditBookRegisterView
+            entries={creditBookEntries}
+            onAddEntry={onAddCreditBookEntry}
+            onUpdateEntry={onUpdateCreditBookEntry}
+            onDeleteEntry={onDeleteCreditBookEntry}
+            onResetCreditBook={onResetCreditBook}
+            onBulkUpdateEntries={onBulkUpdateCreditBookEntries}
           />
         )}
 

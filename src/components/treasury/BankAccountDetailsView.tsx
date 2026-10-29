@@ -87,10 +87,10 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
   const currentBalance = currentAccount.openingBalance + netTransactionBalance;
 
   const handleAddNewTransaction = () => {
-    // Row fields are not pre-filled; all fields are empty for user input
+    // Row fields are not pre-filled; all fields are empty for user input, placed on top
     const newTx: BankTransaction = {
       id: `tx-${Date.now()}`,
-      srNo: currentAccount.transactions.length + 1,
+      srNo: 1,
       date: '',
       payeeDescription: '',
       category: '',
@@ -99,7 +99,7 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
       balance: 0,
     };
     onAddTransaction(currentAccount.id, newTx);
-    setNotification('New empty transaction row added. Fields are ready for input.');
+    setNotification('New clean transaction row added at the top. Fields are ready for input.');
     setTimeout(() => setNotification(null), 3000);
   };
 
