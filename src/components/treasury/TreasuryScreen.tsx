@@ -10,8 +10,7 @@ import {
   Table, 
   Layers, 
   BarChart3,
-  ArrowRight,
-  Wallet
+  ArrowRight
 } from 'lucide-react';
 import { 
   CashBookEntry, 
@@ -106,6 +105,8 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
     0
   );
 
+  const currentCashBalance = totalCashBookBalance - totalCreditBookBalance;
+
   const totalBankBalance = bankAccounts.reduce((sum, acc) => {
     const totalDeposit = acc.transactions.reduce((dSum, t) => dSum + (Number(t.depositDebit) || 0), 0);
     const totalWithdrawal = acc.transactions.reduce((wSum, t) => wSum + (Number(t.withdrawalPayment) || 0), 0);
@@ -158,6 +159,21 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
               <span className="text-indigo-700 block text-[11px] font-semibold">Credit Book Total</span>
               <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
                 {totalCreditBookBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            {/* Current Cash Balance KPI Card */}
+            <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-300 ring-1 ring-emerald-400/20">
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="text-emerald-800 block text-[11px] font-bold">Current Cash Balance</span>
+                <span className="text-[9px] text-emerald-700 font-semibold bg-emerald-100/90 px-1 py-0.5 rounded">
+                  Cash − Credit
+                </span>
+              </div>
+              <span className={`text-sm font-bold font-mono tabular-nums block mt-0.5 ${
+                currentCashBalance >= 0 ? 'text-emerald-950' : 'text-rose-700'
+              }`}>
+                {currentCashBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
 
