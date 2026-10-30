@@ -11,7 +11,8 @@ import {
   FileText,
   Table,
   Scale,
-  Vault
+  Vault,
+  Boxes
 } from 'lucide-react';
 import { 
   NavModule, 
@@ -28,6 +29,17 @@ import {
   BankTransaction,
   CreditBookEntry
 } from './types/treasury';
+import { 
+  CompanySettings, 
+  BuyerRecord, 
+  PartnerRecord, 
+  PosCoalSellEntry, 
+  CoalSellRecord, 
+  StockItem, 
+  StockEntry, 
+  VehicleRecord, 
+  VehicleConsumptionRecord 
+} from './types/storeSales';
 import { initialDemands, initialPurchases } from './data/mockData';
 import { initialChartOfAccounts, initialVouchers } from './data/mockAccountingData';
 import { 
@@ -36,11 +48,23 @@ import {
   initialBankAccounts,
   initialCreditBookEntries
 } from './data/mockTreasuryData';
+import { 
+  initialCompanySettings, 
+  initialBuyers, 
+  initialPartners, 
+  initialPosEntries, 
+  initialCoalSellRecords, 
+  initialStockItems, 
+  initialStockEntries, 
+  initialVehicles, 
+  initialVehicleConsumptions 
+} from './data/mockStoreSalesData';
 import { Sidebar } from './components/Sidebar';
 import { PurchaseScreen } from './components/PurchaseScreen';
 import { AdminApprovalView } from './components/AdminApprovalView';
 import { AccountingScreen } from './components/accounting/AccountingScreen';
 import { TreasuryScreen } from './components/treasury/TreasuryScreen';
+import { StoreSalesScreen } from './components/store_sales/StoreSalesScreen';
 import { DashboardOverview } from './components/DashboardOverview';
 
 export default function App() {
@@ -60,6 +84,17 @@ export default function App() {
   const [creditBookEntries, setCreditBookEntries] = useState<CreditBookEntry[]>(initialCreditBookEntries);
   const [banks, setBanks] = useState<BankRecord[]>(initialBanks);
   const [bankAccounts, setBankAccounts] = useState<BankAccountRecord[]>(initialBankAccounts);
+
+  // 100% ISOLATED STORE & SALES DATA STATE (Completely separate from other modules)
+  const [companySettings, setCompanySettings] = useState<CompanySettings>(initialCompanySettings);
+  const [buyers, setBuyers] = useState<BuyerRecord[]>(initialBuyers);
+  const [partners, setPartners] = useState<PartnerRecord[]>(initialPartners);
+  const [posEntries, setPosEntries] = useState<PosCoalSellEntry[]>(initialPosEntries);
+  const [coalSellRecords, setCoalSellRecords] = useState<CoalSellRecord[]>(initialCoalSellRecords);
+  const [stockItems, setStockItems] = useState<StockItem[]>(initialStockItems);
+  const [stockEntries, setStockEntries] = useState<StockEntry[]>(initialStockEntries);
+  const [vehicles, setVehicles] = useState<VehicleRecord[]>(initialVehicles);
+  const [vehicleConsumptions, setVehicleConsumptions] = useState<VehicleConsumptionRecord[]>(initialVehicleConsumptions);
 
   // Demand Handlers
   const handleSaveDemand = (demand: DemandDocument) => {
@@ -446,6 +481,103 @@ export default function App() {
     );
   };
 
+  // 100% ISOLATED STORE & SALES HANDLERS
+  const handleAddPosEntry = (entry: PosCoalSellEntry) => {
+    setPosEntries((prev) => [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 })));
+  };
+
+  const handleUpdatePosEntry = (entry: PosCoalSellEntry) => {
+    setPosEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)));
+  };
+
+  const handleDeletePosEntry = (id: string) => {
+    setPosEntries((prev) => prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 })));
+  };
+
+  const handleAddCoalSellRecord = (record: CoalSellRecord) => {
+    setCoalSellRecords((prev) => [record, ...prev]);
+  };
+
+  const handleUpdateCoalSellRecord = (record: CoalSellRecord) => {
+    setCoalSellRecords((prev) => prev.map((r) => (r.id === record.id ? record : r)));
+  };
+
+  const handleDeleteCoalSellRecord = (id: string) => {
+    setCoalSellRecords((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const handleAddPartner = (partner: PartnerRecord) => {
+    setPartners((prev) => [...prev, partner]);
+  };
+
+  const handleUpdatePartner = (partner: PartnerRecord) => {
+    setPartners((prev) => prev.map((p) => (p.id === partner.id ? partner : p)));
+  };
+
+  const handleDeletePartner = (id: string) => {
+    setPartners((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleTogglePartnerActive = (id: string) => {
+    setPartners((prev) => prev.map((p) => (p.id === id ? { ...p, isActive: !p.isActive } : p)));
+  };
+
+  const handleTogglePartnerReportColumn = (id: string) => {
+    setPartners((prev) => prev.map((p) => (p.id === id ? { ...p, showInReport: !p.showInReport } : p)));
+  };
+
+  const handleAddBuyer = (buyer: BuyerRecord) => {
+    setBuyers((prev) => [buyer, ...prev]);
+  };
+
+  const handleUpdateBuyer = (buyer: BuyerRecord) => {
+    setBuyers((prev) => prev.map((b) => (b.id === buyer.id ? buyer : b)));
+  };
+
+  const handleDeleteBuyer = (id: string) => {
+    setBuyers((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const handleAddStockItem = (item: StockItem) => {
+    setStockItems((prev) => [...prev, item]);
+  };
+
+  const handleAddStockEntry = (entry: StockEntry) => {
+    setStockEntries((prev) => [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 })));
+  };
+
+  const handleUpdateStockEntry = (entry: StockEntry) => {
+    setStockEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)));
+  };
+
+  const handleDeleteStockEntry = (id: string) => {
+    setStockEntries((prev) => prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 })));
+  };
+
+  const handleAddVehicle = (vehicle: VehicleRecord) => {
+    setVehicles((prev) => [...prev, vehicle]);
+  };
+
+  const handleUpdateVehicle = (vehicle: VehicleRecord) => {
+    setVehicles((prev) => prev.map((v) => (v.id === vehicle.id ? vehicle : v)));
+  };
+
+  const handleDeleteVehicle = (id: string) => {
+    setVehicles((prev) => prev.filter((v) => v.id !== id));
+  };
+
+  const handleAddVehicleConsumption = (record: VehicleConsumptionRecord) => {
+    setVehicleConsumptions((prev) => [record, ...prev].map((c, idx) => ({ ...c, srNo: idx + 1 })));
+  };
+
+  const handleUpdateVehicleConsumption = (record: VehicleConsumptionRecord) => {
+    setVehicleConsumptions((prev) => prev.map((c) => (c.id === record.id ? record : c)));
+  };
+
+  const handleDeleteVehicleConsumption = (id: string) => {
+    setVehicleConsumptions((prev) => prev.filter((c) => c.id !== id).map((c, idx) => ({ ...c, srNo: idx + 1 })));
+  };
+
   const pendingApprovalsCount =
     demands.filter((d) => d.status === 'Submitted for Approval').length +
     purchases.filter((p) => p.status === 'Submitted for Approval').length;
@@ -492,6 +624,8 @@ export default function App() {
                   ? 'Accounts'
                   : currentModule === 'treasury'
                   ? 'Treasury (Cashier)'
+                  : currentModule === 'store_sales'
+                  ? 'Store & Sales'
                   : currentModule === 'admin_approvals'
                   ? 'Admin Approval Console'
                   : currentModule}
@@ -541,6 +675,20 @@ export default function App() {
             >
               <Vault className="w-3.5 h-3.5 text-amber-700" />
               <span>Treasury</span>
+            </button>
+
+            {/* Direct Switch: Store & Sales */}
+            <button
+              type="button"
+              onClick={() => setCurrentModule('store_sales')}
+              className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
+                currentModule === 'store_sales'
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 font-semibold shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Boxes className="w-3.5 h-3.5 text-blue-600" />
+              <span>Store & Sales</span>
             </button>
 
             {/* Direct Switch: Admin Approvals */}
@@ -634,6 +782,46 @@ export default function App() {
               onAddBankTransaction={handleAddBankTransaction}
               onUpdateBankTransaction={handleUpdateBankTransaction}
               onDeleteBankTransaction={handleDeleteBankTransaction}
+            />
+          )}
+
+          {/* 100% ISOLATED STORE & SALES MODULE */}
+          {currentModule === 'store_sales' && (
+            <StoreSalesScreen
+              posEntries={posEntries}
+              coalSellRecords={coalSellRecords}
+              partners={partners}
+              buyers={buyers}
+              stockItems={stockItems}
+              stockEntries={stockEntries}
+              vehicles={vehicles}
+              consumptions={vehicleConsumptions}
+              companySettings={companySettings}
+              onAddPosEntry={handleAddPosEntry}
+              onUpdatePosEntry={handleUpdatePosEntry}
+              onDeletePosEntry={handleDeletePosEntry}
+              onAddCoalSellRecord={handleAddCoalSellRecord}
+              onUpdateCoalSellRecord={handleUpdateCoalSellRecord}
+              onDeleteCoalSellRecord={handleDeleteCoalSellRecord}
+              onAddPartner={handleAddPartner}
+              onUpdatePartner={handleUpdatePartner}
+              onDeletePartner={handleDeletePartner}
+              onTogglePartnerActive={handleTogglePartnerActive}
+              onTogglePartnerReportColumn={handleTogglePartnerReportColumn}
+              onAddBuyer={handleAddBuyer}
+              onUpdateBuyer={handleUpdateBuyer}
+              onDeleteBuyer={handleDeleteBuyer}
+              onAddStockItem={handleAddStockItem}
+              onAddStockEntry={handleAddStockEntry}
+              onUpdateStockEntry={handleUpdateStockEntry}
+              onDeleteStockEntry={handleDeleteStockEntry}
+              onAddVehicle={handleAddVehicle}
+              onUpdateVehicle={handleUpdateVehicle}
+              onDeleteVehicle={handleDeleteVehicle}
+              onAddConsumption={handleAddVehicleConsumption}
+              onUpdateConsumption={handleUpdateVehicleConsumption}
+              onDeleteConsumption={handleDeleteVehicleConsumption}
+              onSaveCompanySettings={setCompanySettings}
             />
           )}
 
