@@ -100,9 +100,9 @@ export default function App() {
   const [vehicles, setVehicles] = useState<VehicleRecord[]>(initialVehicles);
   const [vehicleConsumptions, setVehicleConsumptions] = useState<VehicleConsumptionRecord[]>(initialVehicleConsumptions);
 
-  // 100% ISOLATED OLD LEDGER DATA STATE (Microsoft Access Engine)
-  const [oldLedgerTables, setOldLedgerTables] = useState<TableDefinition[]>(standardOldLedgerSchemas);
-  const [oldLedgerData, setOldLedgerData] = useState<OldLedgerDataMap>(initialOldLedgerData);
+  // 100% ISOLATED OLD LEDGER DATA STATE (Microsoft Access Engine) - starts empty until imported
+  const [oldLedgerTables, setOldLedgerTables] = useState<TableDefinition[]>([]);
+  const [oldLedgerData, setOldLedgerData] = useState<OldLedgerDataMap>({});
   const [oldLedgerImportSummary, setOldLedgerImportSummary] = useState<ImportSummary | null>(null);
 
   // Demand Handlers
@@ -599,9 +599,30 @@ export default function App() {
   };
 
   const handleResetOldLedger = () => {
+    setOldLedgerTables([]);
+    setOldLedgerData({});
+    setOldLedgerImportSummary(null);
+  };
+
+  const handleLoadSampleOldLedger = () => {
+    const totalRecs = Object.values(initialOldLedgerData).reduce((s, r) => s + r.length, 0);
     setOldLedgerTables(standardOldLedgerSchemas);
     setOldLedgerData(initialOldLedgerData);
-    setOldLedgerImportSummary(null);
+    setOldLedgerImportSummary({
+      fileName: 'Sample_Ledger_Archive.accdb',
+      fileSize: 18452000,
+      importedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      totalTables: standardOldLedgerSchemas.length,
+      totalRows: totalRecs,
+      tableDetails: standardOldLedgerSchemas.map((t) => ({
+        name: t.name,
+        rows: initialOldLedgerData[t.name]?.length || 0,
+        cols: t.columns.length,
+      })),
+      securityNotices: [
+        'Security Notice: In table `INTERFAC`, password columns `PASS1`, `PASS2`, and `PASS3` were created with NULL values to protect system credentials.'
+      ],
+    });
   };
 
   const pendingApprovalsCount =
@@ -875,6 +896,7 @@ export default function App() {
               lastImportSummary={oldLedgerImportSummary}
               onImportSuccess={handleOldLedgerImportSuccess}
               onResetToSampleData={handleResetOldLedger}
+              onLoadSampleData={handleLoadSampleOldLedger}
             />
           )}
 

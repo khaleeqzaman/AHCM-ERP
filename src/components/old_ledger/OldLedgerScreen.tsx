@@ -1,27 +1,24 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Database, 
   Upload, 
-  Table as TableIcon, 
   Search, 
-  FileSpreadsheet, 
+  Download, 
+  RefreshCw, 
+  Code2, 
+  FileCode, 
+  FolderOpen, 
+  Sparkles, 
   CheckCircle2, 
   AlertTriangle, 
   ShieldCheck, 
   Layers, 
   ChevronLeft, 
   ChevronRight, 
-  Download, 
-  RefreshCw,
-  Code2, 
-  FileCode, 
-  FolderOpen,
-  Sparkles,
-  Eye,
-  Check
+  Trash2,
+  Table as TableIcon
 } from 'lucide-react';
-import { TableDefinition, ColumnDefinition, OldLedgerDataMap, ImportSummary } from '../../types/oldLedger';
-import { standardOldLedgerSchemas, initialOldLedgerData } from '../../data/mockOldLedgerData';
+import { TableDefinition, OldLedgerDataMap, ImportSummary } from '../../types/oldLedger';
 import { parseMdbOrAccdbFile } from '../../utils/mdbImporter';
 
 interface OldLedgerScreenProps {
@@ -30,6 +27,7 @@ interface OldLedgerScreenProps {
   lastImportSummary?: ImportSummary | null;
   onImportSuccess: (newTables: TableDefinition[], newData: OldLedgerDataMap, summary: ImportSummary) => void;
   onResetToSampleData: () => void;
+  onLoadSampleData?: () => void;
 }
 
 export const OldLedgerScreen: React.FC<OldLedgerScreenProps> = ({
@@ -38,10 +36,10 @@ export const OldLedgerScreen: React.FC<OldLedgerScreenProps> = ({
   lastImportSummary,
   onImportSuccess,
   onResetToSampleData,
+  onLoadSampleData,
 }) => {
-  const [activeView, setActiveView] = useState<'view_account_info' | 'import_data'>('view_account_info');
-  const [accountInfoSubTab, setAccountInfoSubTab] = useState<'table_data' | 'all_tables_overview'>('table_data');
-  const [selectedTableName, setSelectedTableName] = useState<string>(tables[0]?.name || 'GLHIS');
+  // Currently selected table name
+  const [selectedTableName, setSelectedTableName] = useState<string>('');
   const [tableSearchTerm, setTableSearchTerm] = useState('');
   const [dataSearchTerm, setDataSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -56,6 +54,21 @@ export const OldLedgerScreen: React.FC<OldLedgerScreenProps> = ({
   // Hidden file inputs for direct and modal uploads
   const directFileInputRef = useRef<HTMLInputElement>(null);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-select first table with rows or first table whenever tables changes
+  useEffect(() => {
+    if (tables.length > 0) {
+      const currentExists = tables.some((t) => t.name === selectedTableName);
+      if (!currentExists) {
+        const firstWithRows = tables.find((t) => (dataMap[t.name]?.length || 0) > 0) || tables[0];
+        setSelectedTableName(firstWithRows?.name || tables[0]?.name || '');
+        setCurrentPage(1);
+        setDataSearchTerm('');
+      }
+    } else {
+      setSelectedTableName('');
+    }
+  }, [tables, dataMap, selectedTableName]);
 
   const showNotice = (msg: string) => {
     setNotification(msg);
@@ -128,7 +141,7 @@ export const OldLedgerScreen: React.FC<OldLedgerScreenProps> = ({
     setImportError(null);
 
     try {
-      setProcessingStatus('Parsing Access table definitions and schemas...');
+      setProcessingStatus('Parsing Access table schemas and records...');
       const result = await parseMdbOrAccdbFile(file);
       if (!result.success) {
         setImportError(result.error || 'Failed to read Microsoft Access database.');
@@ -147,8 +160,6 @@ export const OldLedgerScreen: React.FC<OldLedgerScreenProps> = ({
       setDataSearchTerm('');
       setIsProcessingFile(false);
       setIsImportModalOpen(false);
-      setActiveView('view_account_info');
-      setAccountInfoSubTab('table_data');
 
       showNotice(
         `Import Successful: Loaded ${result.tables.length} tables and ${result.summary.totalRows.toLocaleString()} records from "${file.name}" in Replace Mode.`
@@ -169,36 +180,11 @@ export const OldLedgerScreen: React.FC<OldLedgerScreenProps> = ({
 
   // Demo .accdb Import Simulator (Access 2016)
   const handleLoadSampleAccdb = () => {
-    setIsProcessingFile(true);
-    setProcessingStatus('Loading sample Microsoft Access (.accdb) database...');
-    setTimeout(() => {
-      const totalRecs = Object.values(initialOldLedgerData).reduce((s, r) => s + r.length, 0);
-      onImportSuccess(standardOldLedgerSchemas, initialOldLedgerData, {
-        fileName: 'Archive_Ledger_2024.accdb',
-        fileSize: 18452000,
-        importedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        totalTables: standardOldLedgerSchemas.length,
-        totalRows: totalRecs,
-        tableDetails: standardOldLedgerSchemas.map((t) => ({
-          name: t.name,
-          rows: initialOldLedgerData[t.name]?.length || 0,
-          cols: t.columns.length,
-        })),
-        securityNotices: [
-          'Security Notice: In table `INTERFAC`, password columns `PASS1`, `PASS2`, and `PASS3` were created with NULL values to protect system credentials.'
-        ],
-      });
-      setSelectedTableName(standardOldLedgerSchemas[0]?.name || 'GLHIS');
-      setCurrentPage(1);
-      setDataSearchTerm('');
-      setIsProcessingFile(false);
+    if (onLoadSampleData) {
+      onLoadSampleData();
       setIsImportModalOpen(false);
-      setActiveView('view_account_info');
-      setAccountInfoSubTab('table_data');
-      showNotice(
-        `Loaded "Archive_Ledger_2024.accdb": ${standardOldLedgerSchemas.length} tables and ${totalRecs.toLocaleString()} records loaded with exact schemas.`
-      );
-    }, 450);
+      showNotice('Loaded sample Microsoft Access database with 28 tables and actual ledger records.');
+    }
   };
 
   // Generate Backtick SQL DDL Schema string
@@ -282,7 +268,7 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
             </p>
           </div>
 
-          {/* Ledger Screen Action Buttons: Import .accdb File, Import Data(MDB file), View Account Info */}
+          {/* Action Buttons: Import Access (.accdb), Import Wizard, Reset/Clear */}
           <div className="flex items-center gap-2.5 flex-wrap">
             {/* Primary Requested Button: Import Microsoft Access database file (.accdb) */}
             <button
@@ -304,38 +290,25 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
               type="button"
               id="btn-import-data-mdb"
               onClick={() => setIsImportModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg transition-colors cursor-pointer"
               title="Open Import Wizard for .accdb and .mdb options"
             >
               <FolderOpen className="w-3.5 h-3.5 text-slate-500" />
               <span>Import Wizard</span>
             </button>
 
-            {/* View Account Info Button */}
-            <button
-              type="button"
-              id="btn-view-account-info"
-              onClick={() => setActiveView('view_account_info')}
-              className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors border cursor-pointer ${
-                activeView === 'view_account_info'
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <TableIcon className="w-4 h-4" />
-              <span>View Account Info</span>
-            </button>
-
-            {/* Reset Standard Tables */}
-            <button
-              type="button"
-              onClick={onResetToSampleData}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-              title="Reload Standard 28 Tables Schema & Data"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Reset Standard Tables</span>
-            </button>
+            {/* Reset / Empty Tables Button */}
+            {tables.length > 0 && (
+              <button
+                type="button"
+                onClick={onResetToSampleData}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                title="Empty tables and clear imported database"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                <span>Empty Tables</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -357,7 +330,7 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
             <div className="flex items-center gap-1.5 font-medium">
               <span className="text-slate-400">Active Source:</span>
               <span className="font-bold text-indigo-700 font-mono">
-                {lastImportSummary ? lastImportSummary.fileName : 'Standard Ledger Schema (28 Tables)'}
+                {lastImportSummary ? lastImportSummary.fileName : tables.length > 0 ? 'Loaded Database' : 'No Database Loaded (Empty)'}
               </span>
             </div>
             {lastImportSummary && (
@@ -401,424 +374,378 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
         </div>
       )}
 
-      {/* Security notice regarding INTERFAC password sanitization */}
-      <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-start gap-3">
-        <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-        <div>
-          <span className="font-bold block">Security Enforcement (Access Table `INTERFAC`):</span>
-          <span>
-            As per security requirements, columns `PASS1`, `PASS2`, and `PASS3` in table `INTERFAC` are strictly initialized and imported as NULL values to safeguard legacy Access system passwords.
-          </span>
-        </div>
-      </div>
+      {/* EMPTY STATE: Tables are empty until Microsoft Access database is imported */}
+      {tables.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center shadow-xs space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-xs border border-indigo-100">
+            <Database className="w-8 h-8" />
+          </div>
 
-      {/* VIEW ACCOUNT INFO SCREEN */}
-      {activeView === 'view_account_info' && (
-        <div className="space-y-4">
-          {/* Sub Navigation Bar: Table Data Viewer vs All Tables Overview */}
-          <div className="bg-white border border-slate-200 rounded-xl p-2.5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
+          <div className="max-w-lg mx-auto space-y-2">
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+              Old Ledger Tables are Empty
+            </h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              No database is currently loaded. Import your Microsoft Access database file (<code className="text-indigo-600 font-semibold">.accdb</code> or <code className="text-indigo-600 font-semibold">.mdb</code>) to populate the tables and view real ledger data.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => directFileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl transition-all shadow-xs cursor-pointer hover:shadow"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Choose & Import .accdb / .mdb File</span>
+            </button>
+
+            {onLoadSampleData && (
               <button
                 type="button"
-                onClick={() => setAccountInfoSubTab('table_data')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                  accountInfoSubTab === 'table_data'
-                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
+                onClick={handleLoadSampleAccdb}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                title="Populate with sample 28-table Access ledger dataset"
               >
-                <TableIcon className="w-3.5 h-3.5" />
-                <span>Table Data Grid</span>
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <span>Load Sample Dataset (28 Tables)</span>
               </button>
+            )}
+          </div>
 
-              <button
-                type="button"
-                onClick={() => setAccountInfoSubTab('all_tables_overview')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                  accountInfoSubTab === 'all_tables_overview'
-                    ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold'
-                    : 'text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>All Database Tables Overview ({tables.length})</span>
-              </button>
+          {/* Key Specifications Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 max-w-3xl mx-auto text-left border-t border-slate-100">
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <TableIcon className="w-3.5 h-3.5 text-indigo-600" />
+                100% Mirroring
+              </span>
+              <p className="text-[11px] text-slate-500 leading-normal">
+                Mirrors Access tables with exact case-preserved names, column ordering, and data types (Text, Long, Double, Datetime).
+              </p>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
-              <span>Selected: <strong className="text-slate-800">`{selectedTable?.name}`</strong></span>
-              <span className="text-slate-300">|</span>
-              <span>{(dataMap[selectedTable?.name || '']?.length ?? 0).toLocaleString()} records</span>
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+                Replace Mode
+              </span>
+              <p className="text-[11px] text-slate-500 leading-normal">
+                Whenever a new file is imported, previous tables are cleanly overridden with the incoming database structure and rows.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                Safe & Isolated
+              </span>
+              <p className="text-[11px] text-slate-500 leading-normal">
+                Completely isolated from Purchase, Accounts, and Treasury. INTERFAC table password columns are safely initialized as NULL.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* LIVE DATA TABLE VIEW (Direct rendering of actual tables, rows, and values) */
+        <div className="space-y-4">
+          {/* Security notice regarding INTERFAC password sanitization */}
+          <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-900 text-xs flex items-start gap-3">
+            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold block">Security Enforcement (Access Table `INTERFAC`):</span>
+              <span>
+                As per security requirements, columns `PASS1`, `PASS2`, and `PASS3` in table `INTERFAC` are strictly initialized and imported as NULL values to safeguard legacy Access system passwords.
+              </span>
             </div>
           </div>
 
-          {/* SUB-VIEW 1: TABLE DATA GRID (Two-Pane Explorer) */}
-          {accountInfoSubTab === 'table_data' && (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Left Column: Tables Navigation List */}
-              <div className="lg:col-span-1 space-y-3">
-                <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
-                  <div className="pb-2 border-b border-slate-100 mb-2">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Filter tables..."
-                        value={tableSearchTerm}
-                        onChange={(e) => setTableSearchTerm(e.target.value)}
-                        className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Left Column: Tables Navigation List */}
+            <div className="lg:col-span-1 space-y-3">
+              <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
+                <div className="pb-2 border-b border-slate-100 mb-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <TableIcon className="w-3.5 h-3.5 text-indigo-600" />
+                      Database Tables ({tables.length})
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {totalDatabaseRecords.toLocaleString()} rows
+                    </span>
                   </div>
-
-                  {/* Table Group List */}
-                  <div className="max-h-[640px] overflow-y-auto space-y-3 pr-1">
-                    {Object.entries(groupedTables).map(([family, famTables]) => (
-                      <div key={family} className="space-y-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 block">
-                          {family}
-                        </span>
-                        {famTables.map((tbl) => {
-                          const isSelected = tbl.name === selectedTableName;
-                          const rowsCount = dataMap[tbl.name]?.length ?? tbl.rowCount;
-                          return (
-                            <button
-                              key={tbl.name}
-                              type="button"
-                              onClick={() => {
-                                setSelectedTableName(tbl.name);
-                                setCurrentPage(1);
-                                setDataSearchTerm('');
-                              }}
-                              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-mono transition-colors text-left cursor-pointer ${
-                                isSelected
-                                  ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                                  : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
-                              }`}
-                            >
-                              <span className="truncate mr-1 font-semibold">`{tbl.name}`</span>
-                              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-sans shrink-0 ${
-                                isSelected ? 'bg-indigo-700 text-white' : 'bg-slate-100 text-slate-600'
-                              }`}>
-                                {rowsCount.toLocaleString()}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ))}
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Filter tables..."
+                      value={tableSearchTerm}
+                      onChange={(e) => setTableSearchTerm(e.target.value)}
+                      className="w-full pl-8 pr-2.5 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
                   </div>
                 </div>
-              </div>
 
-              {/* Right Column: Table Viewer & Data Inspector */}
-              <div className="lg:col-span-3 space-y-4">
-                {selectedTable ? (
-                  <>
-                    {/* Table Header Bar */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
-                            {selectedTable.family}
-                          </span>
-                          <span className="text-slate-300">·</span>
-                          <span className="text-xs text-slate-500">
-                            {selectedTable.columns.length} Columns
-                          </span>
-                          <span className="text-slate-300">·</span>
-                          <span className="text-xs text-slate-500 font-mono">
-                            {(dataMap[selectedTable.name]?.length ?? selectedTable.rowCount).toLocaleString()} Rows
-                          </span>
-                        </div>
-                        <h2 className="text-xl font-bold font-mono text-slate-900 mt-0.5">
-                          `{selectedTable.name}`
-                        </h2>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => setShowSqlSchemaModal(true)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                          title="View Backtick SQL Schema"
-                        >
-                          <Code2 className="w-3.5 h-3.5 text-slate-600" />
-                          <span>SQL Schema</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handleExportTableCSV}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                          title="Export current table to CSV"
-                        >
-                          <Download className="w-3.5 h-3.5 text-slate-600" />
-                          <span>Export CSV</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Schema Metadata Pill Strip */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-indigo-600" />
-                          Columns & Type Schema ({selectedTable.columns.length}):
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-mono">
-                          All columns nullable · Non-unique lookup indexes added
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
-                        {selectedTable.columns.map((col) => (
-                          <span
-                            key={col.name}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white border border-slate-200 text-xs font-mono text-slate-800"
+                {/* Table Group List */}
+                <div className="max-h-[640px] overflow-y-auto space-y-3 pr-1">
+                  {Object.entries(groupedTables).map(([family, famTables]) => (
+                    <div key={family} className="space-y-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-2 block">
+                        {family}
+                      </span>
+                      {famTables.map((tbl) => {
+                        const isSelected = tbl.name === selectedTableName;
+                        const rowsCount = dataMap[tbl.name]?.length ?? tbl.rowCount;
+                        return (
+                          <button
+                            key={tbl.name}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTableName(tbl.name);
+                              setCurrentPage(1);
+                              setDataSearchTerm('');
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-mono transition-colors text-left cursor-pointer ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
                           >
-                            <span className="font-semibold text-indigo-950">`{col.name}`</span>
-                            <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-1 py-0.2 rounded">
-                              {col.type}
+                            <span className="truncate mr-1 font-semibold">`{tbl.name}`</span>
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-sans shrink-0 ${
+                              isSelected ? 'bg-indigo-700 text-white' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {rowsCount.toLocaleString()}
                             </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Actual Table Viewer & Live Data Grid */}
+            <div className="lg:col-span-3 space-y-4">
+              {selectedTable ? (
+                <>
+                  {/* Table Header Bar */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                          {selectedTable.family}
+                        </span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-xs text-slate-500">
+                          {selectedTable.columns.length} Columns
+                        </span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-xs text-slate-500 font-mono">
+                          {(dataMap[selectedTable.name]?.length ?? selectedTable.rowCount).toLocaleString()} Rows
+                        </span>
+                      </div>
+                      <h2 className="text-xl font-bold font-mono text-slate-900 mt-0.5">
+                        `{selectedTable.name}`
+                      </h2>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setShowSqlSchemaModal(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                        title="View Backtick SQL Schema"
+                      >
+                        <Code2 className="w-3.5 h-3.5 text-slate-600" />
+                        <span>SQL Schema</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleExportTableCSV}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                        title="Export current table to CSV"
+                      >
+                        <Download className="w-3.5 h-3.5 text-slate-600" />
+                        <span>Export CSV</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Schema Metadata Strip */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                        Columns & Type Schema ({selectedTable.columns.length}):
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-mono">
+                        All columns nullable · Non-unique lookup indexes added
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                      {selectedTable.columns.map((col) => (
+                        <span
+                          key={col.name}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white border border-slate-200 text-xs font-mono text-slate-800"
+                        >
+                          <span className="font-semibold text-indigo-950">`{col.name}`</span>
+                          <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-1 py-0.2 rounded">
+                            {col.type}
                           </span>
-                        ))}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ACTUAL DATA TABLE WITH ROWS AND VALUES */}
+                  <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden space-y-3 p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                      <div className="relative flex-1 max-w-md">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          placeholder={`Search within \`${selectedTable.name}\`...`}
+                          value={dataSearchTerm}
+                          onChange={(e) => {
+                            setDataSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500">Rows per page:</span>
+                        <select
+                          value={pageSize}
+                          onChange={(e) => {
+                            setPageSize(Number(e.target.value));
+                            setCurrentPage(1);
+                          }}
+                          className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                        >
+                          <option value={25}>25 rows</option>
+                          <option value={50}>50 rows</option>
+                          <option value={100}>100 rows</option>
+                          <option value={500}>500 rows</option>
+                        </select>
                       </div>
                     </div>
 
-                    {/* Data Browser with Search & Pagination */}
-                    <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden space-y-3 p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                        <div className="relative flex-1 max-w-md">
-                          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                          <input
-                            type="text"
-                            placeholder={`Search within \`${selectedTable.name}\`...`}
-                            value={dataSearchTerm}
-                            onChange={(e) => {
-                              setDataSearchTerm(e.target.value);
-                              setCurrentPage(1);
-                            }}
-                            className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Rows per page:</span>
-                          <select
-                            value={pageSize}
-                            onChange={(e) => {
-                              setPageSize(Number(e.target.value));
-                              setCurrentPage(1);
-                            }}
-                            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                          >
-                            <option value={25}>25 rows</option>
-                            <option value={50}>50 rows</option>
-                            <option value={100}>100 rows</option>
-                            <option value={500}>500 rows</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Main Data Table */}
-                      <div className="overflow-x-auto border border-slate-200 rounded-lg max-h-[500px]">
-                        <table className="w-full text-left border-collapse text-xs font-mono">
-                          <thead>
-                            <tr className="bg-slate-100/90 text-slate-700 sticky top-0 z-10 border-b border-slate-200">
-                              <th className="py-2.5 px-3 font-bold border-r border-slate-200 w-12 text-center bg-slate-100">
-                                #
+                    {/* Main Table Grid */}
+                    <div className="overflow-x-auto border border-slate-200 rounded-lg max-h-[500px]">
+                      <table className="w-full text-left border-collapse text-xs font-mono">
+                        <thead>
+                          <tr className="bg-slate-100/90 text-slate-700 sticky top-0 z-10 border-b border-slate-200">
+                            <th className="py-2.5 px-3 font-bold border-r border-slate-200 w-12 text-center bg-slate-100">
+                              #
+                            </th>
+                            {selectedTable.columns.map((col) => (
+                              <th
+                                key={col.name}
+                                className="py-2.5 px-3 font-semibold border-r border-slate-200 whitespace-nowrap bg-slate-100"
+                              >
+                                <div>`{col.name}`</div>
+                                <div className="text-[10px] text-indigo-600 font-normal">{col.type}</div>
                               </th>
-                              {selectedTable.columns.map((col) => (
-                                <th
-                                  key={col.name}
-                                  className="py-2.5 px-3 font-semibold border-r border-slate-200 whitespace-nowrap bg-slate-100"
-                                >
-                                  <div>`{col.name}`</div>
-                                  <div className="text-[10px] text-indigo-600 font-normal">{col.type}</div>
-                                </th>
-                              ))}
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {filteredRows.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={selectedTable.columns.length + 1}
+                                className="py-12 text-center text-slate-400 font-sans"
+                              >
+                                {rawTableRows.length === 0
+                                  ? `Table \`${selectedTable.name}\` currently has 0 rows in database.`
+                                  : `No records found matching search "${dataSearchTerm}".`}
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 bg-white">
-                            {filteredRows.length === 0 ? (
-                              <tr>
-                                <td
-                                  colSpan={selectedTable.columns.length + 1}
-                                  className="py-12 text-center text-slate-400 font-sans"
-                                >
-                                  {rawTableRows.length === 0
-                                    ? `Table \`${selectedTable.name}\` currently has 0 rows in database.`
-                                    : `No records found matching search "${dataSearchTerm}".`}
-                                </td>
-                              </tr>
-                            ) : (
-                              paginatedRows.map((row, rIdx) => {
-                                const absoluteSr = (currentPage - 1) * pageSize + rIdx + 1;
-                                return (
-                                  <tr key={rIdx} className="hover:bg-slate-50/80 transition-colors">
-                                    <td className="py-2 px-3 text-center text-slate-400 text-[11px] bg-slate-50 border-r border-slate-200 font-sans">
-                                      {absoluteSr}
-                                    </td>
-                                    {selectedTable.columns.map((col) => {
-                                      const val = row[col.name];
-                                      const isNull = val === null || val === undefined;
-                                      return (
-                                        <td
-                                          key={col.name}
-                                          className={`py-2 px-3 border-r border-slate-100 whitespace-nowrap text-[11px] ${
-                                            isNull ? 'text-slate-300 italic' : 'text-slate-800'
-                                          }`}
-                                        >
-                                          {isNull ? 'NULL' : String(val)}
-                                        </td>
-                                      );
-                                    })}
-                                  </tr>
-                                );
-                              })
-                            )}
-                          </tbody>
-                        </table>
+                          ) : (
+                            paginatedRows.map((row, rIdx) => {
+                              const absoluteSr = (currentPage - 1) * pageSize + rIdx + 1;
+                              return (
+                                <tr key={rIdx} className="hover:bg-slate-50/80 transition-colors">
+                                  <td className="py-2 px-3 text-center text-slate-400 text-[11px] bg-slate-50 border-r border-slate-200 font-sans">
+                                    {absoluteSr}
+                                  </td>
+                                  {selectedTable.columns.map((col) => {
+                                    const val = row[col.name];
+                                    const isNull = val === null || val === undefined;
+                                    return (
+                                      <td
+                                        key={col.name}
+                                        className={`py-2 px-3 border-r border-slate-100 whitespace-nowrap text-[11px] ${
+                                          isNull ? 'text-slate-300 italic' : 'text-slate-800'
+                                        }`}
+                                      >
+                                        {isNull ? 'NULL' : String(val)}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs text-slate-600">
+                      <div>
+                        Showing{' '}
+                        <span className="font-semibold text-slate-900">
+                          {filteredRows.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}
+                        </span>{' '}
+                        to{' '}
+                        <span className="font-semibold text-slate-900">
+                          {Math.min(currentPage * pageSize, filteredRows.length)}
+                        </span>{' '}
+                        of <span className="font-semibold text-slate-900">{filteredRows.length}</span> rows
                       </div>
 
-                      {/* Pagination Controls */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs text-slate-600">
-                        <div>
-                          Showing{' '}
-                          <span className="font-semibold text-slate-900">
-                            {filteredRows.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}
-                          </span>{' '}
-                          to{' '}
-                          <span className="font-semibold text-slate-900">
-                            {Math.min(currentPage * pageSize, filteredRows.length)}
-                          </span>{' '}
-                          of <span className="font-semibold text-slate-900">{filteredRows.length}</span> rows
-                        </div>
+                      <div className="flex items-center gap-1.5 self-center sm:self-auto">
+                        <button
+                          type="button"
+                          disabled={currentPage <= 1}
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                          <span>Previous</span>
+                        </button>
 
-                        <div className="flex items-center gap-1.5 self-center sm:self-auto">
-                          <button
-                            type="button"
-                            disabled={currentPage <= 1}
-                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            <ChevronLeft className="w-3.5 h-3.5" />
-                            <span>Previous</span>
-                          </button>
+                        <span className="px-3 py-1 font-mono text-slate-700">
+                          Page {currentPage} of {totalPages}
+                        </span>
 
-                          <span className="px-3 py-1 font-mono text-slate-700">
-                            Page {currentPage} of {totalPages}
-                          </span>
-
-                          <button
-                            type="button"
-                            disabled={currentPage >= totalPages}
-                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            <span>Next</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          disabled={currentPage >= totalPages}
+                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          <span>Next</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
-                  </>
-                ) : (
-                  <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-400">
-                    Select a table on the left to inspect its columns and data.
                   </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* SUB-VIEW 2: ALL TABLES OVERVIEW (Comprehensive Grid) */}
-          {accountInfoSubTab === 'all_tables_overview' && (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-5 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Database className="w-4 h-4 text-indigo-600" />
-                    <span>Microsoft Access Database Tables Catalog</span>
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Showing all {tables.length} tables imported into the Old Ledger module with exact column counts and records.
-                  </p>
+                </>
+              ) : (
+                <div className="bg-white border border-slate-200 rounded-xl p-12 text-center text-slate-400">
+                  Select a table on the left to inspect its columns and data.
                 </div>
-                <div className="text-xs font-mono bg-slate-100 px-3 py-1 rounded-lg text-slate-700 font-semibold">
-                  Total Records: {totalDatabaseRecords.toLocaleString()}
-                </div>
-              </div>
-
-              <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                      <th className="py-2.5 px-3 w-12 text-center">#</th>
-                      <th className="py-2.5 px-3 font-mono">Table Name</th>
-                      <th className="py-2.5 px-3">Family / Group</th>
-                      <th className="py-2.5 px-3 text-right">Columns</th>
-                      <th className="py-2.5 px-3 text-right">Records Count</th>
-                      <th className="py-2.5 px-3">Lookup Indexes</th>
-                      <th className="py-2.5 px-3 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-sans">
-                    {tables.map((t, idx) => {
-                      const count = dataMap[t.name]?.length ?? t.rowCount;
-                      const isCurrent = t.name === selectedTableName;
-                      return (
-                        <tr key={t.name} className={`hover:bg-indigo-50/40 transition-colors ${isCurrent ? 'bg-indigo-50/70 font-semibold' : ''}`}>
-                          <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">
-                            {idx + 1}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
-                            `{t.name}`
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <span className="inline-flex px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-medium">
-                              {t.family}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                            {t.columns.length} cols
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                            {count.toLocaleString()}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">
-                            {t.lookupIndexes.length > 0 ? (
-                              <span className="truncate max-w-xs block" title={t.lookupIndexes.join(', ')}>
-                                {t.lookupIndexes.join(', ')}
-                              </span>
-                            ) : (
-                              <span className="text-slate-300 italic">None</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 text-center">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedTableName(t.name);
-                                setAccountInfoSubTab('table_data');
-                                setCurrentPage(1);
-                                setDataSearchTerm('');
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors cursor-pointer"
-                            >
-                              <Eye className="w-3 h-3" />
-                              <span>View Data</span>
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -845,7 +772,7 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
                     Import Microsoft Access Database (.accdb / .mdb)
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Upload an `.accdb` or `.mdb` file. Tables will be mirrored in replace mode.
+                    Upload an `.accdb` or `.mdb` file. Tables will be updated in replace mode.
                   </p>
                 </div>
               </div>
@@ -863,12 +790,12 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
 
             {/* Ingestion Rules Warning */}
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-900 space-y-1">
-              <span className="font-bold block flex items-center gap-1.5">
+              <span className="font-bold flex items-center gap-1.5">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                 Replace Mode Notice:
               </span>
               <p>
-                Importing an Access database will completely override existing Old Ledger tables and mirror every user table, column name, and data value exactly as stored in Microsoft Access.
+                Importing an Access database will update Old Ledger tables and mirror every user table, column name, and actual data value exactly as stored in Microsoft Access.
               </p>
               <p className="text-[11px] text-amber-800">
                 System tables (`MSys*`), `Name AutoCorrect Save Failures`, and `f_*_Data` are automatically excluded. In table `INTERFAC`, password columns `PASS1/2/3` are safely left NULL.
@@ -903,16 +830,18 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
                   <span>Choose .accdb / .mdb File</span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={handleLoadSampleAccdb}
-                  disabled={isProcessingFile}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg cursor-pointer transition-colors"
-                  title="Simulate importing a 28-table .accdb ledger database"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Load Sample .accdb File</span>
-                </button>
+                {onLoadSampleData && (
+                  <button
+                    type="button"
+                    onClick={handleLoadSampleAccdb}
+                    disabled={isProcessingFile}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg cursor-pointer transition-colors"
+                    title="Simulate importing a 28-table .accdb ledger database"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Load Sample Dataset</span>
+                  </button>
+                )}
               </div>
 
               {isProcessingFile && (
