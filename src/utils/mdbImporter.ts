@@ -33,12 +33,6 @@ export function isTableIgnored(tableName: string): boolean {
   if (lower.startsWith('msys') || lower.startsWith('~')) {
     return true; // Access system tables
   }
-  if (lower === 'name autocorrect save failures') {
-    return true; // Skip entirely
-  }
-  if (lower.startsWith('f_') && lower.endsWith('_data')) {
-    return true; // Access internals
-  }
   return false;
 }
 
@@ -291,5 +285,7 @@ export function inferTableFamily(tableName: string): string {
   if (upper.includes('INVT') || upper.includes('CONTROL')) return 'Stock Issues';
   if (upper === 'PRODUCT') return 'Product Master';
   if (upper === 'INTERFAC' || upper === 'VNO' || upper.includes('PROCESS')) return 'System Settings';
+  if (upper.includes('AUTOCORRECT')) return 'System Failures';
+  if (upper.startsWith('F_')) return 'System & Resources';
   return 'User Tables';
 }

@@ -8,7 +8,6 @@ import {
   Code2, 
   FileCode, 
   FolderOpen, 
-  Sparkles, 
   CheckCircle2, 
   AlertTriangle, 
   ShieldCheck, 
@@ -27,7 +26,6 @@ interface OldLedgerScreenProps {
   lastImportSummary?: ImportSummary | null;
   onImportSuccess: (newTables: TableDefinition[], newData: OldLedgerDataMap, summary: ImportSummary) => void;
   onResetToSampleData: () => void;
-  onLoadSampleData?: () => void;
 }
 
 export const OldLedgerScreen: React.FC<OldLedgerScreenProps> = ({
@@ -36,7 +34,6 @@ export const OldLedgerScreen: React.FC<OldLedgerScreenProps> = ({
   lastImportSummary,
   onImportSuccess,
   onResetToSampleData,
-  onLoadSampleData,
 }) => {
   // Currently selected table name
   const [selectedTableName, setSelectedTableName] = useState<string>('');
@@ -178,14 +175,6 @@ export const OldLedgerScreen: React.FC<OldLedgerScreenProps> = ({
     await processAccessFile(file);
   };
 
-  // Demo .accdb Import Simulator (Access 2016)
-  const handleLoadSampleAccdb = () => {
-    if (onLoadSampleData) {
-      onLoadSampleData();
-      setIsImportModalOpen(false);
-      showNotice('Loaded sample Microsoft Access database with 28 tables and actual ledger records.');
-    }
-  };
 
   // Generate Backtick SQL DDL Schema string
   const generatedSql = useMemo(() => {
@@ -400,17 +389,7 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
               <span>Choose & Import .accdb / .mdb File</span>
             </button>
 
-            {onLoadSampleData && (
-              <button
-                type="button"
-                onClick={handleLoadSampleAccdb}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
-                title="Populate with sample 28-table Access ledger dataset"
-              >
-                <Sparkles className="w-4 h-4 text-indigo-600" />
-                <span>Load Sample Dataset (28 Tables)</span>
-              </button>
-            )}
+
           </div>
 
           {/* Key Specifications Grid */}
@@ -660,11 +639,33 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
                             <tr>
                               <td
                                 colSpan={selectedTable.columns.length + 1}
-                                className="py-12 text-center text-slate-400 font-sans"
+                                className="py-14 text-center font-sans"
                               >
-                                {rawTableRows.length === 0
-                                  ? `Table \`${selectedTable.name}\` currently has 0 rows in database.`
-                                  : `No records found matching search "${dataSearchTerm}".`}
+                                {rawTableRows.length === 0 ? (
+                                  <div className="max-w-md mx-auto space-y-2.5">
+                                    <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+                                      <TableIcon className="w-5 h-5" />
+                                    </div>
+                                    <p className="text-xs font-semibold text-slate-800">
+                                      Table <code className="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded font-mono font-bold">`{selectedTable.name}`</code> currently has 0 rows
+                                    </p>
+                                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                                      All {selectedTable.columns.length} columns and data types are mapped. Import your Microsoft Access (<code className="text-slate-700 font-semibold">.accdb</code> or <code className="text-slate-700 font-semibold">.mdb</code>) file to load actual records and values.
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => directFileInputRef.current?.click()}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors cursor-pointer mt-1"
+                                    >
+                                      <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                                      <span>Import Access File to Populate</span>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-400 text-xs">
+                                    No records found matching search "{dataSearchTerm}".
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           ) : (
@@ -798,7 +799,7 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
                 Importing an Access database will update Old Ledger tables and mirror every user table, column name, and actual data value exactly as stored in Microsoft Access.
               </p>
               <p className="text-[11px] text-amber-800">
-                System tables (`MSys*`), `Name AutoCorrect Save Failures`, and `f_*_Data` are automatically excluded. In table `INTERFAC`, password columns `PASS1/2/3` are safely left NULL.
+                System tables (`MSys*`) and temp tables (`~*`) are automatically ignored. In table `INTERFAC`, password columns `PASS1/2/3` are safely left NULL.
               </p>
             </div>
 
@@ -829,19 +830,6 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
                   <FolderOpen className="w-4 h-4" />
                   <span>Choose .accdb / .mdb File</span>
                 </button>
-
-                {onLoadSampleData && (
-                  <button
-                    type="button"
-                    onClick={handleLoadSampleAccdb}
-                    disabled={isProcessingFile}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg cursor-pointer transition-colors"
-                    title="Simulate importing a 28-table .accdb ledger database"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Load Sample Dataset</span>
-                  </button>
-                )}
               </div>
 
               {isProcessingFile && (

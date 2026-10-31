@@ -1,45 +1,11 @@
 import { TableDefinition, OldLedgerDataMap } from '../types/oldLedger';
 
 export const standardOldLedgerSchemas: TableDefinition[] = [
-  // 1. GENERAL LEDGER FAMILY (3 tables)
-  {
-    name: 'GLHIS',
-    family: 'General Ledger Family',
-    rowCount: 3611,
-    lookupIndexes: ['GL_ACCOUNT', 'GL_VOC_NO', 'GL_DATE'],
-    columns: [
-      { name: 'GL_ACCOUNT', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'GL_CONTRA', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'GL_VOC_NO', type: 'VARCHAR(8)', isNullable: true },
-      { name: 'GL_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'GL_PARTI', type: 'VARCHAR(60)', isNullable: true },
-      { name: 'GL_AMOUNT', type: 'DOUBLE', isNullable: true },
-      { name: 'GL_DRCR', type: 'VARCHAR(2)', isNullable: true },
-      { name: 'GL_FOL', type: 'VARCHAR(2)', isNullable: true },
-      { name: 'GL_CHQ', type: 'VARCHAR(10)', isNullable: true },
-    ],
-  },
-  {
-    name: 'ALL GLHIS',
-    family: 'General Ledger Family',
-    rowCount: 16130,
-    lookupIndexes: ['GL_ACCOUNT', 'GL_VOC_NO', 'GL_DATE'],
-    columns: [
-      { name: 'GL_ACCOUNT', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'GL_CONTRA', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'GL_VOC_NO', type: 'VARCHAR(8)', isNullable: true },
-      { name: 'GL_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'GL_PARTI', type: 'VARCHAR(60)', isNullable: true },
-      { name: 'GL_AMOUNT', type: 'DOUBLE', isNullable: true },
-      { name: 'GL_DRCR', type: 'VARCHAR(2)', isNullable: true },
-      { name: 'GL_FOL', type: 'VARCHAR(2)', isNullable: true },
-      { name: 'GL_CHQ', type: 'VARCHAR(10)', isNullable: true },
-    ],
-  },
+  // 1. Table: 12Myglhis
   {
     name: '12Myglhis',
     family: 'General Ledger Family',
-    rowCount: 3692,
+    rowCount: 0,
     lookupIndexes: ['GL_ACCOUNT', 'GL_VOC_NO', 'GL_DATE'],
     columns: [
       { name: 'GL_ACCOUNT', type: 'VARCHAR(10)', isNullable: true },
@@ -54,95 +20,11 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
     ],
   },
 
-  // 2. CHART OF ACCOUNTS (2 tables, 33 columns each)
-  {
-    name: 'CHART',
-    family: 'Chart of Accounts',
-    rowCount: 299,
-    lookupIndexes: ['ACCOUNT_NO', 'CONT_ACC'],
-    columns: [
-      { name: 'ACCOUNT_NO', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'ACCOUNT_NM', type: 'VARCHAR(30)', isNullable: true },
-      { name: 'ACC_TYPE', type: 'VARCHAR(5)', isNullable: true },
-      { name: 'ACC_LEVEL', type: 'VARCHAR(1)', isNullable: true },
-      { name: 'TRANS_TYPE', type: 'VARCHAR(1)', isNullable: true },
-      { name: 'CONT_ACC', type: 'VARCHAR(7)', isNullable: true },
-      { name: 'OPEN_BAL', type: 'DOUBLE', isNullable: true },
-      { name: 'OP_CRDR', type: 'VARCHAR(2)', isNullable: true },
-      { name: 'OP_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'JAN_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'FEB_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'MAR_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'APR_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'MAY_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'JUN_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'JUL_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'AUG_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'SEP_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'OCT_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'NOV_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'DEC_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'JAN_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'FEB_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'MAR_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'APR_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'MAY_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'JUN_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'JUL_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'AUG_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'SEP_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'OCT_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'NOV_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'DEC_DR', type: 'DOUBLE', isNullable: true },
-    ],
-  },
-  {
-    name: '11Mychart',
-    family: 'Chart of Accounts',
-    rowCount: 299,
-    lookupIndexes: ['ACCOUNT_NO', 'CONT_ACC'],
-    columns: [
-      { name: 'ACCOUNT_NO', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'ACCOUNT_NM', type: 'VARCHAR(30)', isNullable: true },
-      { name: 'ACC_TYPE', type: 'VARCHAR(5)', isNullable: true },
-      { name: 'ACC_LEVEL', type: 'VARCHAR(1)', isNullable: true },
-      { name: 'TRANS_TYPE', type: 'VARCHAR(1)', isNullable: true },
-      { name: 'CONT_ACC', type: 'VARCHAR(7)', isNullable: true },
-      { name: 'OPEN_BAL', type: 'DOUBLE', isNullable: true },
-      { name: 'OP_CRDR', type: 'VARCHAR(2)', isNullable: true },
-      { name: 'OP_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'JAN_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'FEB_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'MAR_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'APR_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'MAY_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'JUN_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'JUL_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'AUG_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'SEP_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'OCT_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'NOV_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'DEC_CR', type: 'DOUBLE', isNullable: true },
-      { name: 'JAN_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'FEB_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'MAR_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'APR_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'MAY_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'JUN_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'JUL_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'AUG_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'SEP_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'OCT_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'NOV_DR', type: 'DOUBLE', isNullable: true },
-      { name: 'DEC_DR', type: 'DOUBLE', isNullable: true },
-    ],
-  },
-
-  // 3. LEDGER PRINT TABLES (2 tables)
+  // 2. Table: 12MyLed
   {
     name: '12MyLed',
     family: 'Ledger Print Tables',
-    rowCount: 3686,
+    rowCount: 0,
     lookupIndexes: ['L_Ac', 'L_Vno', 'L_Dat'],
     columns: [
       { name: 'L_Ac', type: 'VARCHAR(10)', isNullable: true },
@@ -156,11 +38,13 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
       { name: 'M_Bal', type: 'INT', isNullable: true },
     ],
   },
+
+  // 3. Table: 13_PL
   {
     name: '13_PL',
     family: 'Ledger Print Tables',
     rowCount: 0,
-    lookupIndexes: ['L_Ac', 'L_Vno'],
+    lookupIndexes: ['L_Ac', 'L_Vno', 'L_Dat'],
     columns: [
       { name: 'L_Ac', type: 'VARCHAR(10)', isNullable: true },
       { name: 'L_Nm', type: 'VARCHAR(65)', isNullable: true },
@@ -174,20 +58,197 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
     ],
   },
 
-  // 4. VOUCHER LINES (2 tables)
+  // 4. Table: 11Mychart
   {
-    name: 'ACCHIS',
-    family: 'Voucher Lines',
-    rowCount: 1185,
-    lookupIndexes: ['A_VOC', 'ACCOUNT_NO', 'A_DATE'],
+    name: '11Mychart',
+    family: 'Chart of Accounts',
+    rowCount: 0,
+    lookupIndexes: ['ACCOUNT_NO', 'CONT_ACC'],
     columns: [
-      { name: 'A_VOC', type: 'VARCHAR(8)', isNullable: true },
       { name: 'ACCOUNT_NO', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'AMOUNT', type: 'DOUBLE', isNullable: true },
-      { name: 'VOC_TY', type: 'VARCHAR(2)', isNullable: true },
-      { name: 'A_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'ACCOUNT_NM', type: 'VARCHAR(30)', isNullable: true },
+      { name: 'ACC_TYPE', type: 'VARCHAR(5)', isNullable: true },
+      { name: 'ACC_LEVEL', type: 'VARCHAR(1)', isNullable: true },
+      { name: 'TRANS_TYPE', type: 'VARCHAR(1)', isNullable: true },
+      { name: 'CONT_ACC', type: 'VARCHAR(7)', isNullable: true },
+      { name: 'OPEN_BAL', type: 'DOUBLE', isNullable: true },
+      { name: 'OP_CRDR', type: 'VARCHAR(2)', isNullable: true },
+      { name: 'OP_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'JAN_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'FEB_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'MAR_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'APR_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'MAY_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'JUN_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'JUL_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'AUG_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'SEP_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'OCT_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'NOV_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'DEC_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'JAN_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'FEB_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'MAR_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'APR_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'MAY_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'JUN_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'JUL_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'AUG_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'SEP_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'OCT_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'NOV_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'DEC_DR', type: 'DOUBLE', isNullable: true },
     ],
   },
+
+  // 5. Table: CHART
+  {
+    name: 'CHART',
+    family: 'Chart of Accounts',
+    rowCount: 0,
+    lookupIndexes: ['ACCOUNT_NO', 'CONT_ACC'],
+    columns: [
+      { name: 'ACCOUNT_NO', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'ACCOUNT_NM', type: 'VARCHAR(30)', isNullable: true },
+      { name: 'ACC_TYPE', type: 'VARCHAR(5)', isNullable: true },
+      { name: 'ACC_LEVEL', type: 'VARCHAR(1)', isNullable: true },
+      { name: 'TRANS_TYPE', type: 'VARCHAR(1)', isNullable: true },
+      { name: 'CONT_ACC', type: 'VARCHAR(7)', isNullable: true },
+      { name: 'OPEN_BAL', type: 'DOUBLE', isNullable: true },
+      { name: 'OP_CRDR', type: 'VARCHAR(2)', isNullable: true },
+      { name: 'OP_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'JAN_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'FEB_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'MAR_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'APR_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'MAY_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'JUN_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'JUL_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'AUG_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'SEP_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'OCT_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'NOV_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'DEC_CR', type: 'DOUBLE', isNullable: true },
+      { name: 'JAN_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'FEB_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'MAR_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'APR_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'MAY_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'JUN_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'JUL_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'AUG_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'SEP_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'OCT_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'NOV_DR', type: 'DOUBLE', isNullable: true },
+      { name: 'DEC_DR', type: 'DOUBLE', isNullable: true },
+    ],
+  },
+
+  // 6. Table: ALL GLHIS
+  {
+    name: 'ALL GLHIS',
+    family: 'General Ledger Family',
+    rowCount: 0,
+    lookupIndexes: ['GL_ACCOUNT', 'GL_VOC_NO', 'GL_DATE'],
+    columns: [
+      { name: 'GL_ACCOUNT', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'GL_CONTRA', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'GL_VOC_NO', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'GL_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'GL_PARTI', type: 'VARCHAR(60)', isNullable: true },
+      { name: 'GL_AMOUNT', type: 'DOUBLE', isNullable: true },
+      { name: 'GL_DRCR', type: 'VARCHAR(2)', isNullable: true },
+      { name: 'GL_FOL', type: 'VARCHAR(2)', isNullable: true },
+      { name: 'GL_CHQ', type: 'VARCHAR(10)', isNullable: true },
+    ],
+  },
+
+  // 7. Table: f_CAEEB921B5DE4738892939BD46CDAA01_Data
+  {
+    name: 'f_CAEEB921B5DE4738892939BD46CDAA01_Data',
+    family: 'System & Resources',
+    rowCount: 0,
+    lookupIndexes: ['FileName'],
+    columns: [
+      { name: '_Data', type: 'TEXT', isNullable: true },
+      { name: 'FileData', type: 'TEXT', isNullable: true },
+      { name: 'FileFlags', type: 'INT', isNullable: true },
+      { name: 'FileName', type: 'VARCHAR(255)', isNullable: true },
+      { name: 'FileTimeStamp', type: 'DATETIME', isNullable: true },
+      { name: 'FileType', type: 'VARCHAR(50)', isNullable: true },
+      { name: 'FileURL', type: 'VARCHAR(255)', isNullable: true },
+      { name: 'MSysResources_Data', type: 'TEXT', isNullable: true },
+    ],
+  },
+
+  // 8. Table: invt
+  {
+    name: 'invt',
+    family: 'Stock Issues',
+    rowCount: 0,
+    lookupIndexes: ['ISS_NO', 'P_CODE', 'AC_CODE'],
+    columns: [
+      { name: 'ISS_NO', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'ISS_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'P_CODE', type: 'VARCHAR(6)', isNullable: true },
+      { name: 'AVG_RATE', type: 'DOUBLE', isNullable: true },
+      { name: 'AC_CODE', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'ISS_QTY', type: 'DOUBLE', isNullable: true },
+      { name: 'SALE_R', type: 'DOUBLE', isNullable: true },
+    ],
+  },
+
+  // 9. Table: invth
+  {
+    name: 'invth',
+    family: 'Stock Issues',
+    rowCount: 0,
+    lookupIndexes: ['ISS_NO', 'P_CODE', 'AC_CODE', 'ISS_DATE'],
+    columns: [
+      { name: 'ISS_NO', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'ISS_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'P_CODE', type: 'VARCHAR(6)', isNullable: true },
+      { name: 'AVG_RATE', type: 'DOUBLE', isNullable: true },
+      { name: 'AC_CODE', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'ISS_QTY', type: 'DOUBLE', isNullable: true },
+      { name: 'SALE_R', type: 'DOUBLE', isNullable: true },
+    ],
+  },
+
+  // 10. Table: Name AutoCorrect Save Failures
+  {
+    name: 'Name AutoCorrect Save Failures',
+    family: 'System Failures',
+    rowCount: 0,
+    lookupIndexes: ['Object Name'],
+    columns: [
+      { name: 'Object Name', type: 'VARCHAR(255)', isNullable: true },
+      { name: 'Object Type', type: 'VARCHAR(100)', isNullable: true },
+      { name: 'Failure Reason', type: 'TEXT', isNullable: true },
+      { name: 'Time', type: 'DATETIME', isNullable: true },
+    ],
+  },
+
+  // 11. Table: Post_Control
+  {
+    name: 'Post_Control',
+    family: 'Stock Issues',
+    rowCount: 0,
+    lookupIndexes: ['ISS_NO', 'P_CODE', 'AC_CODE'],
+    columns: [
+      { name: 'ISS_NO', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'ISS_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'P_CODE', type: 'VARCHAR(6)', isNullable: true },
+      { name: 'DES', type: 'VARCHAR(30)', isNullable: true },
+      { name: 'AVG_RATE', type: 'DOUBLE', isNullable: true },
+      { name: 'AC_CODE', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'ACCOUNT_NM', type: 'VARCHAR(30)', isNullable: true },
+      { name: 'ISS_QTY', type: 'DOUBLE', isNullable: true },
+      { name: 'SALE_R', type: 'DOUBLE', isNullable: true },
+    ],
+  },
+
+  // 12. Table: ACCOUNT
   {
     name: 'ACCOUNT',
     family: 'Voucher Lines',
@@ -202,11 +263,45 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
     ],
   },
 
-  // 5. VOUCHER HEADERS (2 tables)
+  // 13. Table: GLHIS
+  {
+    name: 'GLHIS',
+    family: 'General Ledger Family',
+    rowCount: 0,
+    lookupIndexes: ['GL_ACCOUNT', 'GL_VOC_NO', 'GL_DATE'],
+    columns: [
+      { name: 'GL_ACCOUNT', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'GL_CONTRA', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'GL_VOC_NO', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'GL_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'GL_PARTI', type: 'VARCHAR(60)', isNullable: true },
+      { name: 'GL_AMOUNT', type: 'DOUBLE', isNullable: true },
+      { name: 'GL_DRCR', type: 'VARCHAR(2)', isNullable: true },
+      { name: 'GL_FOL', type: 'VARCHAR(2)', isNullable: true },
+      { name: 'GL_CHQ', type: 'VARCHAR(10)', isNullable: true },
+    ],
+  },
+
+  // 14. Table: ACCHIS
+  {
+    name: 'ACCHIS',
+    family: 'Voucher Lines',
+    rowCount: 0,
+    lookupIndexes: ['A_VOC', 'ACCOUNT_NO', 'A_DATE'],
+    columns: [
+      { name: 'A_VOC', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'ACCOUNT_NO', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'AMOUNT', type: 'DOUBLE', isNullable: true },
+      { name: 'VOC_TY', type: 'VARCHAR(2)', isNullable: true },
+      { name: 'A_DATE', type: 'DATETIME', isNullable: true },
+    ],
+  },
+
+  // 15. Table: VOUHIS
   {
     name: 'VOUHIS',
     family: 'Voucher Headers',
-    rowCount: 867,
+    rowCount: 0,
     lookupIndexes: ['VOC_NO', 'ACCOUNT', 'DATE'],
     columns: [
       { name: 'VOC_NO', type: 'VARCHAR(8)', isNullable: true },
@@ -217,6 +312,8 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
       { name: 'PARTI', type: 'VARCHAR(60)', isNullable: true },
     ],
   },
+
+  // 16. Table: VOUCHER
   {
     name: 'VOUCHER',
     family: 'Voucher Headers',
@@ -232,22 +329,7 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
     ],
   },
 
-  // 6. JOURNAL (2 tables)
-  {
-    name: 'jvhis',
-    family: 'Journal',
-    rowCount: 808,
-    lookupIndexes: ['JV_NO', 'ACCOUNT_NO', 'JV_DATE'],
-    columns: [
-      { name: 'JV_NO', type: 'VARCHAR(8)', isNullable: true },
-      { name: 'JV_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'JOUR', type: 'VARCHAR(2)', isNullable: true },
-      { name: 'ACCOUNT_NO', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'PARTI', type: 'VARCHAR(60)', isNullable: true },
-      { name: 'AMOUNT', type: 'DOUBLE', isNullable: true },
-      { name: 'DRCR', type: 'VARCHAR(2)', isNullable: true },
-    ],
-  },
+  // 17. Table: jv
   {
     name: 'jv',
     family: 'Journal',
@@ -264,81 +346,36 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
     ],
   },
 
-  // 7. PURCHASE HEADERS (2 tables: Note CUS_CODE 6 in PURHIS vs 8 in PURCHASE)
+  // 18. Table: jvhis
   {
-    name: 'PURHIS',
-    family: 'Purchase Headers',
-    rowCount: 35,
-    lookupIndexes: ['INV_NO', 'DC_NO', 'OR_NO', 'INV_DATE'],
-    columns: [
-      { name: 'INV_NO', type: 'VARCHAR(5)', isNullable: true },
-      { name: 'INV_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'DC_NO', type: 'VARCHAR(5)', isNullable: true },
-      { name: 'DC_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'OR_NO', type: 'VARCHAR(8)', isNullable: true },
-      { name: 'OR_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'DISCOUNT', type: 'DOUBLE', isNullable: true },
-      { name: 'ADVANCE', type: 'DOUBLE', isNullable: true },
-      { name: 'TERM', type: 'DOUBLE', isNullable: true },
-      { name: 'PARTI', type: 'VARCHAR(60)', isNullable: true },
-      { name: 'CUS_CODE', type: 'VARCHAR(6)', isNullable: true }, // 6 in PURHIS
-      { name: 'TRANS_TYPE', type: 'VARCHAR(1)', isNullable: true },
-      { name: 'NET_AMOUNT', type: 'DOUBLE', isNullable: true },
-    ],
-  },
-  {
-    name: 'PURCHASE',
-    family: 'Purchase Headers',
+    name: 'jvhis',
+    family: 'Journal',
     rowCount: 0,
-    lookupIndexes: ['INV_NO', 'DC_NO', 'OR_NO'],
+    lookupIndexes: ['JV_NO', 'ACCOUNT_NO', 'JV_DATE'],
     columns: [
-      { name: 'INV_NO', type: 'VARCHAR(5)', isNullable: true },
-      { name: 'INV_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'DC_NO', type: 'VARCHAR(5)', isNullable: true },
-      { name: 'DC_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'OR_NO', type: 'VARCHAR(8)', isNullable: true },
-      { name: 'OR_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'DISCOUNT', type: 'DOUBLE', isNullable: true },
-      { name: 'ADVANCE', type: 'DOUBLE', isNullable: true },
-      { name: 'TERM', type: 'DOUBLE', isNullable: true },
+      { name: 'JV_NO', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'JV_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'JOUR', type: 'VARCHAR(2)', isNullable: true },
+      { name: 'ACCOUNT_NO', type: 'VARCHAR(10)', isNullable: true },
       { name: 'PARTI', type: 'VARCHAR(60)', isNullable: true },
-      { name: 'CUS_CODE', type: 'VARCHAR(8)', isNullable: true }, // 8 in PURCHASE
-      { name: 'TRANS_TYPE', type: 'VARCHAR(1)', isNullable: true },
-      { name: 'NET_AMOUNT', type: 'DOUBLE', isNullable: true },
+      { name: 'AMOUNT', type: 'DOUBLE', isNullable: true },
+      { name: 'DRCR', type: 'VARCHAR(2)', isNullable: true },
     ],
   },
 
-  // 8. PURCHASE LINES (2 tables)
+  // 19. Table: tblLastProcess
   {
-    name: 'PUR2HIS',
-    family: 'Purchase Lines',
-    rowCount: 92,
-    lookupIndexes: ['INV_NO', 'PRO_CODE'],
-    columns: [
-      { name: 'INV_NO', type: 'VARCHAR(5)', isNullable: true },
-      { name: 'PRO_CODE', type: 'VARCHAR(6)', isNullable: true },
-      { name: 'QUTY', type: 'DOUBLE', isNullable: true },
-      { name: 'RATE', type: 'DOUBLE', isNullable: true },
-      { name: 'TR_TYPE', type: 'VARCHAR(1)', isNullable: true },
-      { name: 'DEM_QUTY', type: 'DOUBLE', isNullable: true },
-    ],
-  },
-  {
-    name: 'PURC',
-    family: 'Purchase Lines',
+    name: 'tblLastProcess',
+    family: 'System Settings',
     rowCount: 0,
-    lookupIndexes: ['INV_NO', 'PRO_CODE'],
+    lookupIndexes: ['ProcessName'],
     columns: [
-      { name: 'INV_NO', type: 'VARCHAR(5)', isNullable: true },
-      { name: 'PRO_CODE', type: 'VARCHAR(6)', isNullable: true },
-      { name: 'QUTY', type: 'DOUBLE', isNullable: true },
-      { name: 'RATE', type: 'DOUBLE', isNullable: true },
-      { name: 'TR_TYPE', type: 'VARCHAR(1)', isNullable: true },
-      { name: 'DEM_QUTY', type: 'DOUBLE', isNullable: true },
+      { name: 'ProcessName', type: 'VARCHAR(50)', isNullable: true },
+      { name: 'LastDate', type: 'DATETIME', isNullable: true },
     ],
   },
 
-  // 9. PURCHASE ORDER (1 table)
+  // 20. Table: PO
   {
     name: 'PO',
     family: 'Purchase Order',
@@ -358,11 +395,89 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
     ],
   },
 
-  // 10. STOCK CARD (1 table)
+  // 21. Table: PURCHASE
+  {
+    name: 'PURCHASE',
+    family: 'Purchase Headers',
+    rowCount: 0,
+    lookupIndexes: ['INV_NO', 'DC_NO', 'OR_NO'],
+    columns: [
+      { name: 'INV_NO', type: 'VARCHAR(5)', isNullable: true },
+      { name: 'INV_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'DC_NO', type: 'VARCHAR(5)', isNullable: true },
+      { name: 'DC_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'OR_NO', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'OR_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'DISCOUNT', type: 'DOUBLE', isNullable: true },
+      { name: 'ADVANCE', type: 'DOUBLE', isNullable: true },
+      { name: 'TERM', type: 'DOUBLE', isNullable: true },
+      { name: 'PARTI', type: 'VARCHAR(60)', isNullable: true },
+      { name: 'CUS_CODE', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'TRANS_TYPE', type: 'VARCHAR(1)', isNullable: true },
+      { name: 'NET_AMOUNT', type: 'DOUBLE', isNullable: true },
+    ],
+  },
+
+  // 22. Table: PURHIS
+  {
+    name: 'PURHIS',
+    family: 'Purchase Headers',
+    rowCount: 0,
+    lookupIndexes: ['INV_NO', 'DC_NO', 'OR_NO', 'INV_DATE'],
+    columns: [
+      { name: 'INV_NO', type: 'VARCHAR(5)', isNullable: true },
+      { name: 'INV_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'DC_NO', type: 'VARCHAR(5)', isNullable: true },
+      { name: 'DC_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'OR_NO', type: 'VARCHAR(8)', isNullable: true },
+      { name: 'OR_DATE', type: 'DATETIME', isNullable: true },
+      { name: 'DISCOUNT', type: 'DOUBLE', isNullable: true },
+      { name: 'ADVANCE', type: 'DOUBLE', isNullable: true },
+      { name: 'TERM', type: 'DOUBLE', isNullable: true },
+      { name: 'PARTI', type: 'VARCHAR(60)', isNullable: true },
+      { name: 'CUS_CODE', type: 'VARCHAR(6)', isNullable: true },
+      { name: 'TRANS_TYPE', type: 'VARCHAR(1)', isNullable: true },
+      { name: 'NET_AMOUNT', type: 'DOUBLE', isNullable: true },
+    ],
+  },
+
+  // 23. Table: PURC
+  {
+    name: 'PURC',
+    family: 'Purchase Lines',
+    rowCount: 0,
+    lookupIndexes: ['INV_NO', 'PRO_CODE'],
+    columns: [
+      { name: 'INV_NO', type: 'VARCHAR(5)', isNullable: true },
+      { name: 'PRO_CODE', type: 'VARCHAR(6)', isNullable: true },
+      { name: 'QUTY', type: 'DOUBLE', isNullable: true },
+      { name: 'RATE', type: 'DOUBLE', isNullable: true },
+      { name: 'TR_TYPE', type: 'VARCHAR(1)', isNullable: true },
+      { name: 'DEM_QUTY', type: 'DOUBLE', isNullable: true },
+    ],
+  },
+
+  // 24. Table: PUR2HIS
+  {
+    name: 'PUR2HIS',
+    family: 'Purchase Lines',
+    rowCount: 0,
+    lookupIndexes: ['INV_NO', 'PRO_CODE'],
+    columns: [
+      { name: 'INV_NO', type: 'VARCHAR(5)', isNullable: true },
+      { name: 'PRO_CODE', type: 'VARCHAR(6)', isNullable: true },
+      { name: 'QUTY', type: 'DOUBLE', isNullable: true },
+      { name: 'RATE', type: 'DOUBLE', isNullable: true },
+      { name: 'TR_TYPE', type: 'VARCHAR(1)', isNullable: true },
+      { name: 'DEM_QUTY', type: 'DOUBLE', isNullable: true },
+    ],
+  },
+
+  // 25. Table: BINCARD
   {
     name: 'BINCARD',
     family: 'Stock Card',
-    rowCount: 245,
+    rowCount: 0,
     lookupIndexes: ['RI_NO', 'P_CODE', 'AC_CODE', 'DATE'],
     columns: [
       { name: 'RI_NO', type: 'VARCHAR(8)', isNullable: true },
@@ -375,60 +490,11 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
     ],
   },
 
-  // 11. STOCK ISSUES (3 tables)
-  {
-    name: 'invth',
-    family: 'Stock Issues',
-    rowCount: 614,
-    lookupIndexes: ['ISS_NO', 'P_CODE', 'AC_CODE', 'ISS_DATE'],
-    columns: [
-      { name: 'ISS_NO', type: 'VARCHAR(8)', isNullable: true },
-      { name: 'ISS_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'P_CODE', type: 'VARCHAR(6)', isNullable: true },
-      { name: 'AVG_RATE', type: 'DOUBLE', isNullable: true },
-      { name: 'AC_CODE', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'ISS_QTY', type: 'DOUBLE', isNullable: true },
-      { name: 'SALE_R', type: 'DOUBLE', isNullable: true },
-    ],
-  },
-  {
-    name: 'invt',
-    family: 'Stock Issues',
-    rowCount: 0,
-    lookupIndexes: ['ISS_NO', 'P_CODE', 'AC_CODE'],
-    columns: [
-      { name: 'ISS_NO', type: 'VARCHAR(8)', isNullable: true },
-      { name: 'ISS_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'P_CODE', type: 'VARCHAR(6)', isNullable: true },
-      { name: 'AVG_RATE', type: 'DOUBLE', isNullable: true },
-      { name: 'AC_CODE', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'ISS_QTY', type: 'DOUBLE', isNullable: true },
-      { name: 'SALE_R', type: 'DOUBLE', isNullable: true },
-    ],
-  },
-  {
-    name: 'Post_Control',
-    family: 'Stock Issues',
-    rowCount: 0,
-    lookupIndexes: ['ISS_NO', 'P_CODE', 'AC_CODE'],
-    columns: [
-      { name: 'ISS_NO', type: 'VARCHAR(8)', isNullable: true },
-      { name: 'ISS_DATE', type: 'DATETIME', isNullable: true },
-      { name: 'P_CODE', type: 'VARCHAR(6)', isNullable: true },
-      { name: 'DES', type: 'VARCHAR(30)', isNullable: true },
-      { name: 'AVG_RATE', type: 'DOUBLE', isNullable: true },
-      { name: 'AC_CODE', type: 'VARCHAR(10)', isNullable: true },
-      { name: 'ACCOUNT_NM', type: 'VARCHAR(30)', isNullable: true },
-      { name: 'ISS_QTY', type: 'DOUBLE', isNullable: true },
-      { name: 'SALE_R', type: 'DOUBLE', isNullable: true },
-    ],
-  },
-
-  // 12. PRODUCT MASTER (71 columns)
+  // 26. Table: PRODUCT
   {
     name: 'PRODUCT',
     family: 'Product Master',
-    rowCount: 34,
+    rowCount: 0,
     lookupIndexes: ['CODE', 'VENDOR', 'COST_CODE'],
     columns: [
       { name: 'CODE', type: 'VARCHAR(6)', isNullable: true },
@@ -454,7 +520,6 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
       { name: 'VENDOR', type: 'VARCHAR(10)', isNullable: true },
       { name: 'COST_CODE', type: 'VARCHAR(10)', isNullable: true },
       { name: 'SALE_RATE', type: 'DOUBLE', isNullable: true },
-      // 12 DOUBLE columns: JANSQ..DECSQ
       { name: 'JANSQ', type: 'DOUBLE', isNullable: true },
       { name: 'FEBSQ', type: 'DOUBLE', isNullable: true },
       { name: 'MARSQ', type: 'DOUBLE', isNullable: true },
@@ -467,7 +532,6 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
       { name: 'OCTSQ', type: 'DOUBLE', isNullable: true },
       { name: 'NOVSQ', type: 'DOUBLE', isNullable: true },
       { name: 'DECSQ', type: 'DOUBLE', isNullable: true },
-      // 12 DOUBLE columns: JANSV..DECSV
       { name: 'JANSV', type: 'DOUBLE', isNullable: true },
       { name: 'FEBSV', type: 'DOUBLE', isNullable: true },
       { name: 'MARSV', type: 'DOUBLE', isNullable: true },
@@ -480,7 +544,6 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
       { name: 'OCTSV', type: 'DOUBLE', isNullable: true },
       { name: 'NOVSV', type: 'DOUBLE', isNullable: true },
       { name: 'DECSV', type: 'DOUBLE', isNullable: true },
-      // 12 DOUBLE columns: JANPQ..DECPQ
       { name: 'JANPQ', type: 'DOUBLE', isNullable: true },
       { name: 'FEBPQ', type: 'DOUBLE', isNullable: true },
       { name: 'MARPQ', type: 'DOUBLE', isNullable: true },
@@ -493,7 +556,6 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
       { name: 'OCTPQ', type: 'DOUBLE', isNullable: true },
       { name: 'NOVPQ', type: 'DOUBLE', isNullable: true },
       { name: 'DECPQ', type: 'DOUBLE', isNullable: true },
-      // 12 DOUBLE columns: JANPV..DECPV
       { name: 'JANPV', type: 'DOUBLE', isNullable: true },
       { name: 'FEBPV', type: 'DOUBLE', isNullable: true },
       { name: 'MARPV', type: 'DOUBLE', isNullable: true },
@@ -509,11 +571,11 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
     ],
   },
 
-  // 13. SETTINGS & INTERFACES (3 tables)
+  // 27. Table: INTERFAC
   {
     name: 'INTERFAC',
     family: 'System Settings',
-    rowCount: 1,
+    rowCount: 0,
     lookupIndexes: ['BANK', 'CASH', 'VENDOR'],
     columns: [
       { name: 'DD', type: 'DATETIME', isNullable: true },
@@ -532,15 +594,17 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
       { name: 'OTHER', type: 'DOUBLE', isNullable: true },
       { name: 'DJV', type: 'DOUBLE', isNullable: true },
       { name: 'MCOMPANY', type: 'VARCHAR(35)', isNullable: true },
-      { name: 'PASS1', type: 'VARCHAR(10)', isNullable: true }, // Must remain NULL for security
-      { name: 'PASS2', type: 'VARCHAR(10)', isNullable: true }, // Must remain NULL for security
-      { name: 'PASS3', type: 'VARCHAR(10)', isNullable: true }, // Must remain NULL for security
+      { name: 'PASS1', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'PASS2', type: 'VARCHAR(10)', isNullable: true },
+      { name: 'PASS3', type: 'VARCHAR(10)', isNullable: true },
     ],
   },
+
+  // 28. Table: VNO
   {
     name: 'VNO',
     family: 'System Settings',
-    rowCount: 4,
+    rowCount: 0,
     lookupIndexes: ['MDT'],
     columns: [
       { name: 'MDT', type: 'VARCHAR(2)', isNullable: true },
@@ -552,416 +616,36 @@ export const standardOldLedgerSchemas: TableDefinition[] = [
       { name: 'PO', type: 'DOUBLE', isNullable: true },
     ],
   },
-  {
-    name: 'tblLastProcess',
-    family: 'System Settings',
-    rowCount: 1,
-    lookupIndexes: ['ProcessName'],
-    columns: [
-      { name: 'ProcessName', type: 'VARCHAR(50)', isNullable: true },
-      { name: 'LastDate', type: 'DATETIME', isNullable: true },
-    ],
-  },
 ];
 
-// Initial realistic data mirroring Access tables
+// Initial empty data map - No mock data; tables are populated strictly via imported Access file
 export const initialOldLedgerData: OldLedgerDataMap = {
-  'GLHIS': [
-    {
-      'GL_ACCOUNT': '01-01-0001',
-      'GL_CONTRA': '01-02-0005',
-      'GL_VOC_NO': 'CP-00142',
-      'GL_DATE': '2007-06-15 10:30:00',
-      'GL_PARTI': 'Cash paid for pithead timber support logistics',
-      'GL_AMOUNT': 45000.0,
-      'GL_DRCR': 'DR',
-      'GL_FOL': '01',
-      'GL_CHQ': '',
-    },
-    {
-      'GL_ACCOUNT': '01-02-0005',
-      'GL_CONTRA': '01-01-0001',
-      'GL_VOC_NO': 'CP-00142',
-      'GL_DATE': '2007-06-15 10:30:00',
-      'GL_PARTI': 'Cash settlement to Quetta Haulage Union',
-      'GL_AMOUNT': 45000.0,
-      'GL_DRCR': 'CR',
-      'GL_FOL': '01',
-      'GL_CHQ': '',
-    },
-    {
-      'GL_ACCOUNT': '01-01-0002',
-      'GL_CONTRA': '02-01-0010',
-      'GL_VOC_NO': 'BP-00891',
-      'GL_DATE': '2007-06-16 11:15:00',
-      'GL_PARTI': 'HBL Cheque payment for commercial blasting explosive lot',
-      'GL_AMOUNT': 185000.0,
-      'GL_DRCR': 'DR',
-      'GL_FOL': '02',
-      'GL_CHQ': 'CHQ-890123',
-    },
-    {
-      'GL_ACCOUNT': '02-01-0010',
-      'GL_CONTRA': '01-01-0002',
-      'GL_VOC_NO': 'BP-00891',
-      'GL_DATE': '2007-06-16 11:15:00',
-      'GL_PARTI': 'Bank payment to Balochistan Explosives Supply',
-      'GL_AMOUNT': 185000.0,
-      'GL_DRCR': 'CR',
-      'GL_FOL': '02',
-      'GL_CHQ': 'CHQ-890123',
-    },
-    {
-      'GL_ACCOUNT': '03-01-0001',
-      'GL_CONTRA': '01-01-0001',
-      'GL_VOC_NO': 'CR-00210',
-      'GL_DATE': '2007-06-18 14:20:00',
-      'GL_PARTI': 'Direct counter collection for 20 Ton Lump Coal batch',
-      'GL_AMOUNT': 120000.0,
-      'GL_DRCR': 'CR',
-      'GL_FOL': '03',
-      'GL_CHQ': '',
-    },
-  ],
-
-  'ALL GLHIS': [
-    {
-      'GL_ACCOUNT': '01-01-0001',
-      'GL_CONTRA': '01-02-0005',
-      'GL_VOC_NO': 'CP-00001',
-      'GL_DATE': '2006-01-04 09:00:00',
-      'GL_PARTI': 'Opening petty cash fund creation',
-      'GL_AMOUNT': 100000.0,
-      'GL_DRCR': 'DR',
-      'GL_FOL': '01',
-      'GL_CHQ': '',
-    },
-    {
-      'GL_ACCOUNT': '01-01-0002',
-      'GL_CONTRA': '03-01-0001',
-      'GL_VOC_NO': 'BR-00001',
-      'GL_DATE': '2006-01-05 10:00:00',
-      'GL_PARTI': 'Advance wire transfer from National Cement Ltd.',
-      'GL_AMOUNT': 500000.0,
-      'GL_DRCR': 'DR',
-      'GL_FOL': '01',
-      'GL_CHQ': 'CHQ-110291',
-    },
-    {
-      'GL_ACCOUNT': '02-01-0001',
-      'GL_CONTRA': '01-01-0002',
-      'GL_VOC_NO': 'BP-00002',
-      'GL_DATE': '2006-01-08 12:30:00',
-      'GL_PARTI': 'Mining pit equipment maintenance settlement',
-      'GL_AMOUNT': 78000.0,
-      'GL_DRCR': 'DR',
-      'GL_FOL': '01',
-      'GL_CHQ': 'CHQ-110292',
-    },
-  ],
-
-  '12Myglhis': [
-    {
-      'GL_ACCOUNT': '01-01-0001',
-      'GL_CONTRA': '01-02-0005',
-      'GL_VOC_NO': 'CP-00912',
-      'GL_DATE': '2007-12-01 10:00:00',
-      'GL_PARTI': 'Monthly labor wages distribution Sor Range pit',
-      'GL_AMOUNT': 64000.0,
-      'GL_DRCR': 'DR',
-      'GL_FOL': '12',
-      'GL_CHQ': '',
-    },
-    {
-      'GL_ACCOUNT': '01-01-0002',
-      'GL_CONTRA': '03-01-0002',
-      'GL_VOC_NO': 'BR-00450',
-      'GL_DATE': '2007-12-05 15:00:00',
-      'GL_PARTI': 'Payment received from Indus Steel Complex',
-      'GL_AMOUNT': 320000.0,
-      'GL_DRCR': 'DR',
-      'GL_FOL': '12',
-      'GL_CHQ': 'CHQ-551029',
-    },
-  ],
-
-  'CHART': [
-    {
-      'ACCOUNT_NO': '01-01-0001',
-      'ACCOUNT_NM': 'Cash in Hand (Main Office)',
-      'ACC_TYPE': 'A',
-      'ACC_LEVEL': '3',
-      'TRANS_TYPE': 'G',
-      'CONT_ACC': '01-01',
-      'OPEN_BAL': 150000.0,
-      'OP_CRDR': 'DR',
-      'OP_DATE': '2007-01-01 00:00:00',
-      'JAN_CR': 45000.0, 'FEB_CR': 60000.0, 'MAR_CR': 55000.0, 'APR_CR': 48000.0, 'MAY_CR': 52000.0, 'JUN_CR': 45000.0,
-      'JUL_CR': 49000.0, 'AUG_CR': 53000.0, 'SEP_CR': 61000.0, 'OCT_CR': 58000.0, 'NOV_CR': 47000.0, 'DEC_CR': 54000.0,
-      'JAN_DR': 90000.0, 'FEB_DR': 85000.0, 'MAR_DR': 92000.0, 'APR_DR': 80000.0, 'MAY_DR': 88000.0, 'JUN_DR': 75000.0,
-      'JUL_DR': 82000.0, 'AUG_DR': 89000.0, 'SEP_DR': 95000.0, 'OCT_DR': 91000.0, 'NOV_DR': 84000.0, 'DEC_DR': 86000.0,
-    },
-    {
-      'ACCOUNT_NO': '01-01-0002',
-      'ACCOUNT_NM': 'Habib Bank Ltd (A/c 0921)',
-      'ACC_TYPE': 'A',
-      'ACC_LEVEL': '3',
-      'TRANS_TYPE': 'G',
-      'CONT_ACC': '01-01',
-      'OPEN_BAL': 1250000.0,
-      'OP_CRDR': 'DR',
-      'OP_DATE': '2007-01-01 00:00:00',
-      'JAN_CR': 180000.0, 'FEB_CR': 210000.0, 'MAR_CR': 195000.0, 'APR_CR': 220000.0, 'MAY_CR': 205000.0, 'JUN_CR': 185000.0,
-      'JUL_CR': 190000.0, 'AUG_CR': 215000.0, 'SEP_CR': 230000.0, 'OCT_CR': 225000.0, 'NOV_CR': 198000.0, 'DEC_CR': 212000.0,
-      'JAN_DR': 450000.0, 'FEB_DR': 490000.0, 'MAR_DR': 510000.0, 'APR_DR': 480000.0, 'MAY_DR': 520000.0, 'JUN_DR': 470000.0,
-      'JUL_DR': 485000.0, 'AUG_DR': 530000.0, 'SEP_DR': 560000.0, 'OCT_DR': 540000.0, 'NOV_DR': 500000.0, 'DEC_DR': 515000.0,
-    },
-    {
-      'ACCOUNT_NO': '02-01-0010',
-      'ACCOUNT_NM': 'Balochistan Explosives Corp.',
-      'ACC_TYPE': 'L',
-      'ACC_LEVEL': '3',
-      'TRANS_TYPE': 'G',
-      'CONT_ACC': '02-01',
-      'OPEN_BAL': 85000.0,
-      'OP_CRDR': 'CR',
-      'OP_DATE': '2007-01-01 00:00:00',
-      'JAN_CR': 120000.0, 'FEB_CR': 140000.0, 'MAR_CR': 135000.0, 'APR_CR': 150000.0, 'MAY_CR': 145000.0, 'JUN_CR': 130000.0,
-      'JUL_CR': 140000.0, 'AUG_CR': 155000.0, 'SEP_CR': 160000.0, 'OCT_CR': 150000.0, 'NOV_CR': 138000.0, 'DEC_CR': 148000.0,
-      'JAN_DR': 100000.0, 'FEB_DR': 130000.0, 'MAR_DR': 125000.0, 'APR_DR': 140000.0, 'MAY_DR': 135000.0, 'JUN_DR': 120000.0,
-      'JUL_DR': 130000.0, 'AUG_DR': 145000.0, 'SEP_DR': 150000.0, 'OCT_DR': 140000.0, 'NOV_DR': 128000.0, 'DEC_DR': 138000.0,
-    },
-  ],
-
-  '11Mychart': [
-    {
-      'ACCOUNT_NO': '01-01-0001',
-      'ACCOUNT_NM': 'Cash in Hand (Main Office)',
-      'ACC_TYPE': 'A',
-      'ACC_LEVEL': '3',
-      'TRANS_TYPE': 'G',
-      'CONT_ACC': '01-01',
-      'OPEN_BAL': 150000.0,
-      'OP_CRDR': 'DR',
-      'OP_DATE': '2007-11-01 00:00:00',
-      'JAN_CR': 0, 'FEB_CR': 0, 'MAR_CR': 0, 'APR_CR': 0, 'MAY_CR': 0, 'JUN_CR': 0,
-      'JUL_CR': 0, 'AUG_CR': 0, 'SEP_CR': 0, 'OCT_CR': 0, 'NOV_CR': 47000.0, 'DEC_CR': 0,
-      'JAN_DR': 0, 'FEB_DR': 0, 'MAR_DR': 0, 'APR_DR': 0, 'MAY_DR': 0, 'JUN_DR': 0,
-      'JUL_DR': 0, 'AUG_DR': 0, 'SEP_DR': 0, 'OCT_DR': 0, 'NOV_DR': 84000.0, 'DEC_DR': 0,
-    },
-  ],
-
-  '12MyLed': [
-    {
-      'L_Ac': '01-01-0001',
-      'L_Vno': 'CP-00912',
-      'L_Dat': '2007-12-01 10:00:00',
-      'L_Parti': 'Monthly labor wages distribution',
-      'L_Dr': 64000,
-      'L_Cr': 0,
-      'L_Cdr': 'DR',
-      'L_Fol': '12',
-      'M_Bal': 86000,
-    },
-  ],
-
+  '12Myglhis': [],
+  '12MyLed': [],
   '13_PL': [],
-
-  'ACCHIS': [
-    {
-      'A_VOC': 'CP-00142',
-      'ACCOUNT_NO': '01-01-0001',
-      'AMOUNT': 45000.0,
-      'VOC_TY': 'CP',
-      'A_DATE': '2007-06-15 10:30:00',
-    },
-    {
-      'A_VOC': 'BP-00891',
-      'ACCOUNT_NO': '01-01-0002',
-      'AMOUNT': 185000.0,
-      'VOC_TY': 'BP',
-      'A_DATE': '2007-06-16 11:15:00',
-    },
-  ],
-
-  'ACCOUNT': [],
-
-  'VOUHIS': [
-    {
-      'VOC_NO': 'CP-00142',
-      'ACCOUNT': '01-01-0001',
-      'DATE': '2007-06-15 10:30:00',
-      'VOC_TYPE': 'CP',
-      'CHQ': '',
-      'PARTI': 'Cash payment for timber support props',
-    },
-    {
-      'VOC_NO': 'BP-00891',
-      'ACCOUNT': '01-01-0002',
-      'DATE': '2007-06-16 11:15:00',
-      'VOC_TYPE': 'BP',
-      'CHQ': 'CHQ-890123',
-      'PARTI': 'Commercial blasting materials batch 9',
-    },
-  ],
-
-  'VOUCHER': [],
-
-  'jvhis': [
-    {
-      'JV_NO': 'JV-00412',
-      'JV_DATE': '2007-06-30 17:00:00',
-      'JOUR': 'JV',
-      'ACCOUNT_NO': '04-01-0001',
-      'PARTI': 'Depreciation of heavy mining haulage prime mover',
-      'AMOUNT': 35000.0,
-      'DRCR': 'DR',
-    },
-    {
-      'JV_NO': 'JV-00412',
-      'JV_DATE': '2007-06-30 17:00:00',
-      'JOUR': 'JV',
-      'ACCOUNT_NO': '01-03-0005',
-      'PARTI': 'Accumulated depreciation asset offset',
-      'AMOUNT': 35000.0,
-      'DRCR': 'CR',
-    },
-  ],
-
-  'jv': [],
-
-  'PURHIS': [
-    {
-      'INV_NO': 'P-081',
-      'INV_DATE': '2007-05-12 11:00:00',
-      'DC_NO': 'DC-41',
-      'DC_DATE': '2007-05-11 16:00:00',
-      'OR_NO': 'PO-0012',
-      'OR_DATE': '2007-05-02 10:00:00',
-      'DISCOUNT': 5000.0,
-      'ADVANCE': 50000.0,
-      'TERM': 30.0,
-      'PARTI': 'Timber pit support poles bulk lot',
-      'CUS_CODE': 'VND-01', // 6 chars in PURHIS
-      'TRANS_TYPE': 'C',
-      'NET_AMOUNT': 245000.0,
-    },
-  ],
-
-  'PURCHASE': [],
-
-  'PUR2HIS': [
-    {
-      'INV_NO': 'P-081',
-      'PRO_CODE': 'PRD-01',
-      'QUTY': 500.0,
-      'RATE': 500.0,
-      'TR_TYPE': 'P',
-      'DEM_QUTY': 500.0,
-    },
-  ],
-
-  'PURC': [],
-  'PO': [],
-
-  'BINCARD': [
-    {
-      'RI_NO': 'RI-00192',
-      'DATE': '2007-06-02 09:30:00',
-      'P_CODE': 'EXP-90',
-      'QTY': 50.0,
-      'VALUE': 125000.0,
-      'AC_CODE': '01-05-0002',
-      'TAG': 'A',
-    },
-  ],
-
-  'invth': [
-    {
-      'ISS_NO': 'IS-00419',
-      'ISS_DATE': '2007-06-03 14:00:00',
-      'P_CODE': 'EXP-90',
-      'AVG_RATE': 2500.0,
-      'AC_CODE': '04-02-0008',
-      'ISS_QTY': 15.0,
-      'SALE_R': 2750.0,
-    },
-  ],
-
+  '11Mychart': [],
+  'CHART': [],
+  'ALL GLHIS': [],
+  'f_CAEEB921B5DE4738892939BD46CDAA01_Data': [],
   'invt': [],
+  'invth': [],
+  'Name AutoCorrect Save Failures': [],
   'Post_Control': [],
-
-  'PRODUCT': [
-    {
-      'CODE': 'COAL01',
-      'DES': 'High Grade Steam Lump Coal',
-      'UNIT': 'TON',
-      'MCON': 1.0,
-      'RATE': 15000.0,
-      'STND_PRC': 15500.0,
-      'VARIENCE': 500.0,
-      'CUR_BALANE': 450.0,
-      'MINMUM_QT': 100.0,
-      'MAXIMUM_QT': 2000.0,
-      'REORDER_QT': 300.0,
-      'MIN_SL_PRC': 14500.0,
-      'MAX_SL_PRC': 16500.0,
-      'MIN_PR_PRC': 13000.0,
-      'MAX_PR_PRC': 14000.0,
-      'TEM_ISQTY': 0.0,
-      'CUR_BAL': 450.0,
-      'CUR_RATE': 15000.0,
-      'PUR': 'PUR-ACT-01',
-      'PURR': 'PUR-RET-01',
-      'VENDOR': 'VND-000001',
-      'COST_CODE': 'CC-MIN-001',
-      'SALE_RATE': 15500.0,
-      'JANSQ': 120.0, 'FEBSQ': 140.0, 'MARSQ': 150.0, 'APRSQ': 130.0, 'MAYSQ': 160.0, 'JUNSQ': 155.0,
-      'JULSQ': 145.0, 'AUGSQ': 170.0, 'SEPSQ': 180.0, 'OCTSQ': 165.0, 'NOVSQ': 150.0, 'DECSQ': 160.0,
-      'JANSV': 1800000.0, 'FEBSV': 2100000.0, 'MARSV': 2250000.0, 'APRSV': 1950000.0, 'MAYSV': 2400000.0, 'JUNSV': 2325000.0,
-      'JULSV': 2175000.0, 'AUGSV': 2550000.0, 'SEPSV': 2700000.0, 'OCTSV': 2475000.0, 'NOVSV': 2250000.0, 'DECSV': 2400000.0,
-      'JANPQ': 150.0, 'FEBPQ': 160.0, 'MARPQ': 170.0, 'APRPQ': 140.0, 'MAYPQ': 180.0, 'JUNPQ': 170.0,
-      'JULPQ': 160.0, 'AUGPQ': 190.0, 'SEPPQ': 200.0, 'OCTPQ': 180.0, 'NOVPQ': 165.0, 'DECPQ': 175.0,
-      'JANPV': 1950000.0, 'FEBPV': 2080000.0, 'MARPV': 2210000.0, 'APRPV': 1820000.0, 'MAYPV': 2340000.0, 'JUNPV': 2210000.0,
-      'JULPV': 2080000.0, 'AUGPV': 2470000.0, 'SEPPV': 2600000.0, 'OCTPV': 2340000.0, 'NOVPV': 2145000.0, 'DECPV': 2275000.0,
-    },
-  ],
-
-  'INTERFAC': [
-    {
-      'DD': '2007-01-01 00:00:00',
-      'DD1': '2007-12-31 23:59:59',
-      'BANK': '0102',
-      'CASH': '0101',
-      'VENDOR': '02',
-      'REV': '0301',
-      'CP': 142.0,
-      'CR': 210.0,
-      'BP': 891.0,
-      'BR': 450.0,
-      'JV': 412.0,
-      'BL': 55.0,
-      'P': 81.0,
-      'OTHER': 12.0,
-      'DJV': 0.0,
-      'MCOMPANY': 'AHCM MINING & MINERALS (PVT) LTD',
-      'PASS1': null, // Strictly NULL for security
-      'PASS2': null, // Strictly NULL for security
-      'PASS3': null, // Strictly NULL for security
-    },
-  ],
-
-  'VNO': [
-    { 'MDT': 'CP', 'CP': 142.0, 'CR': 0.0, 'BP': 0.0, 'BR': 0.0, 'JV': 0.0, 'PO': 0.0 },
-    { 'MDT': 'CR', 'CP': 0.0, 'CR': 210.0, 'BP': 0.0, 'BR': 0.0, 'JV': 0.0, 'PO': 0.0 },
-    { 'MDT': 'BP', 'CP': 0.0, 'CR': 0.0, 'BP': 891.0, 'BR': 0.0, 'JV': 0.0, 'PO': 0.0 },
-    { 'MDT': 'BR', 'CP': 0.0, 'CR': 0.0, 'BP': 0.0, 'BR': 450.0, 'JV': 0.0, 'PO': 0.0 },
-  ],
-
-  'tblLastProcess': [
-    {
-      'ProcessName': 'Monthly Ledger Consolidation & Trial Balance',
-      'LastDate': '2007-12-31 23:59:59',
-    },
-  ],
+  'ACCOUNT': [],
+  'GLHIS': [],
+  'ACCHIS': [],
+  'VOUHIS': [],
+  'VOUCHER': [],
+  'jv': [],
+  'jvhis': [],
+  'tblLastProcess': [],
+  'PO': [],
+  'PURCHASE': [],
+  'PURHIS': [],
+  'PURC': [],
+  'PUR2HIS': [],
+  'BINCARD': [],
+  'PRODUCT': [],
+  'INTERFAC': [],
+  'VNO': [],
 };
