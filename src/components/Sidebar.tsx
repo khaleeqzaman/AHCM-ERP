@@ -10,6 +10,7 @@ import {
   Scale,
   Vault,
   Boxes,
+  Database,
   X
 } from 'lucide-react';
 import { NavModule } from '../types';
@@ -61,6 +62,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'store_sales',
       label: 'Store & Sales',
       icon: <Boxes className="w-4 h-4" />,
+    },
+    {
+      id: 'old_ledger',
+      label: 'Old Ledger',
+      icon: <Database className="w-4 h-4" />,
+      badge: 'Access',
     },
     {
       id: 'admin_approvals',

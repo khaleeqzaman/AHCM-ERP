@@ -1,4 +1,4 @@
-export type NavModule = 'dashboard' | 'purchase' | 'accounting' | 'treasury' | 'store_sales' | 'admin_approvals' | 'reports' | 'settings';
+export type NavModule = 'dashboard' | 'purchase' | 'accounting' | 'treasury' | 'store_sales' | 'old_ledger' | 'admin_approvals' | 'reports' | 'settings';
 
 export type PurchaseViewMode = 
   | 'demand_form' 

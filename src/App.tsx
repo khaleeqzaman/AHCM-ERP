@@ -12,7 +12,8 @@ import {
   Table,
   Scale,
   Vault,
-  Boxes
+  Boxes,
+  Database
 } from 'lucide-react';
 import { 
   NavModule, 
@@ -40,6 +41,7 @@ import {
   VehicleRecord, 
   VehicleConsumptionRecord 
 } from './types/storeSales';
+import { TableDefinition, OldLedgerDataMap, ImportSummary } from './types/oldLedger';
 import { initialDemands, initialPurchases } from './data/mockData';
 import { initialChartOfAccounts, initialVouchers } from './data/mockAccountingData';
 import { 
@@ -59,12 +61,14 @@ import {
   initialVehicles, 
   initialVehicleConsumptions 
 } from './data/mockStoreSalesData';
+import { standardOldLedgerSchemas, initialOldLedgerData } from './data/mockOldLedgerData';
 import { Sidebar } from './components/Sidebar';
 import { PurchaseScreen } from './components/PurchaseScreen';
 import { AdminApprovalView } from './components/AdminApprovalView';
 import { AccountingScreen } from './components/accounting/AccountingScreen';
 import { TreasuryScreen } from './components/treasury/TreasuryScreen';
 import { StoreSalesScreen } from './components/store_sales/StoreSalesScreen';
+import { OldLedgerScreen } from './components/old_ledger/OldLedgerScreen';
 import { DashboardOverview } from './components/DashboardOverview';
 
 export default function App() {
@@ -95,6 +99,11 @@ export default function App() {
   const [stockEntries, setStockEntries] = useState<StockEntry[]>(initialStockEntries);
   const [vehicles, setVehicles] = useState<VehicleRecord[]>(initialVehicles);
   const [vehicleConsumptions, setVehicleConsumptions] = useState<VehicleConsumptionRecord[]>(initialVehicleConsumptions);
+
+  // 100% ISOLATED OLD LEDGER DATA STATE (Microsoft Access Engine)
+  const [oldLedgerTables, setOldLedgerTables] = useState<TableDefinition[]>(standardOldLedgerSchemas);
+  const [oldLedgerData, setOldLedgerData] = useState<OldLedgerDataMap>(initialOldLedgerData);
+  const [oldLedgerImportSummary, setOldLedgerImportSummary] = useState<ImportSummary | null>(null);
 
   // Demand Handlers
   const handleSaveDemand = (demand: DemandDocument) => {
@@ -578,6 +587,23 @@ export default function App() {
     setVehicleConsumptions((prev) => prev.filter((c) => c.id !== id).map((c, idx) => ({ ...c, srNo: idx + 1 })));
   };
 
+  // 100% ISOLATED OLD LEDGER (MICROSOFT ACCESS) HANDLERS
+  const handleOldLedgerImportSuccess = (
+    newTables: TableDefinition[],
+    newData: OldLedgerDataMap,
+    summary: ImportSummary
+  ) => {
+    setOldLedgerTables(newTables);
+    setOldLedgerData(newData);
+    setOldLedgerImportSummary(summary);
+  };
+
+  const handleResetOldLedger = () => {
+    setOldLedgerTables(standardOldLedgerSchemas);
+    setOldLedgerData(initialOldLedgerData);
+    setOldLedgerImportSummary(null);
+  };
+
   const pendingApprovalsCount =
     demands.filter((d) => d.status === 'Submitted for Approval').length +
     purchases.filter((p) => p.status === 'Submitted for Approval').length;
@@ -626,6 +652,8 @@ export default function App() {
                   ? 'Treasury (Cashier)'
                   : currentModule === 'store_sales'
                   ? 'Store & Sales'
+                  : currentModule === 'old_ledger'
+                  ? 'Old Ledger (Access)'
                   : currentModule === 'admin_approvals'
                   ? 'Admin Approval Console'
                   : currentModule}
@@ -689,6 +717,20 @@ export default function App() {
             >
               <Boxes className="w-3.5 h-3.5 text-blue-600" />
               <span>Store & Sales</span>
+            </button>
+
+            {/* Direct Switch: Old Ledger */}
+            <button
+              type="button"
+              onClick={() => setCurrentModule('old_ledger')}
+              className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
+                currentModule === 'old_ledger'
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-semibold shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Old Ledger</span>
             </button>
 
             {/* Direct Switch: Admin Approvals */}
@@ -822,6 +864,17 @@ export default function App() {
               onUpdateConsumption={handleUpdateVehicleConsumption}
               onDeleteConsumption={handleDeleteVehicleConsumption}
               onSaveCompanySettings={setCompanySettings}
+            />
+          )}
+
+          {/* 100% ISOLATED OLD LEDGER MODULE (MS ACCESS ARCHIVE) */}
+          {currentModule === 'old_ledger' && (
+            <OldLedgerScreen
+              tables={oldLedgerTables}
+              dataMap={oldLedgerData}
+              lastImportSummary={oldLedgerImportSummary}
+              onImportSuccess={handleOldLedgerImportSuccess}
+              onResetToSampleData={handleResetOldLedger}
             />
           )}
 
