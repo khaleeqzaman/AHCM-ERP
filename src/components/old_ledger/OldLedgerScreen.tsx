@@ -376,6 +376,23 @@ SELECT * FROM \`${selectedTable.name}\` LIMIT 25;`;
         </div>
       </div>
 
+      {/* Import Error Banner */}
+      {importError && (
+        <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2.5 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span className="font-semibold">{importError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setImportError(null)}
+            className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2 py-0.5 rounded hover:bg-rose-100 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Notifications */}
       {notification && (
         <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5 animate-fadeIn">

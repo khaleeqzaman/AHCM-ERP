@@ -106,11 +106,30 @@ export async function parseMdbOrAccdbFile(file: File): Promise<ParseMdbResult> {
 
   try {
     const MDBReaderClass = await getMDBReader();
-    const reader = new MDBReaderClass(buffer);
-    const rawTableNames = reader.getTableNames({ normalTables: true, systemTables: false });
+    let reader: any;
+    try {
+      reader = new MDBReaderClass(buffer, { password: '' });
+    } catch {
+      reader = new MDBReaderClass(buffer);
+    }
+
+    let rawTableNames: string[] = [];
+    try {
+      rawTableNames = reader.getTableNames({ normalTables: true, systemTables: false });
+    } catch {
+      try {
+        rawTableNames = reader.getTableNames();
+      } catch (e: any) {
+        throw new Error(e?.message || 'Failed to read table catalog from Access database.');
+      }
+    }
 
     // Filter out skipped tables
     const userTableNames: string[] = (rawTableNames as string[]).filter((name: string) => !isTableIgnored(name));
+
+    if (userTableNames.length === 0) {
+      throw new Error('No user tables found in the Access file. Please ensure the file contains valid non-system tables.');
+    }
 
     const tables: TableDefinition[] = [];
     const data: OldLedgerDataMap = {};
@@ -143,7 +162,13 @@ export async function parseMdbOrAccdbFile(file: File): Promise<ParseMdbResult> {
         }
 
         // Fetch row data
-        const rawRows = table.getData();
+        let rawRows: any[] = [];
+        try {
+          rawRows = table.getData();
+        } catch (dataErr: any) {
+          console.warn(`Could not read data rows for table ${tableName}:`, dataErr);
+          rawRows = [];
+        }
         const cleanedRows: Record<string, any>[] = [];
 
         // Check if table is INTERFAC for password sanitization
@@ -170,6 +195,10 @@ export async function parseMdbOrAccdbFile(file: File): Promise<ParseMdbResult> {
             // Normalize Date objects to string (YYYY-MM-DD HH:mm:ss)
             if (val instanceof Date) {
               val = val.toISOString().replace('T', ' ').substring(0, 19);
+            } else if (typeof val === 'bigint') {
+              val = Number(val);
+            } else if (val && typeof val === 'object' && Buffer.isBuffer(val)) {
+              val = val.toString('hex');
             }
 
             cleanRow[colName] = val ?? null;
