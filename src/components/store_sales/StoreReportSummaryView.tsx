@@ -642,11 +642,11 @@ export const StoreReportSummaryView: React.FC<StoreReportSummaryViewProps> = ({
                 {companySettings.address}
               </p>
               <div className="flex items-center justify-center gap-4 text-[11px] text-slate-500 font-mono pt-1">
-                <span>NTN: <strong>{companySettings.ntn}</strong></span>
+                <span>NTN: <strong>{companySettings.ntnNumber}</strong></span>
                 <span>•</span>
-                <span>STRN: <strong>{companySettings.strn}</strong></span>
+                <span>Phone: <strong>{companySettings.contactNumber}</strong></span>
                 <span>•</span>
-                <span>Phone: <strong>{companySettings.phone}</strong></span>
+                <span>Email: <strong>{companySettings.email}</strong></span>
               </div>
               <div className="pt-2">
                 <span className="inline-block bg-slate-100 text-slate-900 px-4 py-1 rounded text-xs font-bold uppercase tracking-wider border border-slate-300">
