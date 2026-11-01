@@ -3,17 +3,17 @@ import {
   ShoppingCart, 
   LayoutDashboard, 
   ShieldCheck, 
-  Package, 
-  BarChart3, 
   Settings, 
   Building2,
   Scale,
   Vault,
   Boxes,
-  Database,
+  Users,
+  LogOut,
   X
 } from 'lucide-react';
 import { NavModule } from '../types';
+import { User, UserRole } from '../types/user';
 
 interface SidebarProps {
   currentModule: NavModule;
@@ -21,6 +21,16 @@ interface SidebarProps {
   isOpenMobile: boolean;
   onToggleMobile: () => void;
   pendingApprovalsCount?: number;
+  currentUser: User;
+  onLogout: () => void;
+}
+
+interface SidebarNavItem {
+  id: NavModule;
+  label: string;
+  icon: React.ReactNode;
+  badge?: string;
+  badgeCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -29,63 +39,132 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onToggleMobile,
   pendingApprovalsCount = 0,
+  currentUser,
+  onLogout,
 }) => {
-  const navItems: { 
-    id: NavModule; 
-    label: string; 
-    icon: React.ReactNode; 
-    badge?: string;
-    badgeCount?: number;
-  }[] = [
-    {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: <LayoutDashboard className="w-4 h-4" />,
-    },
-    {
-      id: 'purchase',
-      label: 'Purchase',
-      icon: <ShoppingCart className="w-4 h-4" />,
-    },
-    {
-      id: 'accounting',
-      label: 'Accounts',
-      icon: <Scale className="w-4 h-4" />,
-    },
-    {
-      id: 'treasury',
-      label: 'Treasury',
-      icon: <Vault className="w-4 h-4" />,
-      badge: 'Cashier',
-    },
-    {
-      id: 'store_sales',
-      label: 'Store & Sales',
-      icon: <Boxes className="w-4 h-4" />,
-    },
-    {
-      id: 'old_ledger',
-      label: 'Old Ledger',
-      icon: <Database className="w-4 h-4" />,
-      badge: 'Access',
-    },
-    {
-      id: 'admin_approvals',
-      label: 'Admin Approvals',
-      icon: <ShieldCheck className="w-4 h-4" />,
-      badgeCount: pendingApprovalsCount,
-    },
-    {
-      id: 'reports',
-      label: 'Reports & Logs',
-      icon: <BarChart3 className="w-4 h-4" />,
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: <Settings className="w-4 h-4" />,
-    },
-  ];
+  // Strict role-based navigation configuration
+  const getNavItemsForRole = (role: UserRole): SidebarNavItem[] => {
+    switch (role) {
+      case 'purchaser':
+        return [
+          {
+            id: 'dashboard' as NavModule,
+            label: 'Purchaser Dashboard',
+            icon: <LayoutDashboard className="w-4 h-4" />,
+          },
+          {
+            id: 'purchase' as NavModule,
+            label: 'Purchase Module',
+            icon: <ShoppingCart className="w-4 h-4" />,
+          },
+        ];
+
+      case 'cashier':
+        return [
+          {
+            id: 'dashboard' as NavModule,
+            label: 'Cashier Dashboard',
+            icon: <LayoutDashboard className="w-4 h-4" />,
+          },
+          {
+            id: 'treasury' as NavModule,
+            label: 'Treasury Module',
+            icon: <Vault className="w-4 h-4" />,
+            badge: 'Cashier',
+          },
+        ];
+
+      case 'accountant':
+        return [
+          {
+            id: 'dashboard' as NavModule,
+            label: 'Accountant Dashboard',
+            icon: <LayoutDashboard className="w-4 h-4" />,
+          },
+          {
+            id: 'accounting' as NavModule,
+            label: 'Accounts Module',
+            icon: <Scale className="w-4 h-4" />,
+          },
+        ];
+
+      case 'store_manager':
+        return [
+          {
+            id: 'dashboard' as NavModule,
+            label: 'Store Dashboard',
+            icon: <LayoutDashboard className="w-4 h-4" />,
+          },
+          {
+            id: 'store_sales' as NavModule,
+            label: 'Store & Sales Module',
+            icon: <Boxes className="w-4 h-4" />,
+          },
+        ];
+
+      case 'admin':
+      default:
+        return [
+          {
+            id: 'dashboard' as NavModule,
+            label: 'Admin Dashboard',
+            icon: <LayoutDashboard className="w-4 h-4" />,
+          },
+          {
+            id: 'admin_approvals' as NavModule,
+            label: 'Admin Approvals',
+            icon: <ShieldCheck className="w-4 h-4" />,
+            badgeCount: pendingApprovalsCount,
+          },
+          {
+            id: 'users' as NavModule,
+            label: 'Users Management',
+            icon: <Users className="w-4 h-4" />,
+          },
+          {
+            id: 'purchase' as NavModule,
+            label: 'Purchase Desk',
+            icon: <ShoppingCart className="w-4 h-4" />,
+          },
+          {
+            id: 'accounting' as NavModule,
+            label: 'Accounts Desk',
+            icon: <Scale className="w-4 h-4" />,
+          },
+          {
+            id: 'treasury' as NavModule,
+            label: 'Treasury Desk',
+            icon: <Vault className="w-4 h-4" />,
+          },
+          {
+            id: 'store_sales' as NavModule,
+            label: 'Store & Sales Desk',
+            icon: <Boxes className="w-4 h-4" />,
+          },
+        ];
+    }
+  };
+
+  const navItems = getNavItemsForRole(currentUser.role);
+
+  const getRoleBadge = (role: UserRole) => {
+    switch (role) {
+      case 'admin':
+        return { label: 'Admin', color: 'bg-purple-900/80 text-purple-200 border-purple-700' };
+      case 'purchaser':
+        return { label: 'Purchaser', color: 'bg-blue-900/80 text-blue-200 border-blue-700' };
+      case 'cashier':
+        return { label: 'Cashier', color: 'bg-amber-900/80 text-amber-200 border-amber-700' };
+      case 'accountant':
+        return { label: 'Accountant', color: 'bg-emerald-900/80 text-emerald-200 border-emerald-700' };
+      case 'store_manager':
+        return { label: 'Store Mgr', color: 'bg-cyan-900/80 text-cyan-200 border-cyan-700' };
+      default:
+        return { label: role, color: 'bg-slate-800 text-slate-300 border-slate-700' };
+    }
+  };
+
+  const roleBadge = getRoleBadge(currentUser.role);
 
   return (
     <>
@@ -128,10 +207,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
+        {/* Current Active Role Indicator */}
+        <div className="px-4 py-3 bg-slate-950/60 border-b border-slate-800">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              Active Session
+            </span>
+            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${roleBadge.color}`}>
+              {roleBadge.label}
+            </span>
+          </div>
+          <div className="text-xs font-semibold text-white truncate mt-1">
+            {currentUser.name}
+          </div>
+          <div className="text-[11px] text-slate-400 truncate">
+            @{currentUser.username} · {currentUser.department}
+          </div>
+        </div>
+
         {/* Navigation Menu */}
         <div className="flex-1 py-4 px-3 overflow-y-auto space-y-1">
           <div className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-            Main Navigation
+            {currentUser.role === 'admin' ? 'Administration & Modules' : 'Assigned Workspace'}
           </div>
 
           {navItems.map((item) => {
@@ -184,21 +281,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </div>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-slate-800 shrink-0 bg-slate-900/60">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold text-slate-200">
-              PO
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-white truncate">
-                Purchasing Officer
-              </p>
-              <p className="text-[11px] text-slate-400 truncate">
-                Purchaser / Admin Active
-              </p>
-            </div>
-          </div>
+        {/* Sidebar Footer with Sign Out */}
+        <div className="p-3 border-t border-slate-800 shrink-0 bg-slate-900/80">
+          <button
+            type="button"
+            onClick={onLogout}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-red-300 bg-red-950/40 hover:bg-red-950/80 border border-red-900/60 transition-colors cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign Out ({currentUser.username})</span>
+          </button>
         </div>
       </aside>
     </>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Menu, 
   ChevronRight, 
@@ -13,15 +13,22 @@ import {
   Scale,
   Vault,
   Boxes,
-  Database
+  Users as UsersIcon,
+  LogOut
 } from 'lucide-react';
 import { 
   NavModule, 
   DemandDocument, 
   PurchaseDocument,
   DemandItem,
-  PurchaseSummaryItem
+  PurchaseSummaryItem,
+  User,
+  UserRole
 } from './types';
+import { initialUsers } from './data/mockUsers';
+import { LoginScreen } from './components/auth/LoginScreen';
+import { UsersScreen } from './components/users/UsersScreen';
+import { RoleDashboard } from './components/dashboard/RoleDashboard';
 import { ChartAccount, VoucherDocument } from './types/accounting';
 import { 
   CashBookEntry, 
@@ -68,12 +75,145 @@ import { AdminApprovalView } from './components/AdminApprovalView';
 import { AccountingScreen } from './components/accounting/AccountingScreen';
 import { TreasuryScreen } from './components/treasury/TreasuryScreen';
 import { StoreSalesScreen } from './components/store_sales/StoreSalesScreen';
-import { OldLedgerScreen } from './components/old_ledger/OldLedgerScreen';
-import { DashboardOverview } from './components/DashboardOverview';
 
 export default function App() {
-  const [currentModule, setCurrentModule] = useState<NavModule>('purchase');
+  // User Management & Persistence
+  const [users, setUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('ahcm_erp_users');
+    if (saved) {
+      try {
+        const parsed: User[] = JSON.parse(saved);
+        // Refresh default users to ensure updated names (Abdul Hakeem, Sheeraz, Zohaib, Ghani)
+        return parsed.map((u) => {
+          const match = initialUsers.find((init) => init.id === u.id || init.username === u.username);
+          if (match) {
+            return { ...u, name: match.name };
+          }
+          return u;
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
+    return initialUsers;
+  });
+
+  // Current authenticated user - Entry point is Signin Page (null initially)
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('ahcm_erp_active_user');
+    if (saved) {
+      try {
+        const parsed: User = JSON.parse(saved);
+        const match = initialUsers.find((init) => init.id === parsed.id || init.username === parsed.username);
+        if (match) {
+          return { ...parsed, name: match.name };
+        }
+        return parsed;
+      } catch (e) {
+        // ignore
+      }
+    }
+    return null;
+  });
+
+  const [currentModule, setCurrentModule] = useState<NavModule>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Sync users to localStorage
+  useEffect(() => {
+    localStorage.setItem('ahcm_erp_users', JSON.stringify(users));
+  }, [users]);
+
+  // Sync active session
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('ahcm_erp_active_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('ahcm_erp_active_user');
+    }
+  }, [currentUser]);
+
+  // Role permissions mapping
+  const getAllowedModules = (role: UserRole): NavModule[] => {
+    switch (role) {
+      case 'purchaser':
+        return ['dashboard', 'purchase'];
+      case 'cashier':
+        return ['dashboard', 'treasury'];
+      case 'accountant':
+        return ['dashboard', 'accounting'];
+      case 'store_manager':
+        return ['dashboard', 'store_sales'];
+      case 'admin':
+      default:
+        return [
+          'dashboard', 
+          'admin_approvals', 
+          'users', 
+          'purchase', 
+          'accounting', 
+          'treasury', 
+          'store_sales', 
+          'reports', 
+          'settings'
+        ];
+    }
+  };
+
+  // Enforce role isolation guard on module navigation
+  useEffect(() => {
+    if (currentUser) {
+      const allowed = getAllowedModules(currentUser.role);
+      if (!allowed.includes(currentModule)) {
+        setCurrentModule('dashboard');
+      }
+    }
+  }, [currentUser, currentModule]);
+
+  // Auth Handlers
+  const handleLogin = (user: User) => {
+    const now = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
+    const updated = { ...user, lastLogin: now };
+    setCurrentUser(updated);
+    setUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)));
+    setCurrentModule('dashboard');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setCurrentModule('dashboard');
+  };
+
+  // Admin User Management Handlers
+  const handleAddUser = (newUserData: Omit<User, 'id' | 'createdAt'>) => {
+    const newUser: User = {
+      ...newUserData,
+      id: `user-${Date.now()}`,
+      createdAt: new Date().toISOString().split('T')[0],
+      lastLogin: 'Never',
+    };
+    setUsers((prev) => [newUser, ...prev]);
+  };
+
+  const handleUpdateUser = (updatedUser: User) => {
+    setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+    if (currentUser && currentUser.id === updatedUser.id) {
+      setCurrentUser(updatedUser);
+    }
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
+  };
+
+  const handleResetPassword = (userId: string, newPass: string) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, password: newPass } : u))
+    );
+    if (currentUser && currentUser.id === userId) {
+      setCurrentUser({ ...currentUser, password: newPass });
+    }
+  };
 
   // Fully independent data states (Business Rule 8)
   const [demands, setDemands] = useState<DemandDocument[]>(initialDemands);
@@ -243,6 +383,14 @@ export default function App() {
         p.id === id ? { ...p, status: 'Rejected', adminRemark: remark } : p
       )
     );
+  };
+
+  const handleDeleteDemand = (id: string) => {
+    setDemands((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const handleDeletePurchase = (id: string) => {
+    setPurchases((prev) => prev.filter((p) => p.id !== id));
   };
 
   // ACCOUNTANT HANDLERS (Completely isolated)
@@ -608,6 +756,28 @@ export default function App() {
     demands.filter((d) => d.status === 'Submitted for Approval').length +
     purchases.filter((p) => p.status === 'Submitted for Approval').length;
 
+  // App entry point is Login page if unauthenticated
+  if (!currentUser) {
+    return <LoginScreen users={users} onLogin={handleLogin} />;
+  }
+
+  const roleBadgeStyle = (role: UserRole) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'purchaser':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'cashier':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'accountant':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'store_manager':
+        return 'bg-cyan-100 text-cyan-800 border-cyan-200';
+      default:
+        return 'bg-slate-100 text-slate-800 border-slate-200';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100/70 flex">
       {/* Sidebar Navigation */}
@@ -617,6 +787,8 @@ export default function App() {
         isOpenMobile={isMobileSidebarOpen}
         onToggleMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         pendingApprovalsCount={pendingApprovalsCount}
+        currentUser={currentUser}
+        onLogout={handleLogout}
       />
 
       {/* Main Workspace */}
@@ -640,11 +812,24 @@ export default function App() {
                 onClick={() => setCurrentModule('dashboard')}
                 className="hover:text-slate-800 transition-colors cursor-pointer"
               >
+                {currentUser.role === 'admin'
+                  ? 'Admin'
+                  : currentUser.role === 'purchaser'
+                  ? 'Purchaser'
+                  : currentUser.role === 'cashier'
+                  ? 'Cashier'
+                  : currentUser.role === 'accountant'
+                  ? 'Accountant'
+                  : 'Store'}{' '}
                 Dashboard
               </button>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               <span className="text-slate-900 capitalize font-semibold">
-                {currentModule === 'purchase'
+                {currentModule === 'dashboard'
+                  ? 'Overview & Metrics'
+                  : currentModule === 'users'
+                  ? 'Users Management'
+                  : currentModule === 'purchase'
                   ? 'Purchase Module'
                   : currentModule === 'accounting'
                   ? 'Accounts'
@@ -652,123 +837,210 @@ export default function App() {
                   ? 'Treasury (Cashier)'
                   : currentModule === 'store_sales'
                   ? 'Store & Sales'
-                  : currentModule === 'old_ledger'
-                  ? 'Old Ledger (Access)'
                   : currentModule === 'admin_approvals'
-                  ? 'Admin Approval Console'
+                  ? 'Admin Approvals'
                   : currentModule}
               </span>
             </nav>
           </div>
 
-          {/* Top Bar Right Actions & Role quick indicator */}
+          {/* Top Bar Right Actions: Role-based shortcuts & User Profile */}
           <div className="flex items-center gap-2.5">
-            {/* Direct Switch: Purchaser View */}
-            <button
-              type="button"
-              onClick={() => setCurrentModule('purchase')}
-              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                currentModule === 'purchase'
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 font-semibold shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span>Purchaser</span>
-            </button>
+            {/* Admin: Users Management Shortcut */}
+            {currentUser.role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => setCurrentModule('users')}
+                className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
+                  currentModule === 'users'
+                    ? 'bg-purple-100 text-purple-800 border-purple-300 font-semibold shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <UsersIcon className="w-3.5 h-3.5 text-purple-600" />
+                <span>Users ({users.length})</span>
+              </button>
+            )}
 
-            {/* Direct Switch: Accountant Module */}
-            <button
-              type="button"
-              onClick={() => setCurrentModule('accounting')}
-              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                currentModule === 'accounting'
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <Scale className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Accounts</span>
-            </button>
+            {/* Admin: Approvals Shortcut */}
+            {currentUser.role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => setCurrentModule('admin_approvals')}
+                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
+                  currentModule === 'admin_approvals'
+                    ? 'bg-purple-100 text-purple-800 border-purple-300 font-semibold shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                <span>Approvals</span>
+                {pendingApprovalsCount > 0 && (
+                  <span className="font-mono text-[10px] bg-purple-600 text-white px-1.5 py-0.2 rounded-full font-bold">
+                    {pendingApprovalsCount}
+                  </span>
+                )}
+              </button>
+            )}
 
-            {/* Direct Switch: Treasury (Cashier) */}
-            <button
-              type="button"
-              onClick={() => setCurrentModule('treasury')}
-              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                currentModule === 'treasury'
-                  ? 'bg-amber-50 text-amber-800 border-amber-200 font-semibold shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <Vault className="w-3.5 h-3.5 text-amber-700" />
-              <span>Treasury</span>
-            </button>
+            {/* Purchaser: Quick shortcut */}
+            {(currentUser.role === 'purchaser' || currentUser.role === 'admin') && (
+              <button
+                type="button"
+                onClick={() => setCurrentModule('purchase')}
+                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
+                  currentModule === 'purchase'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 font-semibold shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
+                <span>Purchase Desk</span>
+              </button>
+            )}
 
-            {/* Direct Switch: Store & Sales */}
-            <button
-              type="button"
-              onClick={() => setCurrentModule('store_sales')}
-              className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                currentModule === 'store_sales'
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 font-semibold shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <Boxes className="w-3.5 h-3.5 text-blue-600" />
-              <span>Store & Sales</span>
-            </button>
+            {/* Cashier: Quick shortcut */}
+            {(currentUser.role === 'cashier' || currentUser.role === 'admin') && (
+              <button
+                type="button"
+                onClick={() => setCurrentModule('treasury')}
+                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
+                  currentModule === 'treasury'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200 font-semibold shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Vault className="w-3.5 h-3.5 text-amber-700" />
+                <span>Treasury</span>
+              </button>
+            )}
 
-            {/* Direct Switch: Old Ledger */}
-            <button
-              type="button"
-              onClick={() => setCurrentModule('old_ledger')}
-              className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                currentModule === 'old_ledger'
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-semibold shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Old Ledger</span>
-            </button>
+            {/* Accountant: Quick shortcut */}
+            {(currentUser.role === 'accountant' || currentUser.role === 'admin') && (
+              <button
+                type="button"
+                onClick={() => setCurrentModule('accounting')}
+                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
+                  currentModule === 'accounting'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Scale className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Accounts</span>
+              </button>
+            )}
 
-            {/* Direct Switch: Admin Approvals */}
-            <button
-              type="button"
-              onClick={() => setCurrentModule('admin_approvals')}
-              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                currentModule === 'admin_approvals'
-                  ? 'bg-purple-50 text-purple-700 border-purple-200 font-semibold shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Admin Approvals</span>
-              {pendingApprovalsCount > 0 && (
-                <span className="font-mono text-[10px] bg-purple-600 text-white px-1.5 py-0.2 rounded-full font-bold">
-                  {pendingApprovalsCount}
-                </span>
-              )}
-            </button>
+            {/* Store Manager: Quick shortcut */}
+            {(currentUser.role === 'store_manager' || currentUser.role === 'admin') && (
+              <button
+                type="button"
+                onClick={() => setCurrentModule('store_sales')}
+                className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
+                  currentModule === 'store_sales'
+                    ? 'bg-cyan-50 text-cyan-800 border-cyan-200 font-semibold shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Boxes className="w-3.5 h-3.5 text-cyan-600" />
+                <span>Store & Sales</span>
+              </button>
+            )}
 
             <div className="w-px h-5 bg-slate-200 hidden sm:block" />
 
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-white text-xs font-semibold">
-                AC
+            {/* User Profile Info */}
+            <div className="flex items-center gap-2.5">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase ${
+                  currentUser.role === 'admin'
+                    ? 'bg-purple-600 text-white'
+                    : currentUser.role === 'purchaser'
+                    ? 'bg-blue-600 text-white'
+                    : currentUser.role === 'cashier'
+                    ? 'bg-amber-600 text-white'
+                    : currentUser.role === 'accountant'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-cyan-600 text-white'
+                }`}
+              >
+                {currentUser.username.slice(0, 2)}
               </div>
-              <span className="text-xs font-medium text-slate-800 hidden md:inline">
-                Accountant / Officer
-              </span>
+
+              <div className="hidden lg:block text-left">
+                <div className="text-xs font-bold text-slate-800 leading-tight">
+                  {currentUser.name}
+                </div>
+                <div className="text-[10px] text-slate-500 font-mono capitalize">
+                  @{currentUser.username} · {currentUser.role.replace('_', ' ')}
+                </div>
+              </div>
+
+              {/* Sign Out Button */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Sign out of system"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors cursor-pointer ml-1"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
             </div>
           </div>
         </header>
 
         {/* Content Viewport */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
-          {/* Purchase Module */}
-          {currentModule === 'purchase' && (
+          {/* Role-Specific Dashboard (Admin, Purchaser, Cashier, Accountant, Store Manager) */}
+          {currentModule === 'dashboard' && (
+            <RoleDashboard
+              currentUser={currentUser}
+              demands={demands}
+              purchases={purchases}
+              accounts={accounts}
+              vouchers={vouchers}
+              cashBookEntries={cashBookEntries}
+              creditBookEntries={creditBookEntries}
+              banks={banks}
+              bankAccounts={bankAccounts}
+              posEntries={posEntries}
+              stockItems={stockItems}
+              stockEntries={stockEntries}
+              vehicles={vehicles}
+              consumptions={vehicleConsumptions}
+              users={users}
+              oldLedgerTables={oldLedgerTables}
+              onNavigate={setCurrentModule}
+            />
+          )}
+
+          {/* Admin Exclusive: User Management Module */}
+          {currentModule === 'users' && currentUser.role === 'admin' && (
+            <UsersScreen
+              users={users}
+              currentUser={currentUser}
+              onAddUser={handleAddUser}
+              onUpdateUser={handleUpdateUser}
+              onDeleteUser={handleDeleteUser}
+              onResetPassword={handleResetPassword}
+            />
+          )}
+
+          {/* Admin Exclusive: Approval Console */}
+          {currentModule === 'admin_approvals' && currentUser.role === 'admin' && (
+            <AdminApprovalView
+              demands={demands}
+              purchases={purchases}
+              onApproveDemand={handleApproveDemand}
+              onRejectDemand={handleRejectDemand}
+              onApprovePurchase={handleApprovePurchase}
+              onRejectPurchase={handleRejectPurchase}
+            />
+          )}
+
+          {/* Purchase Module (Purchaser & Admin) */}
+          {currentModule === 'purchase' && (currentUser.role === 'admin' || currentUser.role === 'purchaser') && (
             <PurchaseScreen
               demands={demands}
               purchases={purchases}
@@ -786,11 +1058,13 @@ export default function App() {
               onRejectDemand={handleRejectDemand}
               onApprovePurchase={handleApprovePurchase}
               onRejectPurchase={handleRejectPurchase}
+              onDeleteDemand={handleDeleteDemand}
+              onDeletePurchase={handleDeletePurchase}
             />
           )}
 
-          {/* ISOLATED ACCOUNTANT MODULE */}
-          {currentModule === 'accounting' && (
+          {/* ISOLATED ACCOUNTANT MODULE (Accountant & Admin) */}
+          {currentModule === 'accounting' && (currentUser.role === 'admin' || currentUser.role === 'accountant') && (
             <AccountingScreen
               accounts={accounts}
               vouchers={vouchers}
@@ -799,11 +1073,16 @@ export default function App() {
               onSaveVoucher={handleSaveVoucher}
               onPostDraftVoucher={handlePostDraftVoucher}
               onUpdateLedgerEntry={handleUpdateLedgerEntry}
+              oldLedgerTables={oldLedgerTables}
+              oldLedgerData={oldLedgerData}
+              oldLedgerImportSummary={oldLedgerImportSummary}
+              onOldLedgerImportSuccess={handleOldLedgerImportSuccess}
+              onResetOldLedger={handleResetOldLedger}
             />
           )}
 
-          {/* ISOLATED TREASURY MODULE (CASHIER) */}
-          {currentModule === 'treasury' && (
+          {/* ISOLATED TREASURY MODULE (Cashier & Admin) */}
+          {currentModule === 'treasury' && (currentUser.role === 'admin' || currentUser.role === 'cashier') && (
             <TreasuryScreen
               cashBookEntries={cashBookEntries}
               creditBookEntries={creditBookEntries}
@@ -827,8 +1106,8 @@ export default function App() {
             />
           )}
 
-          {/* 100% ISOLATED STORE & SALES MODULE */}
-          {currentModule === 'store_sales' && (
+          {/* 100% ISOLATED STORE & SALES MODULE (Store Manager & Admin) */}
+          {currentModule === 'store_sales' && (currentUser.role === 'admin' || currentUser.role === 'store_manager') && (
             <StoreSalesScreen
               posEntries={posEntries}
               coalSellRecords={coalSellRecords}
@@ -864,39 +1143,6 @@ export default function App() {
               onUpdateConsumption={handleUpdateVehicleConsumption}
               onDeleteConsumption={handleDeleteVehicleConsumption}
               onSaveCompanySettings={setCompanySettings}
-            />
-          )}
-
-          {/* 100% ISOLATED OLD LEDGER MODULE (MS ACCESS ARCHIVE) */}
-          {currentModule === 'old_ledger' && (
-            <OldLedgerScreen
-              tables={oldLedgerTables}
-              dataMap={oldLedgerData}
-              lastImportSummary={oldLedgerImportSummary}
-              onImportSuccess={handleOldLedgerImportSuccess}
-              onResetToSampleData={handleResetOldLedger}
-            />
-          )}
-
-          {/* Admin Approval Console */}
-          {currentModule === 'admin_approvals' && (
-            <AdminApprovalView
-              demands={demands}
-              purchases={purchases}
-              onApproveDemand={handleApproveDemand}
-              onRejectDemand={handleRejectDemand}
-              onApprovePurchase={handleApprovePurchase}
-              onRejectPurchase={handleRejectPurchase}
-            />
-          )}
-
-          {/* Dashboard Overview */}
-          {currentModule === 'dashboard' && (
-            <DashboardOverview
-              demands={demands}
-              purchases={purchases}
-              onNavigateToPurchase={() => setCurrentModule('purchase')}
-              onNavigateToApprovals={() => setCurrentModule('admin_approvals')}
             />
           )}
 

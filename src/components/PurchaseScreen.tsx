@@ -40,6 +40,8 @@ interface PurchaseScreenProps {
   onRejectDemand: (id: string, remark?: string) => void;
   onApprovePurchase: (id: string, remark?: string) => void;
   onRejectPurchase: (id: string, remark?: string) => void;
+  onDeleteDemand?: (id: string) => void;
+  onDeletePurchase?: (id: string) => void;
 }
 
 export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
@@ -59,6 +61,8 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
   onRejectDemand,
   onApprovePurchase,
   onRejectPurchase,
+  onDeleteDemand,
+  onDeletePurchase,
 }) => {
   // 1. Purchaser Screen Default entry: 'view_demands' or 'demand_form'
   const [currentView, setCurrentView] = useState<PurchaseViewMode>('view_demands');
@@ -275,6 +279,7 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
             onSubmitDemand={onSubmitDemand}
             onSubmitMultipleDemands={onSubmitMultipleDemands}
             onUpdateDemandItems={onUpdateDemandItems}
+            onDeleteDemand={onDeleteDemand}
             onNavigateToCreate={handleOpenNewDemand}
           />
         )}
@@ -287,6 +292,7 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
             onSubmitPurchase={onSubmitPurchase}
             onSubmitMultiplePurchases={onSubmitMultiplePurchases}
             onUpdatePurchaseItems={onUpdatePurchaseItems}
+            onDeletePurchase={onDeletePurchase}
             onNavigateToCreate={handleOpenNewPurchase}
           />
         )}
