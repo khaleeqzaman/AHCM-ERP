@@ -198,13 +198,40 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
     }
   };
 
-  // Parse DD-MM-YYYY
-  const parseEntryDate = (dStr: string) => {
-    const parts = dStr.split('-');
-    if (parts.length === 3) {
-      return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+  // Converts date string to comparable YYYYMMDD integer (immune to timezone bugs)
+  const parseDateToYMD = (dStr: string | null | undefined): number | null => {
+    if (!dStr) return null;
+    const trimmed = dStr.trim();
+    if (!trimmed) return null;
+
+    // DD-MM-YYYY or DD/MM/YYYY
+    const ddmm = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+    if (ddmm) {
+      const day = parseInt(ddmm[1], 10);
+      const month = parseInt(ddmm[2], 10);
+      const year = parseInt(ddmm[3], 10);
+      return year * 10000 + month * 100 + day;
     }
-    return new Date(dStr);
+
+    // YYYY-MM-DD or YYYY/MM/DD
+    const yymm = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+    if (yymm) {
+      const year = parseInt(yymm[1], 10);
+      const month = parseInt(yymm[2], 10);
+      const day = parseInt(yymm[3], 10);
+      return year * 10000 + month * 100 + day;
+    }
+
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    }
+    return null;
+  };
+
+  const formatNoDecimals = (val: number | null | undefined): string => {
+    if (val === null || val === undefined || isNaN(val)) return '0';
+    return Math.round(val).toLocaleString('en-US');
   };
 
   // Filtered Stock Entries
@@ -227,43 +254,54 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
         if (!matches) return false;
       }
 
-      // Date range
-      const eDate = parseEntryDate(e.date);
-      if (dateFrom) {
-        const fDate = new Date(dateFrom);
-        if (eDate < fDate) return false;
+      // Date range filter (supports DD-MM-YYYY and YYYY-MM-DD seamlessly)
+      const eYMD = parseDateToYMD(e.date);
+      const fromYMD = parseDateToYMD(dateFrom);
+      if (fromYMD !== null) {
+        if (eYMD === null || eYMD < fromYMD) return false;
       }
-      if (dateTo) {
-        const tDate = new Date(dateTo);
-        tDate.setHours(23, 59, 59, 999);
-        if (eDate > tDate) return false;
+      const toYMD = parseDateToYMD(dateTo);
+      if (toYMD !== null) {
+        if (eYMD === null || eYMD > toYMD) return false;
       }
 
-      // Time filter
-      if (timeFilter === 'daily') {
-        const isToday = 
-          eDate.getDate() === now.getDate() &&
-          eDate.getMonth() === now.getMonth() &&
-          eDate.getFullYear() === now.getFullYear();
-        if (!isToday) return false;
-      } else if (timeFilter === 'weekly') {
-        const diffTime = Math.abs(now.getTime() - eDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        if (diffDays > 7) return false;
-      } else if (timeFilter === 'monthly') {
-        const isThisMonth = 
-          eDate.getMonth() === now.getMonth() &&
-          eDate.getFullYear() === now.getFullYear();
-        if (!isThisMonth) return false;
+      // Time filter (applies when specific date range is not actively entered)
+      if (!dateFrom && !dateTo) {
+        if (timeFilter === 'daily') {
+          const todayYMD = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+          if (eYMD !== todayYMD) return false;
+        } else if (timeFilter === 'weekly') {
+          if (!eYMD) return false;
+          const entryYear = Math.floor(eYMD / 10000);
+          const entryMonth = Math.floor((eYMD % 10000) / 100) - 1;
+          const entryDay = eYMD % 100;
+          const entryTime = new Date(entryYear, entryMonth, entryDay).getTime();
+          const diffDays = (now.getTime() - entryTime) / (1000 * 60 * 60 * 24);
+          if (diffDays < 0 || diffDays > 7) return false;
+        } else if (timeFilter === 'monthly') {
+          if (!eYMD) return false;
+          const entryMonth = Math.floor((eYMD % 10000) / 100);
+          const entryYear = Math.floor(eYMD / 10000);
+          if (entryMonth !== now.getMonth() + 1 || entryYear !== now.getFullYear()) {
+            return false;
+          }
+        }
       }
 
       return true;
     }).sort((a, b) => {
-      const tA = parseEntryDate(a.date).getTime();
-      const tB = parseEntryDate(b.date).getTime();
-      return sortOrder === 'desc' ? tB - tA : tA - tB;
+      const ymdA = parseDateToYMD(a.date) || 0;
+      const ymdB = parseDateToYMD(b.date) || 0;
+      return sortOrder === 'desc' ? ymdB - ymdA : ymdA - ymdB;
     });
   }, [stockEntries, selectedItemId, searchTerm, dateFrom, dateTo, timeFilter, sortOrder]);
+
+  // Totals for all numeric columns in stock report (No decimals)
+  const totalStock = filteredEntries.reduce((sum, e) => sum + (Number(e.stockQty) || 0), 0);
+  const totalPurchase = filteredEntries.reduce((sum, e) => sum + (Number(e.purchaseQty) || 0), 0);
+  const totalMine = filteredEntries.reduce((sum, e) => sum + (Number(e.mineQty) || 0), 0);
+  const totalVehicles = filteredEntries.reduce((sum, e) => sum + (Number(e.vehiclesQty) || 0), 0);
+  const totalBalance = filteredEntries.reduce((sum, e) => sum + (Number(e.balance) || 0), 0);
 
   // Selected item name to display on top of list
   const currentSelectedItemName = selectedItemId === 'all'
@@ -580,7 +618,7 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
               <div className="bg-white px-4 py-2 rounded-lg border border-amber-300 text-right shrink-0">
                 <span className="text-[10px] text-amber-700 block font-semibold">Net Balance</span>
                 <span className="text-lg font-bold font-mono text-slate-900">
-                  {calcBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatNoDecimals(calcBalance)}
                 </span>
               </div>
             </div>
@@ -717,30 +755,72 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
               </button>
             </div>
 
-            {/* Date Range filter */}
+            {/* Date Range filter (DD-MM-YYYY) */}
             <div className="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs text-slate-600 flex-wrap">
               <span className="font-semibold text-slate-700 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                Date Range Filter:
+                <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                Date Range Filter (DD-MM-YYYY):
               </span>
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400">From:</span>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="px-2 py-1 border border-slate-300 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 font-medium">From:</span>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    placeholder="DD-MM-YYYY"
+                    value={dateFrom}
+                    onChange={(e) => {
+                      setDateFrom(e.target.value);
+                      setTimeFilter('all');
+                    }}
+                    className="w-28 pl-2 pr-7 py-1 border border-slate-300 rounded text-xs font-mono font-medium bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    title="Enter date as DD-MM-YYYY or pick from calendar"
+                  />
+                  <input
+                    type="date"
+                    aria-label="Pick From Date"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const [y, m, d] = e.target.value.split('-');
+                        setDateFrom(`${d}-${m}-${y}`);
+                        setTimeFilter('all');
+                      }
+                    }}
+                    className="absolute right-1 w-5 h-5 opacity-40 hover:opacity-100 cursor-pointer p-0 border-0"
+                    title="Open calendar picker"
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400">To:</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="px-2 py-1 border border-slate-300 rounded text-xs bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
-                />
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 font-medium">To:</span>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    placeholder="DD-MM-YYYY"
+                    value={dateTo}
+                    onChange={(e) => {
+                      setDateTo(e.target.value);
+                      setTimeFilter('all');
+                    }}
+                    className="w-28 pl-2 pr-7 py-1 border border-slate-300 rounded text-xs font-mono font-medium bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    title="Enter date as DD-MM-YYYY or pick from calendar"
+                  />
+                  <input
+                    type="date"
+                    aria-label="Pick To Date"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        const [y, m, d] = e.target.value.split('-');
+                        setDateTo(`${d}-${m}-${y}`);
+                        setTimeFilter('all');
+                      }
+                    }}
+                    className="absolute right-1 w-5 h-5 opacity-40 hover:opacity-100 cursor-pointer p-0 border-0"
+                    title="Open calendar picker"
+                  />
+                </div>
               </div>
+
               {(dateFrom || dateTo) && (
                 <button
                   type="button"
@@ -748,7 +828,7 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
                     setDateFrom('');
                     setDateTo('');
                   }}
-                  className="text-xs text-rose-600 hover:underline cursor-pointer"
+                  className="text-xs text-rose-600 hover:underline font-semibold cursor-pointer px-1.5 py-0.5 bg-rose-50 rounded border border-rose-200"
                 >
                   Clear dates
                 </button>
@@ -795,22 +875,22 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
                           <span className="text-[10px] text-slate-400 font-mono">{e.itemCode}</span>
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-800">
-                          {e.stockQty.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatNoDecimals(e.stockQty)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-emerald-700">
-                          {e.purchaseQty.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatNoDecimals(e.purchaseQty)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-rose-700">
-                          {e.mineQty.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatNoDecimals(e.mineQty)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-amber-700">
-                          {e.vehiclesQty.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatNoDecimals(e.vehiclesQty)}
                         </td>
                         <td className="py-2.5 px-3 text-slate-700 font-medium">
                           {e.companyName}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-950 bg-amber-50/40">
-                          {e.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatNoDecimals(e.balance)}
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <div className="inline-flex items-center gap-1">
@@ -836,6 +916,31 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
                     ))
                   )}
                 </tbody>
+                {/* Stock Report Totals (No decimals) */}
+                <tfoot className="bg-slate-100 border-t-2 border-slate-300 font-bold text-slate-900 text-xs">
+                  <tr>
+                    <td colSpan={3} className="py-3 px-3 uppercase tracking-wider text-right font-extrabold text-slate-800">
+                      Total Stock Summary:
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-800">
+                      {formatNoDecimals(totalStock)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-800">
+                      {formatNoDecimals(totalPurchase)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono font-extrabold text-rose-800">
+                      {formatNoDecimals(totalMine)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-mono font-extrabold text-amber-800">
+                      {formatNoDecimals(totalVehicles)}
+                    </td>
+                    <td className="py-3 px-3 text-center text-slate-400 font-mono text-[11px]">—</td>
+                    <td className="py-3 px-3 text-right font-mono font-extrabold text-amber-950 bg-amber-100/90 text-sm">
+                      {formatNoDecimals(totalBalance)}
+                    </td>
+                    <td className="py-3 px-3 text-center">—</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
