@@ -59,6 +59,8 @@ import {
   dbGetVehicleConsumptionSummary,
   dbGetItemWiseStockSummary,
 } from './src/db/queries.ts';
+import { testDatabaseConnection, pool } from './src/db/index.ts';
+import { autoMigrateAndSeed } from './src/db/autoMigrate.ts';
 
 import { initialUsers } from './src/data/mockUsers.ts';
 import { initialDemands, initialPurchases } from './src/data/mockData.ts';
@@ -93,7 +95,9 @@ async function startServer() {
   // Helper for error responses
   const handleError = (res: Response, err: unknown, message: string) => {
     console.error(message, err);
-    res.status(500).json({ error: message, details: err instanceof Error ? err.message : String(err) });
+    const innerErr = (err as any)?.cause?.cause || (err as any)?.cause || err;
+    const details = innerErr?.message || innerErr?.detail || String(innerErr);
+    res.status(500).json({ error: message, details: String(details) });
   };
 
   // Health check
@@ -101,32 +105,29 @@ async function startServer() {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
-  // Seed database if empty or explicitly called
+  // Supabase / Database Status check
+  app.get('/api/database/status', async (_req: Request, res: Response) => {
+    const status = await testDatabaseConnection();
+    res.json({
+      ...status,
+      timestamp: new Date().toISOString(),
+      provider: process.env.DATABASE_URL?.includes('supabase') ? 'supabase' : 'postgres',
+    });
+  });
+
+  // Seed and ensure database tables if empty or explicitly called
   const seedIfEmpty = async () => {
     try {
-      const existingUsers = await dbGetUsers().catch(() => []);
-      if (existingUsers.length === 0) {
-        for (const u of initialUsers) await dbSaveUser(u);
-      }
-
-      const existingAccounts = await dbGetChartAccounts().catch(() => []);
-      if (existingAccounts.length === 0) {
-        for (const a of initialChartOfAccounts) await dbSaveChartAccount(a);
-      }
-
-      const existingSettings = await dbGetCompanySettings().catch(() => null);
-      if (!existingSettings) {
-        await dbSaveCompanySettings(initialCompanySettings);
-      }
+      await autoMigrateAndSeed();
     } catch (err) {
-      console.warn('Auto-seed skipped or encountered error:', err);
+      console.warn('Auto-seed / migration skipped or encountered error:', err);
     }
   };
 
   // Explicit seed endpoint
   app.post('/api/seed', async (_req: Request, res: Response) => {
     try {
-      await seedIfEmpty();
+      await autoMigrateAndSeed();
       res.json({ success: true, message: 'Database ready' });
     } catch (err) {
       handleError(res, err, 'Failed to seed database');
@@ -704,6 +705,9 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Backend Express server listening on http://0.0.0.0:${PORT}`);
+    testDatabaseConnection().then((diag) => {
+      console.log(`Database connectivity: ${diag.connected ? 'ONLINE' : 'FALLBACK/OFFLINE'} - ${diag.message}`);
+    });
   });
 }
 
