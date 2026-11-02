@@ -115,6 +115,20 @@ async function startServer() {
     });
   });
 
+  app.get('/api/whoami', async (_req: Request, res: Response) => {
+    try {
+      const client = await pool.connect();
+      try {
+        const q = await client.query('SELECT current_database(), current_user, inet_server_addr()::text, inet_server_port();');
+        res.json({ ...q.rows[0], envDatabaseUrl: process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:]*@/, ':***@') : null });
+      } finally {
+        client.release();
+      }
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Seed and ensure database tables if empty or explicitly called
   const seedIfEmpty = async () => {
     try {
