@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 100 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow read: if isSignedIn() && isValidId(userId);
+      allow create, update: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || request.auth.token.role == 'admin');
+      allow delete: if isSignedIn() && request.auth.token.role == 'admin';
+    }
+
+    // --- Demands ---
+    match /demands/{demandId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(demandId);
+      allow delete: if isSignedIn() && isValidId(demandId) && request.auth.token.role == 'admin';
+    }
+
+    // --- Purchases ---
+    match /purchases/{purchaseId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(purchaseId);
+      allow delete: if isSignedIn() && isValidId(purchaseId) && request.auth.token.role == 'admin';
+    }
+
+    // --- Vouchers ---
+    match /vouchers/{voucherId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(voucherId);
+      allow delete: if isSignedIn() && isValidId(voucherId) && request.auth.token.role == 'admin';
+    }
+
+    // --- Cash Book Entries ---
+    match /cash_book_entries/{entryId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(entryId);
+      allow delete: if isSignedIn() && isValidId(entryId) && request.auth.token.role == 'admin';
+    }
+
+    // --- POS Coal Sales ---
+    match /pos_coal_sales/{saleId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(saleId);
+      allow delete: if isSignedIn() && isValidId(saleId) && request.auth.token.role == 'admin';
+    }
+
+    // Connection testing doc
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}
