@@ -1,4 +1,4 @@
-import { TableDefinition, OldLedgerDataMap } from '../types/oldLedger';
+import type { TableDefinition, OldLedgerDataMap } from '../types/oldLedger.ts';
 
 export const standardOldLedgerSchemas: TableDefinition[] = [
   // 1. Table: 12Myglhis

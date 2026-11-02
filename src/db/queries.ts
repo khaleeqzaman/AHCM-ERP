@@ -1,11 +1,11 @@
 import { eq } from 'drizzle-orm';
 import { db } from './index.ts';
 import * as schema from './schema.ts';
-import { User } from '../types/user.ts';
-import { DemandDocument, PurchaseDocument } from '../types/index.ts';
-import { ChartAccount, VoucherDocument } from '../types/accounting.ts';
-import { CashBookEntry, CreditBookEntry, BankRecord, BankAccountRecord } from '../types/treasury.ts';
-import { 
+import type { User } from '../types/user.ts';
+import type { DemandDocument, PurchaseDocument } from '../types/index.ts';
+import type { ChartAccount, VoucherDocument } from '../types/accounting.ts';
+import type { CashBookEntry, CreditBookEntry, BankRecord, BankAccountRecord } from '../types/treasury.ts';
+import type { 
   CompanySettings, 
   BuyerRecord, 
   PartnerRecord, 
@@ -14,7 +14,9 @@ import {
   StockItem, 
   StockEntry, 
   VehicleRecord, 
-  VehicleConsumptionRecord 
+  VehicleConsumptionRecord,
+  VehicleConsumptionSummary,
+  ItemWiseStockSummary
 } from '../types/storeSales.ts';
 
 // ----------------- USERS -----------------
@@ -1128,3 +1130,226 @@ export async function dbDeleteCoalSellRecord(id: string): Promise<void> {
     throw new Error('Failed to delete coal sell record', { cause: error });
   }
 }
+
+// ----------------- EXECUTIVE SUMMARIES FOR ADMIN DASHBOARD -----------------
+export async function dbGetVehicleConsumptionSummary(): Promise<VehicleConsumptionSummary[]> {
+  try {
+    const [vehiclesList, consumptionsList] = await Promise.all([
+      db.select().from(schema.vehicles),
+      db.select().from(schema.vehicleConsumptions),
+    ]);
+
+    const vehicleMap = new Map<string, {
+      vehicleNo: string;
+      vehicleType: string;
+      driverName: string;
+      status: string;
+    }>();
+
+    vehiclesList.forEach((v) => {
+      vehicleMap.set(v.id, {
+        vehicleNo: v.vehicleNo,
+        vehicleType: v.vehicleType,
+        driverName: v.driverName,
+        status: v.status || 'Active',
+      });
+      vehicleMap.set(v.vehicleNo.trim().toUpperCase(), {
+        vehicleNo: v.vehicleNo,
+        vehicleType: v.vehicleType,
+        driverName: v.driverName,
+        status: v.status || 'Active',
+      });
+    });
+
+    const summaryMap = new Map<string, VehicleConsumptionSummary>();
+
+    vehiclesList.forEach((v) => {
+      summaryMap.set(v.id, {
+        vehicleId: v.id,
+        vehicleNo: v.vehicleNo,
+        vehicleType: v.vehicleType,
+        driverName: v.driverName,
+        status: v.status || 'Active',
+        totalDiesel: 0,
+        totalMOil: 0,
+        totalDOil: 0,
+        totalOFltr: 0,
+        totalDFltr: 0,
+        totalKOil: 0,
+        totalCOil: 0,
+        totalBOil: 0,
+        logsCount: 0,
+        lastDate: '',
+      });
+    });
+
+    consumptionsList.forEach((c) => {
+      let target = summaryMap.get(c.vehicleId);
+      if (!target) {
+        for (const [_, item] of summaryMap.entries()) {
+          if (item.vehicleNo.trim().toUpperCase() === c.vehicleNo.trim().toUpperCase()) {
+            target = item;
+            break;
+          }
+        }
+      }
+
+      if (!target) {
+        const vehicleInfo = vehicleMap.get(c.vehicleNo.trim().toUpperCase());
+        target = {
+          vehicleId: c.vehicleId || `v-${c.vehicleNo}`,
+          vehicleNo: c.vehicleNo,
+          vehicleType: vehicleInfo?.vehicleType || 'Fleet Vehicle',
+          driverName: vehicleInfo?.driverName || 'Designated Driver',
+          status: vehicleInfo?.status || 'Active',
+          totalDiesel: 0,
+          totalMOil: 0,
+          totalDOil: 0,
+          totalOFltr: 0,
+          totalDFltr: 0,
+          totalKOil: 0,
+          totalCOil: 0,
+          totalBOil: 0,
+          logsCount: 0,
+          lastDate: '',
+        };
+        summaryMap.set(target.vehicleId, target);
+      }
+
+      target.totalDiesel += Number(c.diesel || 0);
+      target.totalMOil += Number(c.mOil || 0);
+      target.totalDOil += Number(c.dOil || 0);
+      target.totalOFltr += Number(c.oFltr || 0);
+      target.totalDFltr += Number(c.dFltr || 0);
+      target.totalKOil += Number(c.kOil || 0);
+      target.totalCOil += Number(c.cOil || 0);
+      target.totalBOil += Number(c.bOil || 0);
+      target.logsCount += 1;
+      if (!target.lastDate || c.date > target.lastDate) {
+        target.lastDate = c.date;
+      }
+    });
+
+    const result = Array.from(summaryMap.values());
+    result.sort((a, b) => b.totalDiesel - a.totalDiesel);
+    return result;
+  } catch (error) {
+    console.error('Failed to get vehicle consumption summary:', error);
+    throw new Error('Failed to fetch vehicle consumption summary', { cause: error });
+  }
+}
+
+export async function dbGetItemWiseStockSummary(): Promise<ItemWiseStockSummary[]> {
+  try {
+    const [itemsList, entriesList] = await Promise.all([
+      db.select().from(schema.stockItems),
+      db.select().from(schema.stockEntries),
+    ]);
+
+    const itemsMap = new Map<string, {
+      itemName: string;
+      itemCode: string;
+      category: string;
+      unit: string;
+    }>();
+
+    itemsList.forEach((it) => {
+      itemsMap.set(it.id, {
+        itemName: it.itemName,
+        itemCode: it.itemCode,
+        category: it.category || 'General',
+        unit: it.unit,
+      });
+      itemsMap.set(it.itemCode.trim().toUpperCase(), {
+        itemName: it.itemName,
+        itemCode: it.itemCode,
+        category: it.category || 'General',
+        unit: it.unit,
+      });
+    });
+
+    const summaryMap = new Map<string, ItemWiseStockSummary>();
+
+    itemsList.forEach((it) => {
+      summaryMap.set(it.id, {
+        itemId: it.id,
+        itemCode: it.itemCode,
+        itemName: it.itemName,
+        category: it.category || 'General',
+        unit: it.unit,
+        totalOpeningStock: 0,
+        totalPurchaseQty: 0,
+        totalMineQty: 0,
+        totalVehiclesQty: 0,
+        currentBalance: 0,
+        entriesCount: 0,
+        lastDate: '',
+        stockStatus: 'In Stock',
+      });
+    });
+
+    entriesList.forEach((entry) => {
+      let target = summaryMap.get(entry.itemId);
+      if (!target) {
+        for (const [_, item] of summaryMap.entries()) {
+          if (item.itemCode.trim().toUpperCase() === entry.itemCode.trim().toUpperCase()) {
+            target = item;
+            break;
+          }
+        }
+      }
+
+      if (!target) {
+        const itemInfo = itemsMap.get(entry.itemCode.trim().toUpperCase());
+        target = {
+          itemId: entry.itemId || `it-${entry.itemCode}`,
+          itemCode: entry.itemCode,
+          itemName: entry.itemName || itemInfo?.itemName || entry.itemCode,
+          category: itemInfo?.category || 'General Supplies',
+          unit: itemInfo?.unit || 'Units',
+          totalOpeningStock: 0,
+          totalPurchaseQty: 0,
+          totalMineQty: 0,
+          totalVehiclesQty: 0,
+          currentBalance: 0,
+          entriesCount: 0,
+          lastDate: '',
+          stockStatus: 'In Stock',
+        };
+        summaryMap.set(target.itemId, target);
+      }
+
+      target.totalOpeningStock += Number(entry.stockQty || 0);
+      target.totalPurchaseQty += Number(entry.purchaseQty || 0);
+      target.totalMineQty += Number(entry.mineQty || 0);
+      target.totalVehiclesQty += Number(entry.vehiclesQty || 0);
+      target.entriesCount += 1;
+      if (!target.lastDate || entry.date > target.lastDate) {
+        target.lastDate = entry.date;
+      }
+    });
+
+    const result = Array.from(summaryMap.values()).map((s) => {
+      const net = (s.totalOpeningStock + s.totalPurchaseQty) - (s.totalMineQty + s.totalVehiclesQty);
+      let status: 'In Stock' | 'Low Stock' | 'Critical' = 'In Stock';
+      if (net <= 5) {
+        status = 'Critical';
+      } else if (net <= 25) {
+        status = 'Low Stock';
+      }
+      return {
+        ...s,
+        currentBalance: Math.round(net),
+        stockStatus: status,
+      };
+    });
+
+    const priority = { Critical: 0, 'Low Stock': 1, 'In Stock': 2 };
+    result.sort((a, b) => priority[a.stockStatus] - priority[b.stockStatus] || a.currentBalance - b.currentBalance);
+    return result;
+  } catch (error) {
+    console.error('Failed to get item-wise stock summary:', error);
+    throw new Error('Failed to fetch item-wise stock summary', { cause: error });
+  }
+}
+

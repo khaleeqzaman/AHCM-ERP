@@ -1,4 +1,4 @@
-import { DemandDocument, PurchaseDocument } from '../types';
+import type { DemandDocument, PurchaseDocument } from '../types/index.ts';
 
 export const initialDemands: DemandDocument[] = [
   {

@@ -12,6 +12,8 @@ import {
   StockEntry,
   VehicleRecord,
   VehicleConsumptionRecord,
+  VehicleConsumptionSummary,
+  ItemWiseStockSummary,
 } from '../types/storeSales';
 
 export interface BootstrapData {
@@ -33,6 +35,8 @@ export interface BootstrapData {
   stockEntries: StockEntry[];
   vehicles: VehicleRecord[];
   vehicleConsumptions: VehicleConsumptionRecord[];
+  vehicleConsumptionSummary?: VehicleConsumptionSummary[];
+  itemWiseStockSummary?: ItemWiseStockSummary[];
 }
 
 const request = async <T>(url: string, options?: RequestInit): Promise<T | null> => {
@@ -288,4 +292,15 @@ export async function apiDeleteVehicleConsumption(id: string): Promise<boolean> 
     method: 'DELETE',
   });
   return !!res?.success;
+}
+
+// Executive Summaries
+export async function fetchVehicleConsumptionSummary(): Promise<VehicleConsumptionSummary[]> {
+  const res = await request<VehicleConsumptionSummary[]>('/api/reports/vehicle-consumption-summary');
+  return res || [];
+}
+
+export async function fetchItemWiseStockSummary(): Promise<ItemWiseStockSummary[]> {
+  const res = await request<ItemWiseStockSummary[]>('/api/reports/item-wise-stock-summary');
+  return res || [];
 }

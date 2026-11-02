@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
@@ -55,6 +56,8 @@ import {
   dbDeleteVehicleConsumption,
   dbGetCompanySettings,
   dbSaveCompanySettings,
+  dbGetVehicleConsumptionSummary,
+  dbGetItemWiseStockSummary,
 } from './src/db/queries.ts';
 
 import { initialUsers } from './src/data/mockUsers.ts';
@@ -101,31 +104,97 @@ async function startServer() {
   // Seed database if empty or explicitly called
   const seedIfEmpty = async () => {
     try {
-      const existingUsers = await dbGetUsers();
+      const existingUsers = await dbGetUsers().catch(() => []);
       if (existingUsers.length === 0) {
-        console.log('Seeding initial data into Cloud SQL PostgreSQL database...');
         for (const u of initialUsers) await dbSaveUser(u);
+      }
+
+      const existingDemands = await dbGetDemands().catch(() => []);
+      if (existingDemands.length === 0) {
         for (const d of initialDemands) await dbSaveDemand(d);
+      }
+
+      const existingPurchases = await dbGetPurchases().catch(() => []);
+      if (existingPurchases.length === 0) {
         for (const p of initialPurchases) await dbSavePurchase(p);
+      }
+
+      const existingAccounts = await dbGetChartAccounts().catch(() => []);
+      if (existingAccounts.length === 0) {
         for (const a of initialChartOfAccounts) await dbSaveChartAccount(a);
+      }
+
+      const existingVouchers = await dbGetVouchers().catch(() => []);
+      if (existingVouchers.length === 0) {
         for (const v of initialVouchers) await dbSaveVoucher(v);
+      }
+
+      const existingCash = await dbGetCashBookEntries().catch(() => []);
+      if (existingCash.length === 0) {
         for (const cb of initialCashBookEntries) await dbSaveCashBookEntry(cb);
+      }
+
+      const existingCredit = await dbGetCreditBookEntries().catch(() => []);
+      if (existingCredit.length === 0) {
         for (const cr of initialCreditBookEntries) await dbSaveCreditBookEntry(cr);
+      }
+
+      const existingBanks = await dbGetBanks().catch(() => []);
+      if (existingBanks.length === 0) {
         for (const b of initialBanks) await dbSaveBank(b);
+      }
+
+      const existingBankAccs = await dbGetBankAccounts().catch(() => []);
+      if (existingBankAccs.length === 0) {
         for (const ba of initialBankAccounts) await dbSaveBankAccount(ba);
+      }
+
+      const existingSettings = await dbGetCompanySettings().catch(() => null);
+      if (!existingSettings) {
         await dbSaveCompanySettings(initialCompanySettings);
+      }
+
+      const existingBuyers = await dbGetBuyers().catch(() => []);
+      if (existingBuyers.length === 0) {
         for (const buy of initialBuyers) await dbSaveBuyer(buy);
+      }
+
+      const existingPartners = await dbGetPartners().catch(() => []);
+      if (existingPartners.length === 0) {
         for (const part of initialPartners) await dbSavePartner(part);
+      }
+
+      const existingPos = await dbGetPosCoalSales().catch(() => []);
+      if (existingPos.length === 0) {
         for (const pos of initialPosEntries) await dbSavePosCoalSale(pos);
+      }
+
+      const existingCoal = await dbGetCoalSellRecords().catch(() => []);
+      if (existingCoal.length === 0) {
         for (const csr of initialCoalSellRecords) await dbSaveCoalSellRecord(csr);
+      }
+
+      const existingStock = await dbGetStockItems().catch(() => []);
+      if (existingStock.length === 0) {
         for (const si of initialStockItems) await dbSaveStockItem(si);
+      }
+
+      const existingEntries = await dbGetStockEntries().catch(() => []);
+      if (existingEntries.length === 0) {
         for (const se of initialStockEntries) await dbSaveStockEntry(se);
+      }
+
+      const existingVehicles = await dbGetVehicles().catch(() => []);
+      if (existingVehicles.length === 0) {
         for (const veh of initialVehicles) await dbSaveVehicle(veh);
+      }
+
+      const existingConsumptions = await dbGetVehicleConsumptions().catch(() => []);
+      if (existingConsumptions.length === 0) {
         for (const vc of initialVehicleConsumptions) await dbSaveVehicleConsumption(vc);
-        console.log('Database successfully seeded with default enterprise dataset.');
       }
     } catch (err) {
-      console.warn('Auto-seed skipped or encountered error (database may already contain data):', err);
+      console.warn('Auto-seed skipped or encountered error:', err);
     }
   };
 
@@ -163,6 +232,8 @@ async function startServer() {
         stockEntries,
         vehicles,
         vehicleConsumptions,
+        vehicleConsumptionSummary,
+        itemWiseStockSummary,
       ] = await Promise.all([
         dbGetUsers().catch(() => initialUsers),
         dbGetDemands().catch(() => initialDemands),
@@ -182,6 +253,8 @@ async function startServer() {
         dbGetStockEntries().catch(() => initialStockEntries),
         dbGetVehicles().catch(() => initialVehicles),
         dbGetVehicleConsumptions().catch(() => initialVehicleConsumptions),
+        dbGetVehicleConsumptionSummary().catch(() => []),
+        dbGetItemWiseStockSummary().catch(() => []),
       ]);
 
       res.json({
@@ -203,9 +276,30 @@ async function startServer() {
         stockEntries: stockEntries.length ? stockEntries : initialStockEntries,
         vehicles: vehicles.length ? vehicles : initialVehicles,
         vehicleConsumptions: vehicleConsumptions.length ? vehicleConsumptions : initialVehicleConsumptions,
+        vehicleConsumptionSummary,
+        itemWiseStockSummary,
       });
     } catch (err) {
       handleError(res, err, 'Failed to bootstrap application state');
+    }
+  });
+
+  // ---- Executive Report Summaries ----
+  app.get('/api/reports/vehicle-consumption-summary', async (_req: Request, res: Response) => {
+    try {
+      const summary = await dbGetVehicleConsumptionSummary();
+      res.json(summary);
+    } catch (err) {
+      handleError(res, err, 'Failed to fetch vehicle consumption summary');
+    }
+  });
+
+  app.get('/api/reports/item-wise-stock-summary', async (_req: Request, res: Response) => {
+    try {
+      const summary = await dbGetItemWiseStockSummary();
+      res.json(summary);
+    } catch (err) {
+      handleError(res, err, 'Failed to fetch item-wise stock summary');
     }
   });
 

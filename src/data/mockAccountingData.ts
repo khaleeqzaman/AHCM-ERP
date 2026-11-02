@@ -1,4 +1,4 @@
-import { ChartAccount, VoucherDocument } from '../types/accounting';
+import type { ChartAccount, VoucherDocument } from '../types/accounting.ts';
 
 export const initialChartOfAccounts: ChartAccount[] = [
   // 1: ASSETS

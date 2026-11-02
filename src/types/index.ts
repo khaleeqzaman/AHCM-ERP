@@ -9,7 +9,7 @@ export type NavModule =
   | 'reports' 
   | 'settings';
 
-export * from './user';
+export type * from './user.ts';
 
 export type PurchaseViewMode = 
   | 'demand_form' 

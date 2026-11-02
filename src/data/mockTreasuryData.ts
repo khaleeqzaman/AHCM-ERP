@@ -1,4 +1,4 @@
-import { CashBookEntry, BankRecord, BankAccountRecord, CreditBookEntry } from '../types/treasury';
+import type { CashBookEntry, BankRecord, BankAccountRecord, CreditBookEntry } from '../types/treasury.ts';
 
 export const initialCashBookEntries: CashBookEntry[] = [
   {

@@ -1,12 +1,14 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import pg from 'pg';
+import type { Pool as PgPool } from 'pg';
+const { Pool } = pg;
 import * as schema from './schema.ts';
 
 declare global {
-  var _postgresPool: Pool | undefined;
+  var _postgresPool: PgPool | undefined;
 }
 
-export const createPool = () => {
+export const createPool = (): PgPool => {
   if (!global._postgresPool) {
     global._postgresPool = new Pool({
       host: process.env.SQL_HOST,
@@ -17,7 +19,7 @@ export const createPool = () => {
       connectionTimeoutMillis: 15000,
     });
 
-    global._postgresPool.on('error', (err) => {
+    global._postgresPool.on('error', (err: Error) => {
       console.error('Unexpected error on idle SQL pool client:', err);
     });
   }

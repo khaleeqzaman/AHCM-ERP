@@ -1,4 +1,4 @@
-import { 
+import type { 
   CompanySettings, 
   BuyerRecord, 
   PartnerRecord, 
@@ -8,7 +8,7 @@ import {
   StockEntry, 
   VehicleRecord, 
   VehicleConsumptionRecord 
-} from '../types/storeSales';
+} from '../types/storeSales.ts';
 
 export const initialCompanySettings: CompanySettings = {
   companyName: 'AHCM Mining & Minerals Corp.',

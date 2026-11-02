@@ -129,3 +129,38 @@ export interface VehicleConsumptionRecord {
   bOil: number; // Brake Oil
   remarks?: string;
 }
+
+// Executive Dashboard Summaries
+export interface VehicleConsumptionSummary {
+  vehicleId: string;
+  vehicleNo: string;
+  vehicleType: string;
+  driverName: string;
+  status: string;
+  totalDiesel: number;
+  totalMOil: number;
+  totalDOil: number;
+  totalOFltr: number;
+  totalDFltr: number;
+  totalKOil: number;
+  totalCOil: number;
+  totalBOil: number;
+  logsCount: number;
+  lastDate?: string;
+}
+
+export interface ItemWiseStockSummary {
+  itemId: string;
+  itemCode: string;
+  itemName: string;
+  category: string;
+  unit: string;
+  totalOpeningStock: number;
+  totalPurchaseQty: number;
+  totalMineQty: number;
+  totalVehiclesQty: number;
+  currentBalance: number;
+  entriesCount: number;
+  lastDate?: string;
+  stockStatus: 'In Stock' | 'Low Stock' | 'Critical';
+}
