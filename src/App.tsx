@@ -297,23 +297,23 @@ export default function App() {
     fetchBootstrapData().then((data) => {
       if (!isMounted || !data) return;
       if (data.users?.length) setUsers(data.users);
-      if (data.demands?.length) setDemands(data.demands);
-      if (data.purchases?.length) setPurchases(data.purchases);
+      if (data.demands !== undefined) setDemands(data.demands);
+      if (data.purchases !== undefined) setPurchases(data.purchases);
       if (data.accounts?.length) setAccounts(data.accounts);
-      if (data.vouchers?.length) setVouchers(data.vouchers);
-      if (data.cashBookEntries?.length) setCashBookEntries(data.cashBookEntries);
-      if (data.creditBookEntries?.length) setCreditBookEntries(data.creditBookEntries);
-      if (data.banks?.length) setBanks(data.banks);
-      if (data.bankAccounts?.length) setBankAccounts(data.bankAccounts);
+      if (data.vouchers !== undefined) setVouchers(data.vouchers);
+      if (data.cashBookEntries !== undefined) setCashBookEntries(data.cashBookEntries);
+      if (data.creditBookEntries !== undefined) setCreditBookEntries(data.creditBookEntries);
+      if (data.banks !== undefined) setBanks(data.banks);
+      if (data.bankAccounts !== undefined) setBankAccounts(data.bankAccounts);
       if (data.companySettings) setCompanySettings(data.companySettings);
-      if (data.buyers?.length) setBuyers(data.buyers);
-      if (data.partners?.length) setPartners(data.partners);
-      if (data.posEntries?.length) setPosEntries(data.posEntries);
-      if (data.coalSellRecords?.length) setCoalSellRecords(data.coalSellRecords);
-      if (data.stockItems?.length) setStockItems(data.stockItems);
-      if (data.stockEntries?.length) setStockEntries(data.stockEntries);
-      if (data.vehicles?.length) setVehicles(data.vehicles);
-      if (data.vehicleConsumptions?.length) setVehicleConsumptions(data.vehicleConsumptions);
+      if (data.buyers !== undefined) setBuyers(data.buyers);
+      if (data.partners !== undefined) setPartners(data.partners);
+      if (data.posEntries !== undefined) setPosEntries(data.posEntries);
+      if (data.coalSellRecords !== undefined) setCoalSellRecords(data.coalSellRecords);
+      if (data.stockItems !== undefined) setStockItems(data.stockItems);
+      if (data.stockEntries !== undefined) setStockEntries(data.stockEntries);
+      if (data.vehicles !== undefined) setVehicles(data.vehicles);
+      if (data.vehicleConsumptions !== undefined) setVehicleConsumptions(data.vehicleConsumptions);
     });
     return () => {
       isMounted = false;

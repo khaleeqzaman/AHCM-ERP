@@ -1,8 +1,8 @@
-import { User } from '../types/user';
-import { DemandDocument, PurchaseDocument } from '../types';
-import { ChartAccount, VoucherDocument } from '../types/accounting';
-import { CashBookEntry, CreditBookEntry, BankRecord, BankAccountRecord } from '../types/treasury';
-import {
+import type { User } from '../types/user.ts';
+import type { DemandDocument, PurchaseDocument } from '../types/index.ts';
+import type { ChartAccount, VoucherDocument } from '../types/accounting.ts';
+import type { CashBookEntry, CreditBookEntry, BankRecord, BankAccountRecord } from '../types/treasury.ts';
+import type {
   CompanySettings,
   BuyerRecord,
   PartnerRecord,
@@ -14,7 +14,7 @@ import {
   VehicleConsumptionRecord,
   VehicleConsumptionSummary,
   ItemWiseStockSummary,
-} from '../types/storeSales';
+} from '../types/storeSales.ts';
 
 export interface BootstrapData {
   users: User[];

@@ -109,89 +109,14 @@ async function startServer() {
         for (const u of initialUsers) await dbSaveUser(u);
       }
 
-      const existingDemands = await dbGetDemands().catch(() => []);
-      if (existingDemands.length === 0) {
-        for (const d of initialDemands) await dbSaveDemand(d);
-      }
-
-      const existingPurchases = await dbGetPurchases().catch(() => []);
-      if (existingPurchases.length === 0) {
-        for (const p of initialPurchases) await dbSavePurchase(p);
-      }
-
       const existingAccounts = await dbGetChartAccounts().catch(() => []);
       if (existingAccounts.length === 0) {
         for (const a of initialChartOfAccounts) await dbSaveChartAccount(a);
       }
 
-      const existingVouchers = await dbGetVouchers().catch(() => []);
-      if (existingVouchers.length === 0) {
-        for (const v of initialVouchers) await dbSaveVoucher(v);
-      }
-
-      const existingCash = await dbGetCashBookEntries().catch(() => []);
-      if (existingCash.length === 0) {
-        for (const cb of initialCashBookEntries) await dbSaveCashBookEntry(cb);
-      }
-
-      const existingCredit = await dbGetCreditBookEntries().catch(() => []);
-      if (existingCredit.length === 0) {
-        for (const cr of initialCreditBookEntries) await dbSaveCreditBookEntry(cr);
-      }
-
-      const existingBanks = await dbGetBanks().catch(() => []);
-      if (existingBanks.length === 0) {
-        for (const b of initialBanks) await dbSaveBank(b);
-      }
-
-      const existingBankAccs = await dbGetBankAccounts().catch(() => []);
-      if (existingBankAccs.length === 0) {
-        for (const ba of initialBankAccounts) await dbSaveBankAccount(ba);
-      }
-
       const existingSettings = await dbGetCompanySettings().catch(() => null);
       if (!existingSettings) {
         await dbSaveCompanySettings(initialCompanySettings);
-      }
-
-      const existingBuyers = await dbGetBuyers().catch(() => []);
-      if (existingBuyers.length === 0) {
-        for (const buy of initialBuyers) await dbSaveBuyer(buy);
-      }
-
-      const existingPartners = await dbGetPartners().catch(() => []);
-      if (existingPartners.length === 0) {
-        for (const part of initialPartners) await dbSavePartner(part);
-      }
-
-      const existingPos = await dbGetPosCoalSales().catch(() => []);
-      if (existingPos.length === 0) {
-        for (const pos of initialPosEntries) await dbSavePosCoalSale(pos);
-      }
-
-      const existingCoal = await dbGetCoalSellRecords().catch(() => []);
-      if (existingCoal.length === 0) {
-        for (const csr of initialCoalSellRecords) await dbSaveCoalSellRecord(csr);
-      }
-
-      const existingStock = await dbGetStockItems().catch(() => []);
-      if (existingStock.length === 0) {
-        for (const si of initialStockItems) await dbSaveStockItem(si);
-      }
-
-      const existingEntries = await dbGetStockEntries().catch(() => []);
-      if (existingEntries.length === 0) {
-        for (const se of initialStockEntries) await dbSaveStockEntry(se);
-      }
-
-      const existingVehicles = await dbGetVehicles().catch(() => []);
-      if (existingVehicles.length === 0) {
-        for (const veh of initialVehicles) await dbSaveVehicle(veh);
-      }
-
-      const existingConsumptions = await dbGetVehicleConsumptions().catch(() => []);
-      if (existingConsumptions.length === 0) {
-        for (const vc of initialVehicleConsumptions) await dbSaveVehicleConsumption(vc);
       }
     } catch (err) {
       console.warn('Auto-seed skipped or encountered error:', err);
@@ -236,46 +161,46 @@ async function startServer() {
         itemWiseStockSummary,
       ] = await Promise.all([
         dbGetUsers().catch(() => initialUsers),
-        dbGetDemands().catch(() => initialDemands),
-        dbGetPurchases().catch(() => initialPurchases),
+        dbGetDemands().catch(() => []),
+        dbGetPurchases().catch(() => []),
         dbGetChartAccounts().catch(() => initialChartOfAccounts),
-        dbGetVouchers().catch(() => initialVouchers),
-        dbGetCashBookEntries().catch(() => initialCashBookEntries),
-        dbGetCreditBookEntries().catch(() => initialCreditBookEntries),
-        dbGetBanks().catch(() => initialBanks),
-        dbGetBankAccounts().catch(() => initialBankAccounts),
+        dbGetVouchers().catch(() => []),
+        dbGetCashBookEntries().catch(() => []),
+        dbGetCreditBookEntries().catch(() => []),
+        dbGetBanks().catch(() => []),
+        dbGetBankAccounts().catch(() => []),
         dbGetCompanySettings().catch(() => initialCompanySettings),
-        dbGetBuyers().catch(() => initialBuyers),
-        dbGetPartners().catch(() => initialPartners),
-        dbGetPosCoalSales().catch(() => initialPosEntries),
-        dbGetCoalSellRecords().catch(() => initialCoalSellRecords),
-        dbGetStockItems().catch(() => initialStockItems),
-        dbGetStockEntries().catch(() => initialStockEntries),
-        dbGetVehicles().catch(() => initialVehicles),
-        dbGetVehicleConsumptions().catch(() => initialVehicleConsumptions),
+        dbGetBuyers().catch(() => []),
+        dbGetPartners().catch(() => []),
+        dbGetPosCoalSales().catch(() => []),
+        dbGetCoalSellRecords().catch(() => []),
+        dbGetStockItems().catch(() => []),
+        dbGetStockEntries().catch(() => []),
+        dbGetVehicles().catch(() => []),
+        dbGetVehicleConsumptions().catch(() => []),
         dbGetVehicleConsumptionSummary().catch(() => []),
         dbGetItemWiseStockSummary().catch(() => []),
       ]);
 
       res.json({
         users: users.length ? users : initialUsers,
-        demands: demands.length ? demands : initialDemands,
-        purchases: purchases.length ? purchases : initialPurchases,
+        demands: demands || [],
+        purchases: purchases || [],
         accounts: accounts.length ? accounts : initialChartOfAccounts,
-        vouchers: vouchers.length ? vouchers : initialVouchers,
-        cashBookEntries: cashBookEntries.length ? cashBookEntries : initialCashBookEntries,
-        creditBookEntries: creditBookEntries.length ? creditBookEntries : initialCreditBookEntries,
-        banks: banks.length ? banks : initialBanks,
-        bankAccounts: bankAccounts.length ? bankAccounts : initialBankAccounts,
+        vouchers: vouchers || [],
+        cashBookEntries: cashBookEntries || [],
+        creditBookEntries: creditBookEntries || [],
+        banks: banks || [],
+        bankAccounts: bankAccounts || [],
         companySettings: companySettings || initialCompanySettings,
-        buyers: buyers.length ? buyers : initialBuyers,
-        partners: partners.length ? partners : initialPartners,
-        posEntries: posEntries.length ? posEntries : initialPosEntries,
-        coalSellRecords: coalSellRecords.length ? coalSellRecords : initialCoalSellRecords,
-        stockItems: stockItems.length ? stockItems : initialStockItems,
-        stockEntries: stockEntries.length ? stockEntries : initialStockEntries,
-        vehicles: vehicles.length ? vehicles : initialVehicles,
-        vehicleConsumptions: vehicleConsumptions.length ? vehicleConsumptions : initialVehicleConsumptions,
+        buyers: buyers || [],
+        partners: partners || [],
+        posEntries: posEntries || [],
+        coalSellRecords: coalSellRecords || [],
+        stockItems: stockItems || [],
+        stockEntries: stockEntries || [],
+        vehicles: vehicles || [],
+        vehicleConsumptions: vehicleConsumptions || [],
         vehicleConsumptionSummary,
         itemWiseStockSummary,
       });
