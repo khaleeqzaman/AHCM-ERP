@@ -169,7 +169,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin }) => {
                 onClick={() => handleQuickLogin('admin')}
                 className="p-2 text-left bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-lg transition-colors group cursor-pointer"
               >
-                <div className="text-xs font-semibold text-purple-400 group-hover:text-purple-300">Admin (Abdul Hakeem)</div>
+                <div className="text-xs font-semibold text-purple-400 group-hover:text-purple-300 truncate">{users.find(u => u.username === 'admin')?.name || 'Admin'}</div>
                 <div className="text-[10px] text-slate-500 truncate">admin / admin123</div>
               </button>
 
@@ -178,7 +178,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin }) => {
                 onClick={() => handleQuickLogin('purchaser')}
                 className="p-2 text-left bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-lg transition-colors group cursor-pointer"
               >
-                <div className="text-xs font-semibold text-blue-400 group-hover:text-blue-300">Purchaser (Sheeraz)</div>
+                <div className="text-xs font-semibold text-blue-400 group-hover:text-blue-300 truncate">{users.find(u => u.username === 'purchaser')?.name || 'Purchaser'}</div>
                 <div className="text-[10px] text-slate-500 truncate">purchaser / purchaser123</div>
               </button>
 
@@ -187,7 +187,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin }) => {
                 onClick={() => handleQuickLogin('cashier')}
                 className="p-2 text-left bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-lg transition-colors group cursor-pointer"
               >
-                <div className="text-xs font-semibold text-amber-400 group-hover:text-amber-300">Cashier (Zohaib)</div>
+                <div className="text-xs font-semibold text-amber-400 group-hover:text-amber-300 truncate">{users.find(u => u.username === 'cashier')?.name || 'Cashier'}</div>
                 <div className="text-[10px] text-slate-500 truncate">cashier / cashier123</div>
               </button>
 
@@ -196,7 +196,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin }) => {
                 onClick={() => handleQuickLogin('accountant')}
                 className="p-2 text-left bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-lg transition-colors group cursor-pointer"
               >
-                <div className="text-xs font-semibold text-emerald-400 group-hover:text-emerald-300">Accountant</div>
+                <div className="text-xs font-semibold text-emerald-400 group-hover:text-emerald-300 truncate">{users.find(u => u.username === 'accountant')?.name || 'Accountant'}</div>
                 <div className="text-[10px] text-slate-500 truncate">accountant / accountant123</div>
               </button>
 
@@ -205,7 +205,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin }) => {
                 onClick={() => handleQuickLogin('storemanager')}
                 className="p-2 text-left bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-lg transition-colors group cursor-pointer col-span-2 sm:col-span-1"
               >
-                <div className="text-xs font-semibold text-cyan-400 group-hover:text-cyan-300">Store Mgr (Ghani)</div>
+                <div className="text-xs font-semibold text-cyan-400 group-hover:text-cyan-300 truncate">{users.find(u => u.username === 'storemanager')?.name || 'Store Mgr'}</div>
                 <div className="text-[10px] text-slate-500 truncate">storemanager / store123</div>
               </button>
             </div>
@@ -220,23 +220,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin }) => {
           </div>
           <div className="grid grid-cols-1 gap-1 text-[11px] font-mono">
             <div className="flex justify-between py-0.5 border-b border-slate-800/60">
-              <span className="text-purple-300">Admin (Abdul Hakeem):</span>
+              <span className="text-purple-300 truncate">{users.find(u => u.username === 'admin')?.name || 'Admin'}:</span>
               <span className="text-slate-300">admin / admin123</span>
             </div>
             <div className="flex justify-between py-0.5 border-b border-slate-800/60">
-              <span className="text-blue-300">Purchaser (Sheeraz):</span>
+              <span className="text-blue-300 truncate">{users.find(u => u.username === 'purchaser')?.name || 'Purchaser'}:</span>
               <span className="text-slate-300">purchaser / purchaser123</span>
             </div>
             <div className="flex justify-between py-0.5 border-b border-slate-800/60">
-              <span className="text-amber-300">Cashier (Zohaib):</span>
+              <span className="text-amber-300 truncate">{users.find(u => u.username === 'cashier')?.name || 'Cashier'}:</span>
               <span className="text-slate-300">cashier / cashier123</span>
             </div>
             <div className="flex justify-between py-0.5 border-b border-slate-800/60">
-              <span className="text-emerald-300">Accountant:</span>
+              <span className="text-emerald-300 truncate">{users.find(u => u.username === 'accountant')?.name || 'Accountant'}:</span>
               <span className="text-slate-300">accountant / accountant123</span>
             </div>
             <div className="flex justify-between py-0.5">
-              <span className="text-cyan-300">Store Manager (Ghani):</span>
+              <span className="text-cyan-300 truncate">{users.find(u => u.username === 'storemanager')?.name || 'Store Manager'}:</span>
               <span className="text-slate-300">storemanager / store123</span>
             </div>
           </div>

@@ -43,6 +43,7 @@ const request = async <T>(url: string, options?: RequestInit): Promise<T | null>
   try {
     const res = await fetch(url, {
       ...options,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(options?.headers || {}),
@@ -51,6 +52,11 @@ const request = async <T>(url: string, options?: RequestInit): Promise<T | null>
     if (!res.ok) {
       const errText = await res.text();
       console.warn(`API request to ${url} failed with status ${res.status}:`, errText);
+      return null;
+    }
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      console.warn(`API request to ${url} returned non-JSON response (${contentType})`);
       return null;
     }
     return await res.json();

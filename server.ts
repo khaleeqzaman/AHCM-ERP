@@ -88,9 +88,50 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+  // Parse CLI arguments (--port, --host) or default to 3000 as required in AI Studio
+  let port = 3000;
+  let host = '0.0.0.0';
+  for (let i = 0; i < process.argv.length; i++) {
+    if (process.argv[i] === '--port' || process.argv[i] === '-p') {
+      const parsed = parseInt(process.argv[i + 1], 10);
+      if (!isNaN(parsed)) port = parsed;
+    }
+    if (process.argv[i] === '--host' || process.argv[i] === '-h') {
+      if (process.argv[i + 1] && !process.argv[i + 1].startsWith('-')) {
+        host = process.argv[i + 1];
+      }
+    }
+  }
+  const PORT = port;
+  const HOST = host;
 
   app.use(express.json({ limit: '10mb' }));
+
+  // In-memory request log ring buffer to diagnose browser API traffic
+  interface RequestLogEntry {
+    time: string;
+    method: string;
+    url: string;
+    status?: number;
+    error?: string;
+  }
+  const requestLogs: RequestLogEntry[] = [];
+  app.use((req: Request, res: Response, next) => {
+    const entry: RequestLogEntry = { time: new Date().toISOString(), method: req.method, url: req.url };
+    requestLogs.push(entry);
+    if (requestLogs.length > 100) requestLogs.shift();
+    console.log(`[REQ ${entry.time}] ${req.method} ${req.url}`);
+
+    res.on('finish', () => {
+      entry.status = res.statusCode;
+    });
+    next();
+  });
+
+  app.get('/api/request-logs', (_req: Request, res: Response) => {
+    res.json(requestLogs);
+  });
 
   // Helper for error responses
   const handleError = (res: Response, err: unknown, message: string) => {
@@ -151,8 +192,6 @@ async function startServer() {
   // Bootstrap endpoint: Fetch entire app data in one efficient call
   app.get('/api/bootstrap', async (_req: Request, res: Response) => {
     try {
-      await seedIfEmpty();
-
       const [
         users,
         demands,
@@ -705,7 +744,7 @@ async function startServer() {
   const isProduction = process.env.NODE_ENV === 'production';
   if (!isProduction) {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: false },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -717,10 +756,15 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Backend Express server listening on http://0.0.0.0:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`Backend Express server listening on http://${HOST}:${PORT}`);
     testDatabaseConnection().then((diag) => {
       console.log(`Database connectivity: ${diag.connected ? 'ONLINE' : 'FALLBACK/OFFLINE'} - ${diag.message}`);
+      if (diag.connected) {
+        autoMigrateAndSeed()
+          .then((m) => console.log('Database ready:', m.message))
+          .catch((mErr) => console.warn('Database initialization warning:', mErr));
+      }
     });
   });
 }
