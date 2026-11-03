@@ -1,23 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Menu, 
-  ChevronRight, 
-  ShoppingCart, 
-  ShieldCheck,
-  Package,
-  BarChart3,
+  BarChart3, 
   Settings as SettingsIcon,
-  CheckCircle,
-  FileText,
-  Table,
-  Scale,
-  Vault,
-  Boxes,
-  Users as UsersIcon,
-  LogOut,
-  RefreshCw,
-  Database,
-  Activity
+  LogOut, 
+  RefreshCw, 
+  Database, 
+  Activity 
 } from 'lucide-react';
 import { DatabaseDiagnosticsModal } from './components/common/DatabaseDiagnosticsModal';
 import { 
@@ -1348,11 +1337,11 @@ export default function App() {
             </button>
 
             {/* Breadcrumb Navigation */}
-            <nav className="flex items-center gap-2 text-xs font-medium text-slate-500">
+            <nav className="flex items-center gap-2 text-xs font-semibold text-slate-800">
               <button
                 type="button"
                 onClick={() => setCurrentModule('dashboard')}
-                className="hover:text-slate-800 transition-colors cursor-pointer"
+                className="hover:text-blue-600 transition-colors cursor-pointer"
               >
                 {currentUser.role === 'admin'
                   ? 'Admin'
@@ -1365,131 +1354,11 @@ export default function App() {
                   : 'Store'}{' '}
                 Dashboard
               </button>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-slate-900 capitalize font-semibold">
-                {currentModule === 'dashboard'
-                  ? 'Overview & Metrics'
-                  : currentModule === 'users'
-                  ? 'Users Management'
-                  : currentModule === 'purchase'
-                  ? 'Purchase Module'
-                  : currentModule === 'accounting'
-                  ? 'Accounts'
-                  : currentModule === 'treasury'
-                  ? 'Treasury (Cashier)'
-                  : currentModule === 'store_sales'
-                  ? 'Store & Sales'
-                  : currentModule === 'admin_approvals'
-                  ? 'Admin Approvals'
-                  : currentModule}
-              </span>
             </nav>
           </div>
 
-          {/* Top Bar Right Actions: Role-based shortcuts & User Profile */}
+          {/* Top Bar Right Actions: System Status & User Profile */}
           <div className="flex items-center gap-2.5">
-            {/* Admin: Users Management Shortcut */}
-            {currentUser.role === 'admin' && (
-              <button
-                type="button"
-                onClick={() => setCurrentModule('users')}
-                className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                  currentModule === 'users'
-                    ? 'bg-purple-100 text-purple-800 border-purple-300 font-semibold shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <UsersIcon className="w-3.5 h-3.5 text-purple-600" />
-                <span>Users ({users.length})</span>
-              </button>
-            )}
-
-            {/* Admin: Approvals Shortcut */}
-            {currentUser.role === 'admin' && (
-              <button
-                type="button"
-                onClick={() => setCurrentModule('admin_approvals')}
-                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                  currentModule === 'admin_approvals'
-                    ? 'bg-purple-100 text-purple-800 border-purple-300 font-semibold shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                <span>Approvals</span>
-                {pendingApprovalsCount > 0 && (
-                  <span className="font-mono text-[10px] bg-purple-600 text-white px-1.5 py-0.2 rounded-full font-bold">
-                    {pendingApprovalsCount}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {/* Purchaser: Quick shortcut */}
-            {(currentUser.role === 'purchaser' || currentUser.role === 'admin') && (
-              <button
-                type="button"
-                onClick={() => setCurrentModule('purchase')}
-                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                  currentModule === 'purchase'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 font-semibold shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <ShoppingCart className="w-3.5 h-3.5 text-blue-600" />
-                <span>Purchase Desk</span>
-              </button>
-            )}
-
-            {/* Cashier: Quick shortcut */}
-            {(currentUser.role === 'cashier' || currentUser.role === 'admin') && (
-              <button
-                type="button"
-                onClick={() => setCurrentModule('treasury')}
-                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                  currentModule === 'treasury'
-                    ? 'bg-amber-50 text-amber-800 border-amber-200 font-semibold shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <Vault className="w-3.5 h-3.5 text-amber-700" />
-                <span>Treasury</span>
-              </button>
-            )}
-
-            {/* Accountant: Quick shortcut */}
-            {(currentUser.role === 'accountant' || currentUser.role === 'admin') && (
-              <button
-                type="button"
-                onClick={() => setCurrentModule('accounting')}
-                className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                  currentModule === 'accounting'
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <Scale className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Accounts</span>
-              </button>
-            )}
-
-            {/* Store Manager: Quick shortcut */}
-            {(currentUser.role === 'store_manager' || currentUser.role === 'admin') && (
-              <button
-                type="button"
-                onClick={() => setCurrentModule('store_sales')}
-                className={`hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border cursor-pointer ${
-                  currentModule === 'store_sales'
-                    ? 'bg-cyan-50 text-cyan-800 border-cyan-200 font-semibold shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                <Boxes className="w-3.5 h-3.5 text-cyan-600" />
-                <span>Store & Sales</span>
-              </button>
-            )}
-
-            <div className="w-px h-5 bg-slate-200 hidden sm:block" />
 
             {/* Supabase PostgreSQL Status & Sync */}
             <div className="flex items-center gap-1.5 sm:gap-2">
