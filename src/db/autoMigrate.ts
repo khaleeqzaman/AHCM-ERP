@@ -2,7 +2,61 @@ import { pool } from './index.ts';
 import { initialUsers } from '../data/mockUsers.ts';
 import { initialChartOfAccounts } from '../data/mockAccountingData.ts';
 import { initialCompanySettings } from '../data/mockStoreSalesData.ts';
-import { dbGetUsers, dbSaveUser, dbGetChartAccounts, dbSaveChartAccount, dbGetCompanySettings, dbSaveCompanySettings } from './queries.ts';
+import {
+  dbGetUsers,
+  dbSaveUser,
+  dbGetChartAccounts,
+  dbSaveChartAccount,
+  dbGetCompanySettings,
+  dbSaveCompanySettings,
+  dbGetDemands,
+  dbSaveDemand,
+  dbGetPurchases,
+  dbSavePurchase,
+  dbGetBanks,
+  dbSaveBank,
+  dbGetBankAccounts,
+  dbSaveBankAccount,
+  dbGetCashBookEntries,
+  dbSaveCashBookEntry,
+  dbGetCreditBookEntries,
+  dbSaveCreditBookEntry,
+  dbGetVouchers,
+  dbSaveVoucher,
+  dbGetPartners,
+  dbSavePartner,
+  dbGetBuyers,
+  dbSaveBuyer,
+  dbGetVehicles,
+  dbSaveVehicle,
+  dbGetVehicleConsumptions,
+  dbSaveVehicleConsumption,
+  dbGetStockItems,
+  dbSaveStockItem,
+  dbGetStockEntries,
+  dbSaveStockEntry,
+  dbGetPosCoalSales,
+  dbSavePosCoalSale,
+  dbGetCoalSellRecords,
+  dbSaveCoalSellRecord,
+} from './queries.ts';
+import {
+  baselineDemands,
+  baselinePurchases,
+  baselineBanks,
+  baselineBankAccounts,
+  baselineCashBookEntries,
+  baselineCreditBookEntries,
+  baselineVouchers,
+  baselinePartners,
+  baselineBuyers,
+  baselineVehicles,
+  baselineVehicleConsumptions,
+  baselineStockItems,
+  baselineStockEntries,
+  baselinePosCoalSales,
+  baselineCoalSellRecords,
+} from './seedData.ts';
 
 const TABLE_CREATION_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "app_users" (
@@ -273,6 +327,141 @@ export async function autoMigrateAndSeed(): Promise<{ success: boolean; message:
     if (!existingSettings) {
       console.log('Seeding initial company settings...');
       await dbSaveCompanySettings(initialCompanySettings);
+    }
+
+    // Demands
+    const existingDemands = await dbGetDemands().catch(() => []);
+    if (existingDemands.length === 0) {
+      console.log('Seeding baseline demands...');
+      for (const d of baselineDemands) {
+        await dbSaveDemand(d);
+      }
+    }
+
+    // Purchases
+    const existingPurchases = await dbGetPurchases().catch(() => []);
+    if (existingPurchases.length === 0) {
+      console.log('Seeding baseline purchases...');
+      for (const p of baselinePurchases) {
+        await dbSavePurchase(p);
+      }
+    }
+
+    // Banks
+    const existingBanks = await dbGetBanks().catch(() => []);
+    if (existingBanks.length === 0) {
+      console.log('Seeding baseline banks...');
+      for (const b of baselineBanks) {
+        await dbSaveBank(b);
+      }
+    }
+
+    // Bank Accounts
+    const existingBankAccounts = await dbGetBankAccounts().catch(() => []);
+    if (existingBankAccounts.length === 0) {
+      console.log('Seeding baseline bank accounts...');
+      for (const ba of baselineBankAccounts) {
+        await dbSaveBankAccount(ba);
+      }
+    }
+
+    // Cash Book Entries
+    const existingCashBook = await dbGetCashBookEntries().catch(() => []);
+    if (existingCashBook.length === 0) {
+      console.log('Seeding baseline cash book entries...');
+      for (const cb of baselineCashBookEntries) {
+        await dbSaveCashBookEntry(cb);
+      }
+    }
+
+    // Credit Book Entries
+    const existingCreditBook = await dbGetCreditBookEntries().catch(() => []);
+    if (existingCreditBook.length === 0) {
+      console.log('Seeding baseline credit book entries...');
+      for (const cr of baselineCreditBookEntries) {
+        await dbSaveCreditBookEntry(cr);
+      }
+    }
+
+    // Vouchers
+    const existingVouchers = await dbGetVouchers().catch(() => []);
+    if (existingVouchers.length === 0) {
+      console.log('Seeding baseline double-entry vouchers...');
+      for (const v of baselineVouchers) {
+        await dbSaveVoucher(v);
+      }
+    }
+
+    // Partners
+    const existingPartners = await dbGetPartners().catch(() => []);
+    if (existingPartners.length === 0) {
+      console.log('Seeding baseline partners...');
+      for (const part of baselinePartners) {
+        await dbSavePartner(part);
+      }
+    }
+
+    // Buyers
+    const existingBuyers = await dbGetBuyers().catch(() => []);
+    if (existingBuyers.length === 0) {
+      console.log('Seeding baseline buyers...');
+      for (const buy of baselineBuyers) {
+        await dbSaveBuyer(buy);
+      }
+    }
+
+    // Vehicles
+    const existingVehicles = await dbGetVehicles().catch(() => []);
+    if (existingVehicles.length === 0) {
+      console.log('Seeding baseline vehicles...');
+      for (const veh of baselineVehicles) {
+        await dbSaveVehicle(veh);
+      }
+    }
+
+    // Vehicle Consumptions
+    const existingConsumptions = await dbGetVehicleConsumptions().catch(() => []);
+    if (existingConsumptions.length === 0) {
+      console.log('Seeding baseline vehicle consumptions...');
+      for (const vc of baselineVehicleConsumptions) {
+        await dbSaveVehicleConsumption(vc);
+      }
+    }
+
+    // Stock Items
+    const existingStockItems = await dbGetStockItems().catch(() => []);
+    if (existingStockItems.length === 0) {
+      console.log('Seeding baseline stock items...');
+      for (const si of baselineStockItems) {
+        await dbSaveStockItem(si);
+      }
+    }
+
+    // Stock Entries
+    const existingStockEntries = await dbGetStockEntries().catch(() => []);
+    if (existingStockEntries.length === 0) {
+      console.log('Seeding baseline stock entries...');
+      for (const se of baselineStockEntries) {
+        await dbSaveStockEntry(se);
+      }
+    }
+
+    // POS Coal Sales
+    const existingPosSales = await dbGetPosCoalSales().catch(() => []);
+    if (existingPosSales.length === 0) {
+      console.log('Seeding baseline POS coal sales...');
+      for (const pos of baselinePosCoalSales) {
+        await dbSavePosCoalSale(pos);
+      }
+    }
+
+    // Coal Sell Records
+    const existingCoalRecords = await dbGetCoalSellRecords().catch(() => []);
+    if (existingCoalRecords.length === 0) {
+      console.log('Seeding baseline coal sell records...');
+      for (const csr of baselineCoalSellRecords) {
+        await dbSaveCoalSellRecord(csr);
+      }
     }
   } catch (seedErr) {
     console.warn('Baseline seed warning:', seedErr);

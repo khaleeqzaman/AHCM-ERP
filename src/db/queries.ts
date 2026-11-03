@@ -747,12 +747,13 @@ export async function dbGetPartners(): Promise<PartnerRecord[]> {
 
 export async function dbSavePartner(p: PartnerRecord): Promise<PartnerRecord> {
   try {
+    const partnerCode = p.code || p.name.substring(0, 4).toUpperCase() || 'PART';
     await db
       .insert(schema.partners)
       .values({
         id: p.id,
         name: p.name,
-        code: p.code,
+        code: partnerCode,
         isActive: p.isActive,
         showInReport: p.showInReport,
         notes: p.notes,
@@ -761,13 +762,13 @@ export async function dbSavePartner(p: PartnerRecord): Promise<PartnerRecord> {
         target: schema.partners.id,
         set: {
           name: p.name,
-          code: p.code,
+          code: partnerCode,
           isActive: p.isActive,
           showInReport: p.showInReport,
           notes: p.notes,
         },
       });
-    return p;
+    return { ...p, code: partnerCode };
   } catch (error) {
     console.error('Failed to save partner:', error);
     throw new Error('Failed to save partner', { cause: error });
@@ -851,6 +852,8 @@ export async function dbGetStockEntries(): Promise<StockEntry[]> {
 
 export async function dbSaveStockEntry(se: StockEntry): Promise<StockEntry> {
   try {
+    const itemName = se.itemName || 'Stock Item';
+    const itemCode = se.itemCode || 'CODE';
     await db
       .insert(schema.stockEntries)
       .values({
@@ -858,8 +861,8 @@ export async function dbSaveStockEntry(se: StockEntry): Promise<StockEntry> {
         srNo: se.srNo,
         date: se.date,
         itemId: se.itemId,
-        itemName: se.itemName,
-        itemCode: se.itemCode,
+        itemName: itemName,
+        itemCode: itemCode,
         stockQty: se.stockQty,
         purchaseQty: se.purchaseQty,
         mineQty: se.mineQty,
@@ -872,6 +875,8 @@ export async function dbSaveStockEntry(se: StockEntry): Promise<StockEntry> {
         set: {
           srNo: se.srNo,
           date: se.date,
+          itemName: itemName,
+          itemCode: itemCode,
           stockQty: se.stockQty,
           purchaseQty: se.purchaseQty,
           mineQty: se.mineQty,
@@ -880,7 +885,7 @@ export async function dbSaveStockEntry(se: StockEntry): Promise<StockEntry> {
           balance: se.balance,
         },
       });
-    return se;
+    return { ...se, itemName, itemCode };
   } catch (error) {
     console.error('Failed to save stock entry:', error);
     throw new Error('Failed to save stock entry', { cause: error });
