@@ -26,7 +26,7 @@ export interface BankTransaction {
   category: string;
   depositDebit: number; // Deposit / Debit (+)
   withdrawalPayment: number; // Withdrawal Payment (-)
-  balance: number; // Auto-calculated: Deposit - Withdrawal
+  balance: number; // Auto-calculated from opening balance: Opening balance + Deposit - Withdrawal
 }
 
 export interface BankAccountRecord {

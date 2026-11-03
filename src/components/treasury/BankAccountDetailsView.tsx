@@ -86,6 +86,19 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
   const netTransactionBalance = totalDeposit - totalWithdrawal;
   const currentBalance = currentAccount.openingBalance + netTransactionBalance;
 
+  // Calculate cumulative running balances for all transactions starting from Opening Balance
+  const runningBalancesMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    let running = Number(currentAccount.openingBalance) || 0;
+    currentAccount.transactions.forEach((tx) => {
+      const deposit = Number(tx.depositDebit) || 0;
+      const withdrawal = Number(tx.withdrawalPayment) || 0;
+      running = Number((running + deposit - withdrawal).toFixed(2));
+      map.set(tx.id, running);
+    });
+    return map;
+  }, [currentAccount.openingBalance, currentAccount.transactions]);
+
   const handleAddNewTransaction = () => {
     // Row fields are not pre-filled; all fields are empty for user input, placed on top
     const newTx: BankTransaction = {
@@ -96,7 +109,7 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
       category: '',
       depositDebit: 0,
       withdrawalPayment: 0,
-      balance: 0,
+      balance: currentAccount.openingBalance,
     };
     onAddTransaction(currentAccount.id, newTx);
     setNotification('New clean transaction row added at the top. Fields are ready for input.');
@@ -129,7 +142,7 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
             Bank Account Details
           </h2>
           <p className="text-sm text-slate-600 mt-0.5">
-            Individual account statement, editable line items, and automated balance calculation (Deposit − Withdrawal).
+            Individual account statement, editable line items, and automated balance calculation from opening balance (Opening balance + Deposit − Withdrawal).
           </p>
         </div>
 
@@ -272,7 +285,12 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
                 <th className="py-3 px-4 w-44">Category</th>
                 <th className="py-3 px-4 w-36 text-right">Deposit / Debit (+)</th>
                 <th className="py-3 px-4 w-36 text-right">Withdrawal Payment (-)</th>
-                <th className="py-3 px-4 w-36 text-right">Balance (Deposit − Withdrawal)</th>
+                <th className="py-3 px-4 w-48 text-right">
+                  <span className="block">Balance</span>
+                  <span className="block text-[10px] font-normal normal-case text-slate-500 font-mono">
+                    (Opening + Deposit − Withdrawal)
+                  </span>
+                </th>
                 <th className="py-3 px-3 w-14 text-center"></th>
               </tr>
             </thead>
@@ -286,7 +304,14 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
               ) : (
                 filteredTransactions.map((tx, idx) => {
                   const txBalance =
-                    (Number(tx.depositDebit) || 0) - (Number(tx.withdrawalPayment) || 0);
+                    runningBalancesMap.get(tx.id) ??
+                    Number(
+                      (
+                        (Number(currentAccount.openingBalance) || 0) +
+                        (Number(tx.depositDebit) || 0) -
+                        (Number(tx.withdrawalPayment) || 0)
+                      ).toFixed(2)
+                    );
 
                   return (
                     <tr key={tx.id} className="hover:bg-blue-50/20 transition-colors">
@@ -379,11 +404,13 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
                         />
                       </td>
 
-                      {/* Balance (Auto-calculated: Deposit − Withdrawal) */}
+                      {/* Balance (Auto-calculated from opening balance: Opening balance + Deposit − Withdrawal) */}
                       <td className="py-2.5 px-4 text-right font-mono tabular-nums font-bold whitespace-nowrap">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded text-xs ${
-                            txBalance >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-rose-700 bg-rose-50'
+                          className={`inline-block px-2.5 py-1 rounded text-xs border font-semibold ${
+                            txBalance >= 0 
+                              ? 'text-emerald-800 bg-emerald-50 border-emerald-200' 
+                              : 'text-rose-800 bg-rose-50 border-rose-200'
                           }`}
                         >
                           {txBalance.toLocaleString('en-US', {
@@ -419,21 +446,21 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
             {/* 3.5 D. Totals at the End of the Table:
                 - Total Deposit
                 - Total Withdrawal
-                - Total Balance
+                - Total Balance (Calculated from Opening Balance)
             */}
             <tfoot>
               <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold text-xs text-slate-900">
                 <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-[11px] text-slate-700">
-                  Transaction Totals:
+                  Account Balance (Opening + Total Deposit − Total Withdrawal):
                 </td>
-                <td className="py-3 px-3 text-right font-mono tabular-nums text-emerald-800 text-sm">
-                  {totalDeposit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <td className="py-3 px-3 text-right font-mono tabular-nums text-emerald-800 text-sm" title="Total Deposits">
+                  +{totalDeposit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
-                <td className="py-3 px-3 text-right font-mono tabular-nums text-rose-800 text-sm">
-                  {totalWithdrawal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <td className="py-3 px-3 text-right font-mono tabular-nums text-rose-800 text-sm" title="Total Withdrawals">
+                  -{totalWithdrawal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
-                <td className="py-3 px-4 text-right font-mono tabular-nums text-blue-900 text-sm whitespace-nowrap">
-                  {netTransactionBalance.toLocaleString('en-US', {
+                <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-700 text-sm whitespace-nowrap" title="Current Balance (Opening Balance + Total Deposit - Total Withdrawal)">
+                  {currentBalance.toLocaleString('en-US', {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}

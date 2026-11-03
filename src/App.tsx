@@ -971,9 +971,21 @@ export default function App() {
     setBankAccounts((prev) => {
       const next = prev.map((acc) => {
         if (acc.id !== accountId) return acc;
+        const combined = [...acc.transactions, transaction];
+        let running = Number(acc.openingBalance) || 0;
+        const withBalances = combined.map((t, idx) => {
+          const deposit = Number(t.depositDebit) || 0;
+          const withdrawal = Number(t.withdrawalPayment) || 0;
+          running = Number((running + deposit - withdrawal).toFixed(2));
+          return {
+            ...t,
+            srNo: idx + 1,
+            balance: running,
+          };
+        });
         targetAccount = {
           ...acc,
-          transactions: [transaction, ...acc.transactions].map((t, idx) => ({ ...t, srNo: idx + 1 })),
+          transactions: withBalances,
         };
         return targetAccount;
       });
@@ -995,13 +1007,21 @@ export default function App() {
         if (acc.id !== accountId) return acc;
         const updatedTxs = acc.transactions.map((tx) => {
           if (tx.id !== transactionId) return tx;
-          const updated = { ...tx, [field]: value };
-          updated.balance = (Number(updated.depositDebit) || 0) - (Number(updated.withdrawalPayment) || 0);
-          return updated;
+          return { ...tx, [field]: value };
+        });
+        let running = Number(acc.openingBalance) || 0;
+        const withBalances = updatedTxs.map((tx) => {
+          const deposit = Number(tx.depositDebit) || 0;
+          const withdrawal = Number(tx.withdrawalPayment) || 0;
+          running = Number((running + deposit - withdrawal).toFixed(2));
+          return {
+            ...tx,
+            balance: running,
+          };
         });
         targetAccount = {
           ...acc,
-          transactions: updatedTxs,
+          transactions: withBalances,
         };
         return targetAccount;
       });
@@ -1017,9 +1037,20 @@ export default function App() {
       const next = prev.map((acc) => {
         if (acc.id !== accountId) return acc;
         const filtered = acc.transactions.filter((tx) => tx.id !== transactionId);
+        let running = Number(acc.openingBalance) || 0;
+        const withBalances = filtered.map((tx, idx) => {
+          const deposit = Number(tx.depositDebit) || 0;
+          const withdrawal = Number(tx.withdrawalPayment) || 0;
+          running = Number((running + deposit - withdrawal).toFixed(2));
+          return {
+            ...tx,
+            srNo: idx + 1,
+            balance: running,
+          };
+        });
         targetAccount = {
           ...acc,
-          transactions: filtered.map((tx, idx) => ({ ...tx, srNo: idx + 1 })),
+          transactions: withBalances,
         };
         return targetAccount;
       });
