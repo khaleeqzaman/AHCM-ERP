@@ -16,8 +16,14 @@ import {
   Users as UsersIcon,
   LogOut,
   RefreshCw,
-  Database
+  Database,
+  Activity
 } from 'lucide-react';
+import { DatabaseDiagnosticsModal } from './components/common/DatabaseDiagnosticsModal';
+import { 
+  getDbApiDiagnosticLogs, 
+  subscribeDbApiDiagnostics 
+} from './api/client';
 import { 
   NavModule, 
   DemandDocument, 
@@ -112,6 +118,27 @@ import {
   apiSaveVehicleConsumption,
   apiDeleteVehicleConsumption,
 } from './api/client';
+
+function loadCache<T>(key: string, defaultValue: T): T {
+  try {
+    const item = localStorage.getItem(`ahcm_erp_${key}`);
+    if (item) {
+      const parsed = JSON.parse(item);
+      if (Array.isArray(defaultValue)) {
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed as unknown as T;
+      } else if (parsed && typeof parsed === 'object') {
+        return parsed as unknown as T;
+      }
+    }
+  } catch {}
+  return defaultValue;
+}
+
+function saveCache<T>(key: string, value: T): void {
+  try {
+    localStorage.setItem(`ahcm_erp_${key}`, JSON.stringify(value));
+  } catch {}
+}
 
 export default function App() {
   // User Management & Persistence
@@ -295,38 +322,49 @@ export default function App() {
     }
   };
 
-  // Fully independent data states (Business Rule 8) - Clean production state
-  const [demands, setDemands] = useState<DemandDocument[]>([]);
-  const [purchases, setPurchases] = useState<PurchaseDocument[]>([]);
+  // Fully independent data states with instant refresh-resilient cache
+  const [demands, setDemands] = useState<DemandDocument[]>(() => loadCache('demands', []));
+  const [purchases, setPurchases] = useState<PurchaseDocument[]>(() => loadCache('purchases', []));
 
-  // 100% ISOLATED ACCOUNTANT DATA STATE (Completely independent from Purchase)
-  const [accounts, setAccounts] = useState<ChartAccount[]>([]);
-  const [vouchers, setVouchers] = useState<VoucherDocument[]>([]);
+  // 100% ISOLATED ACCOUNTANT DATA STATE
+  const [accounts, setAccounts] = useState<ChartAccount[]>(() => loadCache('accounts', []));
+  const [vouchers, setVouchers] = useState<VoucherDocument[]>(() => loadCache('vouchers', []));
 
-  // 100% ISOLATED TREASURY (CASHIER) DATA STATE (Completely separate from Accounts & Purchase)
-  const [cashBookEntries, setCashBookEntries] = useState<CashBookEntry[]>([]);
-  const [creditBookEntries, setCreditBookEntries] = useState<CreditBookEntry[]>([]);
-  const [banks, setBanks] = useState<BankRecord[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<BankAccountRecord[]>([]);
+  // 100% ISOLATED TREASURY (CASHIER) DATA STATE
+  const [cashBookEntries, setCashBookEntries] = useState<CashBookEntry[]>(() => loadCache('cash_book', []));
+  const [creditBookEntries, setCreditBookEntries] = useState<CreditBookEntry[]>(() => loadCache('credit_book', []));
+  const [banks, setBanks] = useState<BankRecord[]>(() => loadCache('banks', []));
+  const [bankAccounts, setBankAccounts] = useState<BankAccountRecord[]>(() => loadCache('bank_accounts', []));
 
-  // 100% ISOLATED STORE & SALES DATA STATE (Completely separate from other modules)
-  const [companySettings, setCompanySettings] = useState<CompanySettings>(initialCompanySettings);
-  const [buyers, setBuyers] = useState<BuyerRecord[]>([]);
-  const [partners, setPartners] = useState<PartnerRecord[]>([]);
-  const [posEntries, setPosEntries] = useState<PosCoalSellEntry[]>([]);
-  const [coalSellRecords, setCoalSellRecords] = useState<CoalSellRecord[]>([]);
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
-  const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
-  const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
-  const [vehicleConsumptions, setVehicleConsumptions] = useState<VehicleConsumptionRecord[]>([]);
+  // 100% ISOLATED STORE & SALES DATA STATE
+  const [companySettings, setCompanySettings] = useState<CompanySettings>(() => loadCache('company_settings', initialCompanySettings));
+  const [buyers, setBuyers] = useState<BuyerRecord[]>(() => loadCache('buyers', []));
+  const [partners, setPartners] = useState<PartnerRecord[]>(() => loadCache('partners', []));
+  const [posEntries, setPosEntries] = useState<PosCoalSellEntry[]>(() => loadCache('pos_entries', []));
+  const [coalSellRecords, setCoalSellRecords] = useState<CoalSellRecord[]>(() => loadCache('coal_records', []));
+  const [stockItems, setStockItems] = useState<StockItem[]>(() => loadCache('stock_items', []));
+  const [stockEntries, setStockEntries] = useState<StockEntry[]>(() => loadCache('stock_entries', []));
+  const [vehicles, setVehicles] = useState<VehicleRecord[]>(() => loadCache('vehicles', []));
+  const [vehicleConsumptions, setVehicleConsumptions] = useState<VehicleConsumptionRecord[]>(() => loadCache('consumptions', []));
 
-  // 100% ISOLATED OLD LEDGER DATA STATE (Microsoft Access Engine) - 28 tables with empty rows until imported
-  const [oldLedgerTables, setOldLedgerTables] = useState<TableDefinition[]>(standardOldLedgerSchemas);
-  const [oldLedgerData, setOldLedgerData] = useState<OldLedgerDataMap>(initialOldLedgerData);
-  const [oldLedgerImportSummary, setOldLedgerImportSummary] = useState<ImportSummary | null>(null);
+  // 100% ISOLATED OLD LEDGER DATA STATE (Microsoft Access Engine)
+  const [oldLedgerTables, setOldLedgerTables] = useState<TableDefinition[]>(() => loadCache('old_ledger_tables', standardOldLedgerSchemas));
+  const [oldLedgerData, setOldLedgerData] = useState<OldLedgerDataMap>(() => loadCache('old_ledger_data', initialOldLedgerData));
+  const [oldLedgerImportSummary, setOldLedgerImportSummary] = useState<ImportSummary | null>(() => loadCache('old_ledger_summary', null));
 
-  // Database Synchronization state
+  // Database Synchronization & Diagnostics state
   const [isRefreshingDb, setIsRefreshingDb] = useState(false);
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const [diagnosticErrorsCount, setDiagnosticErrorsCount] = useState(0);
+
+  useEffect(() => {
+    const updateErrorCount = () => {
+      const logs = getDbApiDiagnosticLogs();
+      setDiagnosticErrorsCount(logs.filter((l) => !l.success).length);
+    };
+    updateErrorCount();
+    return subscribeDbApiDiagnostics(updateErrorCount);
+  }, []);
 
   const refreshDataFromDatabase = async () => {
     setIsRefreshingDb(true);
@@ -335,9 +373,7 @@ export default function App() {
       if (!data) return;
       if (data.users?.length) {
         setUsers(data.users);
-        try {
-          localStorage.setItem('ahcm_erp_users', JSON.stringify(data.users));
-        } catch {}
+        saveCache('users', data.users);
         setCurrentUser((current) => {
           if (!current) return null;
           const fresh = data.users.find((u) => u.id === current.id);
@@ -350,23 +386,74 @@ export default function App() {
           return current;
         });
       }
-      if (data.demands !== undefined) setDemands(data.demands);
-      if (data.purchases !== undefined) setPurchases(data.purchases);
-      if (data.accounts !== undefined) setAccounts(data.accounts);
-      if (data.vouchers !== undefined) setVouchers(data.vouchers);
-      if (data.cashBookEntries !== undefined) setCashBookEntries(data.cashBookEntries);
-      if (data.creditBookEntries !== undefined) setCreditBookEntries(data.creditBookEntries);
-      if (data.banks !== undefined) setBanks(data.banks);
-      if (data.bankAccounts !== undefined) setBankAccounts(data.bankAccounts);
-      if (data.companySettings) setCompanySettings(data.companySettings);
-      if (data.buyers !== undefined) setBuyers(data.buyers);
-      if (data.partners !== undefined) setPartners(data.partners);
-      if (data.posEntries !== undefined) setPosEntries(data.posEntries);
-      if (data.coalSellRecords !== undefined) setCoalSellRecords(data.coalSellRecords);
-      if (data.stockItems !== undefined) setStockItems(data.stockItems);
-      if (data.stockEntries !== undefined) setStockEntries(data.stockEntries);
-      if (data.vehicles !== undefined) setVehicles(data.vehicles);
-      if (data.vehicleConsumptions !== undefined) setVehicleConsumptions(data.vehicleConsumptions);
+      if (data.demands !== undefined) {
+        setDemands(data.demands);
+        saveCache('demands', data.demands);
+      }
+      if (data.purchases !== undefined) {
+        setPurchases(data.purchases);
+        saveCache('purchases', data.purchases);
+      }
+      if (data.accounts !== undefined) {
+        setAccounts(data.accounts);
+        saveCache('accounts', data.accounts);
+      }
+      if (data.vouchers !== undefined) {
+        setVouchers(data.vouchers);
+        saveCache('vouchers', data.vouchers);
+      }
+      if (data.cashBookEntries !== undefined) {
+        setCashBookEntries(data.cashBookEntries);
+        saveCache('cash_book', data.cashBookEntries);
+      }
+      if (data.creditBookEntries !== undefined) {
+        setCreditBookEntries(data.creditBookEntries);
+        saveCache('credit_book', data.creditBookEntries);
+      }
+      if (data.banks !== undefined) {
+        setBanks(data.banks);
+        saveCache('banks', data.banks);
+      }
+      if (data.bankAccounts !== undefined) {
+        setBankAccounts(data.bankAccounts);
+        saveCache('bank_accounts', data.bankAccounts);
+      }
+      if (data.companySettings) {
+        setCompanySettings(data.companySettings);
+        saveCache('company_settings', data.companySettings);
+      }
+      if (data.buyers !== undefined) {
+        setBuyers(data.buyers);
+        saveCache('buyers', data.buyers);
+      }
+      if (data.partners !== undefined) {
+        setPartners(data.partners);
+        saveCache('partners', data.partners);
+      }
+      if (data.posEntries !== undefined) {
+        setPosEntries(data.posEntries);
+        saveCache('pos_entries', data.posEntries);
+      }
+      if (data.coalSellRecords !== undefined) {
+        setCoalSellRecords(data.coalSellRecords);
+        saveCache('coal_records', data.coalSellRecords);
+      }
+      if (data.stockItems !== undefined) {
+        setStockItems(data.stockItems);
+        saveCache('stock_items', data.stockItems);
+      }
+      if (data.stockEntries !== undefined) {
+        setStockEntries(data.stockEntries);
+        saveCache('stock_entries', data.stockEntries);
+      }
+      if (data.vehicles !== undefined) {
+        setVehicles(data.vehicles);
+        saveCache('vehicles', data.vehicles);
+      }
+      if (data.vehicleConsumptions !== undefined) {
+        setVehicleConsumptions(data.vehicleConsumptions);
+        saveCache('consumptions', data.vehicleConsumptions);
+      }
     } catch (err) {
       console.warn('Failed to refresh data from database:', err);
     } finally {
@@ -383,61 +470,66 @@ export default function App() {
   const handleSaveDemand = (demand: DemandDocument) => {
     setDemands((prev) => {
       const exists = prev.some((d) => d.id === demand.id);
-      if (exists) {
-        return prev.map((d) => (d.id === demand.id ? demand : d));
-      }
-      return [demand, ...prev];
+      const next = exists ? prev.map((d) => (d.id === demand.id ? demand : d)) : [demand, ...prev];
+      saveCache('demands', next);
+      return next;
     });
     apiSaveDemand(demand);
   };
 
   const handleFinalizeDemand = (id: string) => {
     let toSave: DemandDocument | null = null;
-    setDemands((prev) =>
-      prev.map((d) => {
+    setDemands((prev) => {
+      const next = prev.map((d) => {
         if (d.id === id) {
           toSave = { ...d, status: 'Finalized', updatedAt: new Date().toISOString().substring(0, 16) };
           return toSave;
         }
         return d;
-      })
-    );
+      });
+      saveCache('demands', next);
+      return next;
+    });
     if (toSave) apiSaveDemand(toSave);
   };
 
   const handleSubmitDemand = (id: string) => {
     let toSave: DemandDocument | null = null;
-    setDemands((prev) =>
-      prev.map((d) => {
+    setDemands((prev) => {
+      const next = prev.map((d) => {
         if (d.id === id) {
           toSave = { ...d, status: 'Submitted for Approval', updatedAt: new Date().toISOString().substring(0, 16) };
           return toSave;
         }
         return d;
-      })
-    );
+      });
+      saveCache('demands', next);
+      return next;
+    });
     if (toSave) apiSaveDemand(toSave);
   };
 
   const handleSubmitMultipleDemands = (ids: string[]) => {
     const toSaves: DemandDocument[] = [];
-    setDemands((prev) =>
-      prev.map((d) => {
+    setDemands((prev) => {
+      const next = prev.map((d) => {
         if (ids.includes(d.id)) {
           const updated: DemandDocument = { ...d, status: 'Submitted for Approval', updatedAt: new Date().toISOString().substring(0, 16) };
           toSaves.push(updated);
           return updated;
         }
         return d;
-      })
-    );
+      });
+      saveCache('demands', next);
+      return next;
+    });
     toSaves.forEach((doc) => apiSaveDemand(doc));
   };
 
   const handleUpdateDemandItems = (id: string, updatedItems: DemandItem[]) => {
     let toSave: DemandDocument | null = null;
-    setDemands((prev) =>
-      prev.map((d) => {
+    setDemands((prev) => {
+      const next = prev.map((d) => {
         if (d.id !== id) return d;
         const total = Number(
           updatedItems.reduce((sum, it) => sum + it.amount, 0).toFixed(2)
@@ -449,36 +541,42 @@ export default function App() {
           updatedAt: new Date().toISOString().substring(0, 16),
         };
         return toSave;
-      })
-    );
+      });
+      saveCache('demands', next);
+      return next;
+    });
     if (toSave) apiSaveDemand(toSave);
   };
 
   const handleApproveDemand = (id: string, remark?: string) => {
     let toSave: DemandDocument | null = null;
-    setDemands((prev) =>
-      prev.map((d) => {
+    setDemands((prev) => {
+      const next = prev.map((d) => {
         if (d.id === id) {
           toSave = { ...d, status: 'Approved', adminRemark: remark };
           return toSave;
         }
         return d;
-      })
-    );
+      });
+      saveCache('demands', next);
+      return next;
+    });
     if (toSave) apiSaveDemand(toSave);
   };
 
   const handleRejectDemand = (id: string, remark?: string) => {
     let toSave: DemandDocument | null = null;
-    setDemands((prev) =>
-      prev.map((d) => {
+    setDemands((prev) => {
+      const next = prev.map((d) => {
         if (d.id === id) {
           toSave = { ...d, status: 'Rejected', adminRemark: remark };
           return toSave;
         }
         return d;
-      })
-    );
+      });
+      saveCache('demands', next);
+      return next;
+    });
     if (toSave) apiSaveDemand(toSave);
   };
 
@@ -486,61 +584,66 @@ export default function App() {
   const handleSavePurchase = (purchase: PurchaseDocument) => {
     setPurchases((prev) => {
       const exists = prev.some((p) => p.id === purchase.id);
-      if (exists) {
-        return prev.map((p) => (p.id === purchase.id ? purchase : p));
-      }
-      return [purchase, ...prev];
+      const next = exists ? prev.map((p) => (p.id === purchase.id ? purchase : p)) : [purchase, ...prev];
+      saveCache('purchases', next);
+      return next;
     });
     apiSavePurchase(purchase);
   };
 
   const handleFinalizePurchase = (id: string) => {
     let toSave: PurchaseDocument | null = null;
-    setPurchases((prev) =>
-      prev.map((p) => {
+    setPurchases((prev) => {
+      const next = prev.map((p) => {
         if (p.id === id) {
           toSave = { ...p, status: 'Finalized', updatedAt: new Date().toISOString().substring(0, 16) };
           return toSave;
         }
         return p;
-      })
-    );
+      });
+      saveCache('purchases', next);
+      return next;
+    });
     if (toSave) apiSavePurchase(toSave);
   };
 
   const handleSubmitPurchase = (id: string) => {
     let toSave: PurchaseDocument | null = null;
-    setPurchases((prev) =>
-      prev.map((p) => {
+    setPurchases((prev) => {
+      const next = prev.map((p) => {
         if (p.id === id) {
           toSave = { ...p, status: 'Submitted for Approval', updatedAt: new Date().toISOString().substring(0, 16) };
           return toSave;
         }
         return p;
-      })
-    );
+      });
+      saveCache('purchases', next);
+      return next;
+    });
     if (toSave) apiSavePurchase(toSave);
   };
 
   const handleSubmitMultiplePurchases = (ids: string[]) => {
     const toSaves: PurchaseDocument[] = [];
-    setPurchases((prev) =>
-      prev.map((p) => {
+    setPurchases((prev) => {
+      const next = prev.map((p) => {
         if (ids.includes(p.id)) {
           const updated: PurchaseDocument = { ...p, status: 'Submitted for Approval', updatedAt: new Date().toISOString().substring(0, 16) };
           toSaves.push(updated);
           return updated;
         }
         return p;
-      })
-    );
+      });
+      saveCache('purchases', next);
+      return next;
+    });
     toSaves.forEach((doc) => apiSavePurchase(doc));
   };
 
   const handleUpdatePurchaseItems = (id: string, updatedItems: PurchaseSummaryItem[]) => {
     let toSave: PurchaseDocument | null = null;
-    setPurchases((prev) =>
-      prev.map((p) => {
+    setPurchases((prev) => {
+      const next = prev.map((p) => {
         if (p.id !== id) return p;
         const total = Number(
           updatedItems.reduce((sum, it) => sum + (Number(it.amount) || 0), 0).toFixed(2)
@@ -552,77 +655,96 @@ export default function App() {
           updatedAt: new Date().toISOString().substring(0, 16),
         };
         return toSave;
-      })
-    );
+      });
+      saveCache('purchases', next);
+      return next;
+    });
     if (toSave) apiSavePurchase(toSave);
   };
 
   const handleApprovePurchase = (id: string, remark?: string) => {
     let toSave: PurchaseDocument | null = null;
-    setPurchases((prev) =>
-      prev.map((p) => {
+    setPurchases((prev) => {
+      const next = prev.map((p) => {
         if (p.id === id) {
           toSave = { ...p, status: 'Approved', adminRemark: remark };
           return toSave;
         }
         return p;
-      })
-    );
+      });
+      saveCache('purchases', next);
+      return next;
+    });
     if (toSave) apiSavePurchase(toSave);
   };
 
   const handleRejectPurchase = (id: string, remark?: string) => {
     let toSave: PurchaseDocument | null = null;
-    setPurchases((prev) =>
-      prev.map((p) => {
+    setPurchases((prev) => {
+      const next = prev.map((p) => {
         if (p.id === id) {
           toSave = { ...p, status: 'Rejected', adminRemark: remark };
           return toSave;
         }
         return p;
-      })
-    );
+      });
+      saveCache('purchases', next);
+      return next;
+    });
     if (toSave) apiSavePurchase(toSave);
   };
 
   const handleDeleteDemand = (id: string) => {
-    setDemands((prev) => prev.filter((d) => d.id !== id));
+    setDemands((prev) => {
+      const next = prev.filter((d) => d.id !== id);
+      saveCache('demands', next);
+      return next;
+    });
     apiDeleteDemand(id);
   };
 
   const handleDeletePurchase = (id: string) => {
-    setPurchases((prev) => prev.filter((p) => p.id !== id));
+    setPurchases((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      saveCache('purchases', next);
+      return next;
+    });
     apiDeletePurchase(id);
   };
 
   // ACCOUNTANT HANDLERS (Completely isolated)
   const handleAddAccount = (account: ChartAccount) => {
-    setAccounts((prev) => [...prev, account]);
+    setAccounts((prev) => {
+      const next = [...prev, account];
+      saveCache('accounts', next);
+      return next;
+    });
     apiSaveChartAccount(account);
   };
 
   const handleUpdateAccount = (account: ChartAccount) => {
-    setAccounts((prev) =>
-      prev.map((a) => (a.id === account.id ? account : a))
-    );
+    setAccounts((prev) => {
+      const next = prev.map((a) => (a.id === account.id ? account : a));
+      saveCache('accounts', next);
+      return next;
+    });
     apiSaveChartAccount(account);
   };
 
   const handleSaveVoucher = (voucher: VoucherDocument) => {
     setVouchers((prev) => {
       const exists = prev.some((v) => v.id === voucher.id);
-      if (exists) {
-        return prev.map((v) => (v.id === voucher.id ? voucher : v));
-      }
-      return [voucher, ...prev];
+      const next = exists ? prev.map((v) => (v.id === voucher.id ? voucher : v)) : [voucher, ...prev];
+      saveCache('vouchers', next);
+      return next;
     });
     apiSaveVoucher(voucher);
 
     // Update account balances
     if (voucher.status === 'Posted') {
       voucher.lines.forEach((line) => {
-        setAccounts((prevAccounts) =>
-          prevAccounts.map((acc) => {
+        setAccounts((prevAccounts) => {
+          const next = prevAccounts.map((acc) => {
             if (acc.id === line.accountId) {
               const delta =
                 acc.normalBalance === 'Debit'
@@ -636,8 +758,10 @@ export default function App() {
               return updatedAcc;
             }
             return acc;
-          })
-        );
+          });
+          saveCache('accounts', next);
+          return next;
+        });
       });
     }
   };
@@ -652,15 +776,17 @@ export default function App() {
       postedAt: new Date().toISOString().substring(0, 16),
     };
 
-    setVouchers((prev) =>
-      prev.map((v) => (v.id === voucherId ? updatedVoucher : v))
-    );
+    setVouchers((prev) => {
+      const next = prev.map((v) => (v.id === voucherId ? updatedVoucher : v));
+      saveCache('vouchers', next);
+      return next;
+    });
     apiSaveVoucher(updatedVoucher);
 
     // Update account balances
     target.lines.forEach((line) => {
-      setAccounts((prevAccounts) =>
-        prevAccounts.map((acc) => {
+      setAccounts((prevAccounts) => {
+        const next = prevAccounts.map((acc) => {
           if (acc.id === line.accountId) {
             const delta =
               acc.normalBalance === 'Debit'
@@ -674,8 +800,10 @@ export default function App() {
             return updatedAcc;
           }
           return acc;
-        })
-      );
+        });
+        saveCache('accounts', next);
+        return next;
+      });
     });
   };
 
@@ -687,8 +815,8 @@ export default function App() {
     updatedDescription: string
   ) => {
     let targetVoucher: VoucherDocument | null = null;
-    setVouchers((prevVouchers) =>
-      prevVouchers.map((voucher) => {
+    setVouchers((prevVouchers) => {
+      const next = prevVouchers.map((voucher) => {
         if (voucher.id !== voucherId) return voucher;
 
         const updatedLines = voucher.lines.map((l) => {
@@ -715,8 +843,10 @@ export default function App() {
           totalCredit: newTotalCredit,
         };
         return targetVoucher;
-      })
-    );
+      });
+      saveCache('vouchers', next);
+      return next;
+    });
     if (targetVoucher) apiSaveVoucher(targetVoucher);
   };
 
@@ -726,7 +856,11 @@ export default function App() {
       ...entry,
       balance: (Number(entry.credit) || 0) - (Number(entry.debit) || 0),
     };
-    setCashBookEntries((prev) => [updatedEntry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 })));
+    setCashBookEntries((prev) => {
+      const next = [updatedEntry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 }));
+      saveCache('cash_book', next);
+      return next;
+    });
     apiSaveCashBookEntry(updatedEntry);
   };
 
@@ -736,25 +870,35 @@ export default function App() {
     value: string | number
   ) => {
     let targetEntry: CashBookEntry | null = null;
-    setCashBookEntries((prev) =>
-      prev.map((entry) => {
+    setCashBookEntries((prev) => {
+      const next = prev.map((entry) => {
         if (entry.id !== id) return entry;
         targetEntry = { ...entry, [field]: value };
         targetEntry.balance = (Number(targetEntry.credit) || 0) - (Number(targetEntry.debit) || 0);
         return targetEntry;
-      })
-    );
+      });
+      saveCache('cash_book', next);
+      return next;
+    });
     if (targetEntry) apiSaveCashBookEntry(targetEntry);
   };
 
   const handleDeleteCashBookEntry = (id: string) => {
-    setCashBookEntries((prev) => prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 })));
+    setCashBookEntries((prev) => {
+      const next = prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 }));
+      saveCache('cash_book', next);
+      return next;
+    });
     apiDeleteCashBookEntry(id);
   };
 
   // CREDIT BOOK REGISTER HANDLERS
   const handleAddCreditBookEntry = (entry: CreditBookEntry) => {
-    setCreditBookEntries((prev) => [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 })));
+    setCreditBookEntries((prev) => {
+      const next = [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 }));
+      saveCache('credit_book', next);
+      return next;
+    });
     apiSaveCreditBookEntry(entry);
   };
 
@@ -764,63 +908,89 @@ export default function App() {
     value: string | number
   ) => {
     let targetEntry: CreditBookEntry | null = null;
-    setCreditBookEntries((prev) =>
-      prev.map((entry) => {
+    setCreditBookEntries((prev) => {
+      const next = prev.map((entry) => {
         if (entry.id !== id) return entry;
         targetEntry = { ...entry, [field]: value };
         return targetEntry;
-      })
-    );
+      });
+      saveCache('credit_book', next);
+      return next;
+    });
     if (targetEntry) apiSaveCreditBookEntry(targetEntry);
   };
 
   const handleDeleteCreditBookEntry = (id: string) => {
-    setCreditBookEntries((prev) => prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 })));
+    setCreditBookEntries((prev) => {
+      const next = prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 }));
+      saveCache('credit_book', next);
+      return next;
+    });
     apiDeleteCreditBookEntry(id);
   };
 
   const handleResetCreditBook = () => {
     creditBookEntries.forEach((e) => apiDeleteCreditBookEntry(e.id));
     setCreditBookEntries([]);
+    saveCache('credit_book', []);
   };
 
   const handleBulkUpdateCreditBookEntries = (updatedEntries: CreditBookEntry[]) => {
     setCreditBookEntries(updatedEntries);
+    saveCache('credit_book', updatedEntries);
     updatedEntries.forEach((e) => apiSaveCreditBookEntry(e));
   };
 
   const handleAddBank = (bank: BankRecord) => {
-    setBanks((prev) => [...prev, bank]);
+    setBanks((prev) => {
+      const next = [...prev, bank];
+      saveCache('banks', next);
+      return next;
+    });
     apiSaveBank(bank);
   };
 
   const handleDeleteBank = (id: string) => {
-    setBanks((prev) => prev.filter((b) => b.id !== id).map((b, idx) => ({ ...b, srNo: idx + 1 })));
+    setBanks((prev) => {
+      const next = prev.filter((b) => b.id !== id).map((b, idx) => ({ ...b, srNo: idx + 1 }));
+      saveCache('banks', next);
+      return next;
+    });
     apiDeleteBank(id);
   };
 
   const handleAddBankAccount = (account: BankAccountRecord) => {
-    setBankAccounts((prev) => [...prev, account]);
+    setBankAccounts((prev) => {
+      const next = [...prev, account];
+      saveCache('bank_accounts', next);
+      return next;
+    });
     apiSaveBankAccount(account);
   };
 
   const handleDeleteBankAccount = (id: string) => {
-    setBankAccounts((prev) => prev.filter((a) => a.id !== id).map((a, idx) => ({ ...a, srNo: idx + 1 })));
+    setBankAccounts((prev) => {
+      const next = prev.filter((a) => a.id !== id).map((a, idx) => ({ ...a, srNo: idx + 1 }));
+      saveCache('bank_accounts', next);
+      return next;
+    });
     apiDeleteBankAccount(id);
   };
 
   const handleAddBankTransaction = (accountId: string, transaction: BankTransaction) => {
     let targetAccount: BankAccountRecord | null = null;
-    setBankAccounts((prev) =>
-      prev.map((acc) => {
+    setBankAccounts((prev) => {
+      const next = prev.map((acc) => {
         if (acc.id !== accountId) return acc;
         targetAccount = {
           ...acc,
           transactions: [transaction, ...acc.transactions].map((t, idx) => ({ ...t, srNo: idx + 1 })),
         };
         return targetAccount;
-      })
-    );
+      });
+      saveCache('bank_accounts', next);
+      return next;
+    });
     if (targetAccount) apiSaveBankAccount(targetAccount);
   };
 
@@ -831,8 +1001,8 @@ export default function App() {
     value: string | number
   ) => {
     let targetAccount: BankAccountRecord | null = null;
-    setBankAccounts((prev) =>
-      prev.map((acc) => {
+    setBankAccounts((prev) => {
+      const next = prev.map((acc) => {
         if (acc.id !== accountId) return acc;
         const updatedTxs = acc.transactions.map((tx) => {
           if (tx.id !== transactionId) return tx;
@@ -845,15 +1015,17 @@ export default function App() {
           transactions: updatedTxs,
         };
         return targetAccount;
-      })
-    );
+      });
+      saveCache('bank_accounts', next);
+      return next;
+    });
     if (targetAccount) apiSaveBankAccount(targetAccount);
   };
 
   const handleDeleteBankTransaction = (accountId: string, transactionId: string) => {
     let targetAccount: BankAccountRecord | null = null;
-    setBankAccounts((prev) =>
-      prev.map((acc) => {
+    setBankAccounts((prev) => {
+      const next = prev.map((acc) => {
         if (acc.id !== accountId) return acc;
         const filtered = acc.transactions.filter((tx) => tx.id !== transactionId);
         targetAccount = {
@@ -861,152 +1033,247 @@ export default function App() {
           transactions: filtered.map((tx, idx) => ({ ...tx, srNo: idx + 1 })),
         };
         return targetAccount;
-      })
-    );
+      });
+      saveCache('bank_accounts', next);
+      return next;
+    });
     if (targetAccount) apiSaveBankAccount(targetAccount);
   };
 
   // 100% ISOLATED STORE & SALES HANDLERS
   const handleAddPosEntry = (entry: PosCoalSellEntry) => {
-    setPosEntries((prev) => [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 })));
+    setPosEntries((prev) => {
+      const next = [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 }));
+      saveCache('pos_entries', next);
+      return next;
+    });
     apiSavePosCoalSale(entry);
   };
 
   const handleUpdatePosEntry = (entry: PosCoalSellEntry) => {
-    setPosEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)));
+    setPosEntries((prev) => {
+      const next = prev.map((e) => (e.id === entry.id ? entry : e));
+      saveCache('pos_entries', next);
+      return next;
+    });
     apiSavePosCoalSale(entry);
   };
 
   const handleDeletePosEntry = (id: string) => {
-    setPosEntries((prev) => prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 })));
+    setPosEntries((prev) => {
+      const next = prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 }));
+      saveCache('pos_entries', next);
+      return next;
+    });
     apiDeletePosCoalSale(id);
   };
 
   const handleAddCoalSellRecord = (record: CoalSellRecord) => {
-    setCoalSellRecords((prev) => [record, ...prev]);
+    setCoalSellRecords((prev) => {
+      const next = [record, ...prev];
+      saveCache('coal_records', next);
+      return next;
+    });
     apiSaveCoalSellRecord(record);
   };
 
   const handleUpdateCoalSellRecord = (record: CoalSellRecord) => {
-    setCoalSellRecords((prev) => prev.map((r) => (r.id === record.id ? record : r)));
+    setCoalSellRecords((prev) => {
+      const next = prev.map((r) => (r.id === record.id ? record : r));
+      saveCache('coal_records', next);
+      return next;
+    });
     apiSaveCoalSellRecord(record);
   };
 
   const handleDeleteCoalSellRecord = (id: string) => {
-    setCoalSellRecords((prev) => prev.filter((r) => r.id !== id));
+    setCoalSellRecords((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      saveCache('coal_records', next);
+      return next;
+    });
     apiDeleteCoalSellRecord(id);
   };
 
   const handleAddPartner = (partner: PartnerRecord) => {
-    setPartners((prev) => [...prev, partner]);
+    setPartners((prev) => {
+      const next = [...prev, partner];
+      saveCache('partners', next);
+      return next;
+    });
     apiSavePartner(partner);
   };
 
   const handleUpdatePartner = (partner: PartnerRecord) => {
-    setPartners((prev) => prev.map((p) => (p.id === partner.id ? partner : p)));
+    setPartners((prev) => {
+      const next = prev.map((p) => (p.id === partner.id ? partner : p));
+      saveCache('partners', next);
+      return next;
+    });
     apiSavePartner(partner);
   };
 
   const handleDeletePartner = (id: string) => {
-    setPartners((prev) => prev.filter((p) => p.id !== id));
+    setPartners((prev) => {
+      const next = prev.filter((p) => p.id !== id);
+      saveCache('partners', next);
+      return next;
+    });
     apiDeletePartner(id);
   };
 
   const handleTogglePartnerActive = (id: string) => {
     let target: PartnerRecord | null = null;
-    setPartners((prev) =>
-      prev.map((p) => {
+    setPartners((prev) => {
+      const next = prev.map((p) => {
         if (p.id === id) {
           target = { ...p, isActive: !p.isActive };
           return target;
         }
         return p;
-      })
-    );
+      });
+      saveCache('partners', next);
+      return next;
+    });
     if (target) apiSavePartner(target);
   };
 
   const handleTogglePartnerReportColumn = (id: string) => {
     let target: PartnerRecord | null = null;
-    setPartners((prev) =>
-      prev.map((p) => {
+    setPartners((prev) => {
+      const next = prev.map((p) => {
         if (p.id === id) {
           target = { ...p, showInReport: !p.showInReport };
           return target;
         }
         return p;
-      })
-    );
+      });
+      saveCache('partners', next);
+      return next;
+    });
     if (target) apiSavePartner(target);
   };
 
   const handleAddBuyer = (buyer: BuyerRecord) => {
-    setBuyers((prev) => [buyer, ...prev]);
+    setBuyers((prev) => {
+      const next = [buyer, ...prev];
+      saveCache('buyers', next);
+      return next;
+    });
     apiSaveBuyer(buyer);
   };
 
   const handleUpdateBuyer = (buyer: BuyerRecord) => {
-    setBuyers((prev) => prev.map((b) => (b.id === buyer.id ? buyer : b)));
+    setBuyers((prev) => {
+      const next = prev.map((b) => (b.id === buyer.id ? buyer : b));
+      saveCache('buyers', next);
+      return next;
+    });
     apiSaveBuyer(buyer);
   };
 
   const handleDeleteBuyer = (id: string) => {
-    setBuyers((prev) => prev.filter((b) => b.id !== id));
+    setBuyers((prev) => {
+      const next = prev.filter((b) => b.id !== id);
+      saveCache('buyers', next);
+      return next;
+    });
     apiDeleteBuyer(id);
   };
 
   const handleAddStockItem = (item: StockItem) => {
-    setStockItems((prev) => [...prev, item]);
+    setStockItems((prev) => {
+      const next = [...prev, item];
+      saveCache('stock_items', next);
+      return next;
+    });
     apiSaveStockItem(item);
   };
 
   const handleAddStockEntry = (entry: StockEntry) => {
-    setStockEntries((prev) => [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 })));
+    setStockEntries((prev) => {
+      const next = [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 }));
+      saveCache('stock_entries', next);
+      return next;
+    });
     apiSaveStockEntry(entry);
   };
 
   const handleUpdateStockEntry = (entry: StockEntry) => {
-    setStockEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)));
+    setStockEntries((prev) => {
+      const next = prev.map((e) => (e.id === entry.id ? entry : e));
+      saveCache('stock_entries', next);
+      return next;
+    });
     apiSaveStockEntry(entry);
   };
 
   const handleDeleteStockEntry = (id: string) => {
-    setStockEntries((prev) => prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 })));
+    setStockEntries((prev) => {
+      const next = prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 }));
+      saveCache('stock_entries', next);
+      return next;
+    });
     apiDeleteStockEntry(id);
   };
 
   const handleAddVehicle = (vehicle: VehicleRecord) => {
-    setVehicles((prev) => [...prev, vehicle]);
+    setVehicles((prev) => {
+      const next = [...prev, vehicle];
+      saveCache('vehicles', next);
+      return next;
+    });
     apiSaveVehicle(vehicle);
   };
 
   const handleUpdateVehicle = (vehicle: VehicleRecord) => {
-    setVehicles((prev) => prev.map((v) => (v.id === vehicle.id ? vehicle : v)));
+    setVehicles((prev) => {
+      const next = prev.map((v) => (v.id === vehicle.id ? vehicle : v));
+      saveCache('vehicles', next);
+      return next;
+    });
     apiSaveVehicle(vehicle);
   };
 
   const handleDeleteVehicle = (id: string) => {
-    setVehicles((prev) => prev.filter((v) => v.id !== id));
+    setVehicles((prev) => {
+      const next = prev.filter((v) => v.id !== id);
+      saveCache('vehicles', next);
+      return next;
+    });
     apiDeleteVehicle(id);
   };
 
   const handleAddVehicleConsumption = (record: VehicleConsumptionRecord) => {
-    setVehicleConsumptions((prev) => [record, ...prev].map((c, idx) => ({ ...c, srNo: idx + 1 })));
+    setVehicleConsumptions((prev) => {
+      const next = [record, ...prev].map((c, idx) => ({ ...c, srNo: idx + 1 }));
+      saveCache('consumptions', next);
+      return next;
+    });
     apiSaveVehicleConsumption(record);
   };
 
   const handleUpdateVehicleConsumption = (record: VehicleConsumptionRecord) => {
-    setVehicleConsumptions((prev) => prev.map((c) => (c.id === record.id ? record : c)));
+    setVehicleConsumptions((prev) => {
+      const next = prev.map((c) => (c.id === record.id ? record : c));
+      saveCache('consumptions', next);
+      return next;
+    });
     apiSaveVehicleConsumption(record);
   };
 
   const handleDeleteVehicleConsumption = (id: string) => {
-    setVehicleConsumptions((prev) => prev.filter((c) => c.id !== id).map((c, idx) => ({ ...c, srNo: idx + 1 })));
+    setVehicleConsumptions((prev) => {
+      const next = prev.filter((c) => c.id !== id).map((c, idx) => ({ ...c, srNo: idx + 1 }));
+      saveCache('consumptions', next);
+      return next;
+    });
     apiDeleteVehicleConsumption(id);
   };
 
   const handleSaveCompanySettings = (cs: CompanySettings) => {
     setCompanySettings(cs);
+    saveCache('company_settings', cs);
     apiSaveCompanySettings(cs);
   };
 
@@ -1248,6 +1515,26 @@ export default function App() {
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshingDb ? 'animate-spin' : ''}`} />
                 <span className="hidden sm:inline">{isRefreshingDb ? 'Syncing...' : 'Sync Database'}</span>
+              </button>
+
+              {/* DB API Diagnostics Inspector Button */}
+              <button
+                type="button"
+                onClick={() => setIsDiagnosticsOpen(true)}
+                title="Inspect real-time Supabase Database API calls, request payloads, responses, and errors"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                  diagnosticErrorsCount > 0
+                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900 shadow-xs'
+                }`}
+              >
+                <Activity className={`w-3.5 h-3.5 ${diagnosticErrorsCount > 0 ? 'text-red-600' : 'text-purple-600'}`} />
+                <span className="hidden sm:inline">DB Logs</span>
+                {diagnosticErrorsCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-600 text-white font-bold">
+                    {diagnosticErrorsCount}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -1513,6 +1800,14 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {/* Real-Time Database API Diagnostics Inspector Modal */}
+      <DatabaseDiagnosticsModal
+        isOpen={isDiagnosticsOpen}
+        onClose={() => setIsDiagnosticsOpen(false)}
+        onRefreshDatabase={refreshDataFromDatabase}
+        isRefreshing={isRefreshingDb}
+      />
     </div>
   );
 }
