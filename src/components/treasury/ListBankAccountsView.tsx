@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CreditCard, Plus, Search, Eye, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { BankAccountRecord } from '../../types/treasury';
+import { formatWholeNumber } from '../../utils/formatters';
 
 interface ListBankAccountsViewProps {
   bankAccounts: BankAccountRecord[];
@@ -153,17 +154,11 @@ export const ListBankAccountsView: React.FC<ListBankAccountsViewProps> = ({
                         {account.openingBalanceDate}
                       </td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums text-slate-600">
-                        {account.openingBalance.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatWholeNumber(account.openingBalance)}
                       </td>
                       <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
                         <span className={currentBalance >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
-                          {currentBalance.toLocaleString('en-US', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatWholeNumber(currentBalance)}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center whitespace-nowrap">

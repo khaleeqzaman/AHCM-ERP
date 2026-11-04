@@ -11,6 +11,7 @@ import {
   Clock
 } from 'lucide-react';
 import { DemandDocument, PurchaseDocument } from '../types';
+import { formatWholeNumber } from '../utils/formatters';
 
 interface DashboardOverviewProps {
   demands: DemandDocument[];
@@ -91,7 +92,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
             <span>Total Value:</span>
             <span className="font-mono font-medium text-slate-800">
-              {totalDemandAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatWholeNumber(totalDemandAmount)}
             </span>
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
@@ -111,7 +112,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <div className="text-xs text-slate-500 mt-1 flex items-center justify-between">
             <span>Total Value:</span>
             <span className="font-mono font-medium text-slate-800">
-              {totalPurchaseAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatWholeNumber(totalPurchaseAmount)}
             </span>
           </div>
           <div className="text-[11px] text-slate-400 mt-1">

@@ -21,6 +21,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { DemandDocument, DemandItem, DocumentStatus, DemandType, DemandCategory } from '../types';
+import { formatWholeNumber } from '../utils/formatters';
 
 interface ViewDemandsListProps {
   demands: DemandDocument[];
@@ -191,13 +192,13 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
       if (field === 'itemName') {
         copy.itemName = String(val);
       } else if (field === 'quantity') {
-        const q = Math.max(0, Number(val) || 0);
+        const q = Math.max(0, Math.round(Number(val) || 0));
         copy.quantity = q;
-        copy.amount = Number((q * copy.rate).toFixed(2));
+        copy.amount = Math.round(q * copy.rate);
       } else if (field === 'rate') {
-        const r = Math.max(0, Number(val) || 0);
+        const r = Math.max(0, Math.round(Number(val) || 0));
         copy.rate = r;
-        copy.amount = Number((copy.quantity * r).toFixed(2));
+        copy.amount = Math.round(copy.quantity * r);
       }
       return copy;
     });
@@ -605,7 +606,7 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
 
                         {/* Total Amount */}
                         <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                          {demand.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(demand.totalAmount)}
                         </td>
 
                         {/* Status */}
@@ -828,7 +829,7 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
                                             <input
                                               type="number"
                                               min="0"
-                                              step="0.01"
+                                              step="1"
                                               value={it.rate}
                                               onChange={(e) =>
                                                 handleInlineItemChange(
@@ -842,12 +843,12 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
                                             />
                                           ) : (
                                             <span className="font-mono tabular-nums text-slate-700">
-                                              {it.rate.toFixed(2)}
+                                              {formatWholeNumber(it.rate)}
                                             </span>
                                           )}
                                         </td>
                                         <td className="py-2 px-3 text-right font-mono tabular-nums font-semibold text-slate-900">
-                                          {it.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                          {formatWholeNumber(it.amount)}
                                         </td>
                                         {isDraft && (
                                           <td className="py-2 px-2 text-center">
@@ -871,7 +872,7 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
                                         Total Amount:
                                       </td>
                                       <td className="py-2 px-3 text-right font-mono tabular-nums text-blue-700 font-bold">
-                                        {demand.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {formatWholeNumber(demand.totalAmount)}
                                       </td>
                                       {isDraft && <td></td>}
                                     </tr>
@@ -924,7 +925,7 @@ export const ViewDemandsList: React.FC<ViewDemandsListProps> = ({
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 font-semibold">
                 <span className="text-slate-700">Total Amount:</span>
-                <span className="font-mono text-rose-600">PKR {confirmDeleteDemand.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="font-mono text-rose-600">PKR {formatWholeNumber(confirmDeleteDemand.totalAmount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Current Status:</span>

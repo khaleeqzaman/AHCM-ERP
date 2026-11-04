@@ -14,6 +14,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { BankAccountRecord, BankTransaction } from '../../types/treasury';
+import { formatWholeNumber } from '../../utils/formatters';
+import { DatePickerInput } from '../common/DatePickerInput';
 
 interface BankAccountDetailsViewProps {
   accounts: BankAccountRecord[];
@@ -207,10 +209,7 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
             Current Balance
           </span>
           <span className="text-2xl font-bold font-mono tabular-nums text-emerald-400 mt-1 block">
-            {currentBalance.toLocaleString('en-US', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {formatWholeNumber(currentBalance)}
           </span>
           <span className="text-[11px] text-slate-400 block mt-0.5">
             Opening Balance + Net Deposits
@@ -233,10 +232,7 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
                 Opening Balance:
               </span>
               <span className="text-sm font-bold font-mono tabular-nums text-slate-900 bg-slate-100 px-2.5 py-0.5 rounded">
-                {currentAccount.openingBalance.toLocaleString('en-US', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {formatWholeNumber(currentAccount.openingBalance)}
               </span>
             </div>
           </div>
@@ -322,14 +318,12 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
 
                       {/* Date (Manual input, format: DD-MM-YYYY) */}
                       <td className="py-2.5 px-3">
-                        <input
-                          type="text"
+                        <DatePickerInput
                           value={tx.date}
-                          placeholder="DD-MM-YYYY"
-                          onChange={(e) =>
-                            onUpdateTransaction(currentAccount.id, tx.id, 'date', e.target.value)
+                          onChange={(newDate) =>
+                            onUpdateTransaction(currentAccount.id, tx.id, 'date', newDate)
                           }
-                          className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white text-slate-900 font-mono"
+                          className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white text-slate-900 font-mono"
                         />
                       </td>
 
@@ -368,16 +362,16 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
                       <td className="py-2.5 px-3 text-right">
                         <input
                           type="number"
-                          step="0.01"
+                          step="1"
                           min="0"
-                          value={tx.depositDebit === 0 ? '' : tx.depositDebit}
-                          placeholder="0.00"
+                          value={tx.depositDebit === 0 ? '' : Math.round(tx.depositDebit)}
+                          placeholder="0"
                           onChange={(e) =>
                             onUpdateTransaction(
                               currentAccount.id,
                               tx.id,
                               'depositDebit',
-                              e.target.value === '' ? 0 : Number(e.target.value)
+                              e.target.value === '' ? 0 : Math.round(Number(e.target.value))
                             )
                           }
                           className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white text-slate-900 font-mono tabular-nums text-right font-semibold"
@@ -388,16 +382,16 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
                       <td className="py-2.5 px-3 text-right">
                         <input
                           type="number"
-                          step="0.01"
+                          step="1"
                           min="0"
-                          value={tx.withdrawalPayment === 0 ? '' : tx.withdrawalPayment}
-                          placeholder="0.00"
+                          value={tx.withdrawalPayment === 0 ? '' : Math.round(tx.withdrawalPayment)}
+                          placeholder="0"
                           onChange={(e) =>
                             onUpdateTransaction(
                               currentAccount.id,
                               tx.id,
                               'withdrawalPayment',
-                              e.target.value === '' ? 0 : Number(e.target.value)
+                              e.target.value === '' ? 0 : Math.round(Number(e.target.value))
                             )
                           }
                           className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white text-slate-900 font-mono tabular-nums text-right font-semibold"
@@ -413,10 +407,7 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
                               : 'text-rose-800 bg-rose-50 border-rose-200'
                           }`}
                         >
-                          {txBalance.toLocaleString('en-US', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatWholeNumber(txBalance)}
                         </span>
                       </td>
 
@@ -454,16 +445,13 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
                   Account Balance (Opening + Total Deposit − Total Withdrawal):
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-emerald-800 text-sm" title="Total Deposits">
-                  +{totalDeposit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  +{formatWholeNumber(totalDeposit)}
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-rose-800 text-sm" title="Total Withdrawals">
-                  -{totalWithdrawal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  -{formatWholeNumber(totalWithdrawal)}
                 </td>
                 <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-700 text-sm whitespace-nowrap" title="Current Balance (Opening Balance + Total Deposit - Total Withdrawal)">
-                  {currentBalance.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatWholeNumber(currentBalance)}
                 </td>
                 <td></td>
               </tr>

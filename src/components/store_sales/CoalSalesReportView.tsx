@@ -24,6 +24,7 @@ import {
   PartnerRecord, 
   CompanySettings 
 } from '../../types/storeSales';
+import { formatWholeNumber } from '../../utils/formatters';
 
 interface CoalSalesReportViewProps {
   records: CoalSellRecord[];
@@ -574,7 +575,7 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
                         <td key={p.id} className="py-2.5 px-3 text-right font-mono tabular-nums">
                           {val > 0 ? (
                             <span className="font-semibold text-slate-900">
-                              {val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatWholeNumber(val)}
                             </span>
                           ) : (
                             <span className="text-slate-300">—</span>
@@ -583,7 +584,7 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
                       );
                     })}
                     <td className="py-2.5 px-4 text-right font-mono font-bold text-emerald-950 bg-emerald-50/40 tabular-nums">
-                      {row.totalTons.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(row.totalTons)}
                     </td>
                     <td className="py-2.5 px-3 text-center">
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono">
@@ -603,11 +604,11 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
                 </td>
                 {reportPartners.map((p) => (
                   <td key={p.id} className="py-3.5 px-3 text-right font-mono font-extrabold text-slate-900 tabular-nums">
-                    {(partnerWiseTotals[p.id] || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatWholeNumber(partnerWiseTotals[p.id] || 0)}
                   </td>
                 ))}
                 <td className="py-3.5 px-4 text-right font-mono font-extrabold text-emerald-950 bg-emerald-100/90 text-sm tabular-nums">
-                  {grandTotalTons.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatWholeNumber(grandTotalTons)}
                 </td>
                 <td className="py-3.5 px-3 text-center text-slate-400 font-mono text-[11px]">—</td>
               </tr>
@@ -751,12 +752,12 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
                       {reportPartners.map((p) => (
                         <td key={p.id} className="p-2 border-r border-slate-200 text-right font-mono">
                           {(row.partnerTons[p.id] || 0) > 0 
-                            ? (row.partnerTons[p.id] || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            ? formatWholeNumber(row.partnerTons[p.id] || 0)
                             : '—'}
                         </td>
                       ))}
                       <td className="p-2 text-right font-mono font-bold">
-                        {row.totalTons.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatWholeNumber(row.totalTons)}
                       </td>
                     </tr>
                   ))}
@@ -768,11 +769,11 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
                     </td>
                     {reportPartners.map((p) => (
                       <td key={p.id} className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">
-                        {(partnerWiseTotals[p.id] || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatWholeNumber(partnerWiseTotals[p.id] || 0)}
                       </td>
                     ))}
                     <td className="p-2 text-right font-mono font-extrabold text-sm">
-                      {grandTotalTons.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(grandTotalTons)}
                     </td>
                   </tr>
                 </tfoot>

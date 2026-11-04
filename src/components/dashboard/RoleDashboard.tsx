@@ -35,7 +35,6 @@ import { NavModule, DemandDocument, PurchaseDocument } from '../../types';
 import { ChartAccount, VoucherDocument } from '../../types/accounting';
 import { CashBookEntry, CreditBookEntry, BankRecord, BankAccountRecord } from '../../types/treasury';
 import { PosCoalSellEntry, StockItem, StockEntry, VehicleRecord, VehicleConsumptionRecord } from '../../types/storeSales';
-import { TableDefinition } from '../../types/oldLedger';
 
 interface RoleDashboardProps {
   currentUser: User;
@@ -53,7 +52,6 @@ interface RoleDashboardProps {
   vehicles: VehicleRecord[];
   consumptions: VehicleConsumptionRecord[];
   users: User[];
-  oldLedgerTables: TableDefinition[];
   onNavigate: (module: NavModule) => void;
 }
 
@@ -73,7 +71,6 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
   vehicles,
   consumptions,
   users,
-  oldLedgerTables,
   onNavigate,
 }) => {
   // Calculations
@@ -1283,14 +1280,14 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
 
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">Old Ledger (Access)</span>
-              <Database className="w-4 h-4 text-indigo-600" />
+              <span className="text-xs font-medium">Trial Balance Status</span>
+              <Scale className="w-4 h-4 text-emerald-600" />
             </div>
-            <div className="text-2xl font-bold font-mono text-indigo-700">
-              {oldLedgerTables.length} Tables
+            <div className="text-2xl font-bold font-mono text-emerald-700">
+              Equilibrium
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
-              Direct Access DB reader
+              Double-entry aligned
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Landmark, Search, ExternalLink, ArrowRight, Wallet, Building2, CreditCard } from 'lucide-react';
 import { BankAccountRecord } from '../../types/treasury';
+import { formatWholeNumber } from '../../utils/formatters';
 
 interface BanksSummaryViewProps {
   bankAccounts: BankAccountRecord[];
@@ -89,10 +90,7 @@ export const BanksSummaryView: React.FC<BanksSummaryViewProps> = ({
             Consolidated Treasury Bank Reserves
           </span>
           <span className="text-2xl font-bold font-mono tabular-nums text-white mt-1 block">
-            {totalAllBankAccountsBalance.toLocaleString('en-US', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+            {formatWholeNumber(totalAllBankAccountsBalance)}
           </span>
           <span className="text-xs text-blue-200/80 mt-0.5 block">
             Combined live liquid balance across all {bankAccounts.length} active bank accounts
@@ -190,10 +188,7 @@ export const BanksSummaryView: React.FC<BanksSummaryViewProps> = ({
                             acc.currentBalance >= 0 ? 'text-emerald-700' : 'text-rose-700'
                           }`}
                         >
-                          {acc.currentBalance.toLocaleString('en-US', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatWholeNumber(acc.currentBalance)}
                         </span>
                       </td>
                     </tr>
@@ -209,10 +204,7 @@ export const BanksSummaryView: React.FC<BanksSummaryViewProps> = ({
                   Total Balance (All Listed Bank Accounts):
                 </td>
                 <td className="py-3.5 px-4 text-right font-mono tabular-nums text-blue-900 text-sm whitespace-nowrap">
-                  {totalAllBankAccountsBalance.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatWholeNumber(totalAllBankAccountsBalance)}
                 </td>
               </tr>
             </tfoot>

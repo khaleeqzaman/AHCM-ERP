@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { ChartAccount, AccountType } from '../../types/accounting';
+import { formatWholeNumber } from '../../utils/formatters';
 
 interface ChartOfAccountsViewProps {
   accounts: ChartAccount[];
@@ -348,12 +349,12 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
 
                     {/* Opening Bal */}
                     <td className="py-3 px-4 text-right font-mono tabular-nums text-slate-600 whitespace-nowrap">
-                      {acc.openingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {formatWholeNumber(acc.openingBalance)}
                     </td>
 
                     {/* Current Bal */}
                     <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                      {acc.currentBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {formatWholeNumber(acc.currentBalance)}
                     </td>
 
                     {/* Status */}
@@ -532,11 +533,11 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="1"
                     min="0"
                     value={openingBalance === 0 ? '' : openingBalance}
-                    onChange={(e) => setOpeningBalance(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="0.00"
+                    onChange={(e) => setOpeningBalance(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                    placeholder="0"
                     className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-slate-900 font-mono tabular-nums"
                   />
                 </div>

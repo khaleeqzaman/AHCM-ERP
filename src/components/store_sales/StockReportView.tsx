@@ -14,6 +14,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { StockItem, StockEntry } from '../../types/storeSales';
+import { DatePickerInput } from '../common/DatePickerInput';
 
 interface StockReportViewProps {
   stockItems: StockItem[];
@@ -499,12 +500,10 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Date (DD-MM-YYYY) <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <DatePickerInput
                   required
                   value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  placeholder="DD-MM-YYYY"
+                  onChange={(newDate) => setFormDate(newDate)}
                   className="w-full text-xs font-mono font-semibold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
                 />
               </div>
@@ -550,11 +549,12 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   required
                   value={formStockQty}
-                  onChange={(e) => setFormStockQty(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormStockQty(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
                 />
               </div>
@@ -566,10 +566,11 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formPurchase}
-                  onChange={(e) => setFormPurchase(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormPurchase(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
                 />
               </div>
@@ -581,10 +582,11 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formMine}
-                  onChange={(e) => setFormMine(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormMine(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
                 />
               </div>
@@ -596,10 +598,11 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formVehicles}
-                  onChange={(e) => setFormVehicles(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormVehicles(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
                 />
               </div>

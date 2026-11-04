@@ -10,6 +10,8 @@ import {
   Truck 
 } from 'lucide-react';
 import { PartnerRecord, CoalSellRecord } from '../../types/storeSales';
+import { DatePickerInput } from '../common/DatePickerInput';
+import { formatWholeNumber } from '../../utils/formatters';
 
 interface RecordCoalSellViewProps {
   partners: PartnerRecord[];
@@ -64,7 +66,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
     };
 
     onSaveCoalSell(newRecord);
-    setNotification(`Successfully recorded sale of ${numQty.toLocaleString('en-US', { minimumFractionDigits: 2 })} Tons for ${partner.name}.`);
+    setNotification(`Successfully recorded sale of ${formatWholeNumber(numQty)} Tons for ${partner.name}.`);
     
     // Reset fields for another rapid entry
     setQuantityTons('');
@@ -120,15 +122,12 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
                 Date (DD-MM-YYYY) <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="text"
+              <DatePickerInput
                 required
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                placeholder="DD-MM-YYYY"
-                className="w-full text-xs font-mono font-semibold px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                onChange={(newDate) => setDate(newDate)}
+                className="w-full text-xs font-mono font-semibold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
               />
-              <span className="text-[11px] text-slate-400 mt-0.5 block">Format: DD-MM-YYYY</span>
             </div>
 
             {/* Company Name (Dropdown list of existing partners added) */}
@@ -166,11 +165,12 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
               </label>
               <input
                 type="number"
-                step="any"
+                step="1"
+                min="1"
                 required
                 value={quantityTons}
-                onChange={(e) => setQuantityTons(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                placeholder="e.g. 85.50"
+                onChange={(e) => setQuantityTons(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                placeholder="e.g. 85"
                 className="w-full text-sm font-bold font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
               />
               <span className="text-[11px] text-slate-400 mt-0.5 block">Metric Tons (MT)</span>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CreditCard, ArrowLeft, CheckCircle2, AlertCircle, Building2 } from 'lucide-react';
 import { BankRecord, BankAccountRecord } from '../../types/treasury';
+import { DatePickerInput } from '../common/DatePickerInput';
 
 interface AddBankAccountFormProps {
   banks: BankRecord[];
@@ -194,26 +195,25 @@ export const AddBankAccountForm: React.FC<AddBankAccountFormProps> = ({
               </label>
               <input
                 type="number"
-                step="0.01"
+                step="1"
                 min="0"
                 required
-                placeholder="0.00"
+                placeholder="0"
                 value={openingBalance}
-                onChange={(e) => setOpeningBalance(e.target.value === '' ? '' : Number(e.target.value))}
+                onChange={(e) => setOpeningBalance(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
                 className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900 font-mono tabular-nums font-semibold"
               />
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1.5">
-                Date of Opening Balance (DD-MM-YYYY) *
+                Date of Opening Balance *
               </label>
-              <input
-                type="text"
+              <DatePickerInput
                 required
-                placeholder="DD-MM-YYYY"
                 value={openingBalanceDate}
-                onChange={(e) => setOpeningBalanceDate(e.target.value)}
+                onChange={(newDate) => setOpeningBalanceDate(newDate)}
+                outputFormat="DD-MM-YYYY"
                 className="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900 font-mono"
               />
             </div>

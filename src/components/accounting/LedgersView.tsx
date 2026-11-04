@@ -2,80 +2,63 @@ import React, { useState } from 'react';
 import { 
   BookOpen, 
   Search, 
-  Edit2, 
-  Check, 
-  X, 
-  ArrowRight, 
   Filter, 
-  DollarSign, 
+  ArrowRight, 
+  Calendar, 
+  Printer, 
+  Layers, 
   CheckCircle2, 
-  AlertCircle,
-  Calendar,
-  Layers
+  ExternalLink,
+  RotateCcw,
+  Building2,
+  FileText,
+  X
 } from 'lucide-react';
 import { 
   ChartAccount, 
   VoucherDocument, 
   LedgerEntry 
 } from '../../types/accounting';
+import { formatWholeNumber } from '../../utils/formatters';
 
 interface LedgersViewProps {
   accounts: ChartAccount[];
   vouchers: VoucherDocument[];
-  onUpdateLedgerEntry: (
-    voucherId: string,
-    lineId: string,
-    updatedDebit: number,
-    updatedCredit: number,
-    updatedDescription: string
-  ) => void;
+  onViewVoucherDetails?: (voucher: VoucherDocument) => void;
 }
 
 export const LedgersView: React.FC<LedgersViewProps> = ({
   accounts,
   vouchers,
-  onUpdateLedgerEntry,
+  onViewVoucherDetails,
 }) => {
   const [selectedAccountId, setSelectedAccountId] = useState<string>(
     accounts[0]?.id || ''
   );
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingRowKey, setEditingRowKey] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Edit State
-  const [editDebit, setEditDebit] = useState<number>(0);
-  const [editCredit, setEditCredit] = useState<number>(0);
-  const [editParticulars, setEditParticulars] = useState<string>('');
-  const [notification, setNotification] = useState<string | null>(null);
+  const selectedAccount =
+    accounts.find((a) => a.id === selectedAccountId) || accounts[0];
 
-  const selectedAccount = accounts.find((a) => a.id === selectedAccountId) || accounts[0];
-
-  // Compile Ledger Entries for the selected account with running balance
-  const compileLedgerEntries = (): LedgerEntry[] => {
+  // Compile immutable General Ledger entries from POSTED vouchers only
+  const compileLedgerEntries = (): (LedgerEntry & { lineId: string; referenceNo: string })[] => {
     if (!selectedAccount) return [];
 
-    const entries: {
-      id: string;
-      lineId: string;
-      voucherId: string;
-      voucherNo: string;
-      voucherType: any;
-      date: string;
-      accountId: string;
-      accountCode: string;
-      accountName: string;
-      particulars: string;
-      debit: number;
-      credit: number;
-    }[] = [];
+    const entries: (LedgerEntry & { lineId: string; referenceNo: string })[] = [];
 
-    vouchers.forEach((v) => {
+    // General Ledger only includes officially Posted vouchers per standard financial accounting standards
+    const postedVouchers = vouchers.filter((v) => v.status === 'Posted');
+
+    postedVouchers.forEach((v) => {
       v.lines.forEach((l) => {
         if (l.accountId === selectedAccount.id) {
           entries.push({
             id: `${v.id}-${l.id}`,
-            lineId: l.id,
             voucherId: v.id,
+            lineId: l.id,
             voucherNo: v.voucherNo,
             voucherType: v.voucherType,
             date: v.date,
@@ -83,17 +66,19 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
             accountCode: l.accountCode,
             accountName: l.accountName,
             particulars: l.description || v.narration,
-            debit: l.debit,
-            credit: l.credit,
+            debit: Math.round(Number(l.debit) || 0),
+            credit: Math.round(Number(l.credit) || 0),
+            runningBalance: 0,
+            referenceNo: v.referenceNo || '—',
           });
         }
       });
     });
 
-    // Sort chronologically
+    // Sort chronologically by date
     entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Compute running balance based on normal balance
+    // Compute running balance based on normal balance (Debit vs Credit)
     let running = selectedAccount.openingBalance;
     const isDebitNormal = selectedAccount.normalBalance === 'Debit';
 
@@ -105,52 +90,46 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
       }
       return {
         ...item,
-        runningBalance: Number(running.toFixed(2)),
+        runningBalance: Math.round(running),
       };
     });
   };
 
-  const rawEntries = compileLedgerEntries();
+  const allLedgerEntries = compileLedgerEntries();
 
-  const filteredEntries = rawEntries.filter((e) => {
-    return (
+  // Apply search & date range filters
+  const filteredEntries = allLedgerEntries.filter((e) => {
+    const matchesSearch =
       e.voucherNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.particulars.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.date.includes(searchTerm)
-    );
+      e.referenceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.date.includes(searchTerm);
+
+    const matchesStartDate = !startDate || e.date >= startDate;
+    const matchesEndDate = !endDate || e.date <= endDate;
+
+    return matchesSearch && matchesStartDate && matchesEndDate;
   });
 
-  const totalPeriodDebits = rawEntries.reduce((sum, e) => sum + e.debit, 0);
-  const totalPeriodCredits = rawEntries.reduce((sum, e) => sum + e.credit, 0);
+  const totalPeriodDebits = filteredEntries.reduce((sum, e) => sum + e.debit, 0);
+  const totalPeriodCredits = filteredEntries.reduce((sum, e) => sum + e.credit, 0);
   const closingBalance =
-    rawEntries.length > 0
-      ? rawEntries[rawEntries.length - 1].runningBalance
+    filteredEntries.length > 0
+      ? filteredEntries[filteredEntries.length - 1].runningBalance
       : selectedAccount?.openingBalance || 0;
 
-  const handleStartEdit = (entry: LedgerEntry & { lineId?: string }) => {
-    setEditingRowKey(entry.id);
-    setEditDebit(entry.debit);
-    setEditCredit(entry.credit);
-    setEditParticulars(entry.particulars);
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setStartDate('');
+    setEndDate('');
   };
 
-  const handleCancelEdit = () => {
-    setEditingRowKey(null);
-  };
-
-  const handleSaveEdit = (entry: any) => {
-    onUpdateLedgerEntry(
-      entry.voucherId,
-      entry.lineId,
-      Number(editDebit) || 0,
-      Number(editCredit) || 0,
-      editParticulars.trim()
-    );
-    setEditingRowKey(null);
-    setNotification(
-      `Ledger entry for ${entry.voucherNo} updated. Running balance recalculated.`
-    );
-    setTimeout(() => setNotification(null), 3000);
+  const getTypeCode = (typeStr: string): string => {
+    if (typeStr.startsWith('CP')) return 'CP';
+    if (typeStr.startsWith('CR')) return 'CR';
+    if (typeStr.startsWith('BP')) return 'BP';
+    if (typeStr.startsWith('BR')) return 'BR';
+    return 'JV';
   };
 
   return (
@@ -163,43 +142,35 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
               General Ledger
             </span>
             <span className="text-slate-300">·</span>
-            <span className="text-xs text-slate-500">Editable Ledger Entries</span>
+            <span className="text-xs text-slate-500">Official Books of Account</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-emerald-600" />
-            General Ledger & Subsidiary Accounts
+            General Ledger (GL Register)
           </h2>
           <p className="text-sm text-slate-600 mt-0.5">
-            Select any T-C-GG-SSS account head to inspect and edit chronological ledger postings with live running balances.
+            Immutable chronological transaction postings compiled from posted vouchers with running balances and opening positions.
           </p>
         </div>
 
         {/* Account Selector Dropdown */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <span className="text-xs font-medium text-slate-600 whitespace-nowrap">
-            Select Account:
+            Account Head:
           </span>
           <select
             value={selectedAccountId}
             onChange={(e) => setSelectedAccountId(e.target.value)}
-            className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-semibold text-slate-900 max-w-xs shadow-xs"
+            className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-semibold text-slate-900 shadow-xs max-w-xs sm:max-w-md truncate"
           >
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.code} — {a.name} ({a.accountType})
+            {accounts.map((acc) => (
+              <option key={acc.id} value={acc.id}>
+                [{acc.code}] {acc.name} — ({acc.classification})
               </option>
             ))}
           </select>
         </div>
       </div>
-
-      {/* Notification */}
-      {notification && (
-        <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2.5">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>{notification}</span>
-        </div>
-      )}
 
       {/* Selected Account Info Card */}
       {selectedAccount && (
@@ -230,27 +201,27 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
             {/* Balances Strip */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t lg:border-t-0 lg:border-l border-slate-200 pt-3 lg:pt-0 lg:pl-6 text-xs">
               <div>
-                <span className="text-slate-500 block text-[11px]">Normal Side</span>
+                <span className="text-slate-500 block text-[11px]">Normal Balance</span>
                 <span className="font-bold text-slate-800 font-mono">
-                  {selectedAccount.normalBalance}
+                  {selectedAccount.normalBalance} Side
                 </span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[11px]">Opening Balance</span>
                 <span className="font-bold text-slate-900 font-mono tabular-nums">
-                  {selectedAccount.openingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  PKR {formatWholeNumber(selectedAccount.openingBalance)}
                 </span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[11px]">Period Debits / Credits</span>
                 <span className="font-bold text-slate-700 font-mono tabular-nums">
-                  +{totalPeriodDebits.toFixed(2)} / -{totalPeriodCredits.toFixed(2)}
+                  +{formatWholeNumber(totalPeriodDebits)} / -{formatWholeNumber(totalPeriodCredits)}
                 </span>
               </div>
               <div>
                 <span className="text-slate-500 block text-[11px]">Closing Balance</span>
                 <span className="font-bold text-emerald-700 font-mono tabular-nums text-sm">
-                  {closingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  PKR {formatWholeNumber(closingBalance)}
                 </span>
               </div>
             </div>
@@ -258,27 +229,68 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
         </div>
       )}
 
-      {/* Ledger Entries Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-        <div className="p-3.5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70">
-          <div className="text-xs font-semibold text-slate-800 flex items-center gap-2">
-            <span>Ledger Postings ({filteredEntries.length} entries)</span>
-            <span className="text-slate-300">·</span>
-            <span className="text-emerald-700 font-normal">
-              Click "Edit" on any row to adjust debit, credit, or memo inline
-            </span>
-          </div>
+      {/* Date Range & Search Filtering Toolbar */}
+      <div className="bg-white p-3.5 border border-slate-200 rounded-xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search memo, voucher #, reference..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900"
+          />
+        </div>
 
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-500 font-medium text-[11px]">From:</span>
             <input
-              type="text"
-              placeholder="Search memo or voucher #..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-3 py-1 text-xs bg-white border border-slate-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500 w-56 text-slate-900"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-2.5 py-1 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono"
             />
           </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-500 font-medium text-[11px]">To:</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-2.5 py-1 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-mono"
+            />
+          </div>
+
+          {(startDate || endDate || searchTerm) && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors shadow-xs cursor-pointer ml-auto"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print Ledger</span>
+          </button>
+        </div>
+      </div>
+
+      {/* General Ledger Table */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+        <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70 text-xs font-semibold text-slate-800">
+          <span>General Ledger Postings ({filteredEntries.length} entries)</span>
+          <span className="text-slate-500 font-normal">
+            Reflecting all Posted double-entry vouchers
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -287,58 +299,30 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
               <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
                 <th className="py-2.5 px-3 w-12 text-center">Sr.</th>
                 <th className="py-2.5 px-3 w-28">Date</th>
-                <th className="py-2.5 px-3 w-32">Voucher No.</th>
-                <th className="py-2.5 px-3 w-28">Type</th>
-                <th className="py-2.5 px-3">Particulars / Narration</th>
-                <th className="py-2.5 px-3 w-28 text-right">Debit</th>
-                <th className="py-2.5 px-3 w-28 text-right">Credit</th>
+                <th className="py-2.5 px-3 font-mono">Voucher No.</th>
+                <th className="py-2.5 px-3">Type</th>
+                <th className="py-2.5 px-3">Reference</th>
+                <th className="py-2.5 px-4">Particulars / Description</th>
+                <th className="py-2.5 px-3 w-28 text-right">Debit (PKR)</th>
+                <th className="py-2.5 px-3 w-28 text-right">Credit (PKR)</th>
                 <th className="py-2.5 px-3 w-32 text-right">Running Balance</th>
-                <th className="py-2.5 px-3 w-20 text-center">Action</th>
+                <th className="py-2.5 px-3 w-14 text-center">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {/* Opening Balance Row */}
-              {selectedAccount && (
-                <tr className="bg-slate-50/40 text-slate-600 font-medium">
-                  <td className="py-2.5 px-3 text-center font-mono">—</td>
-                  <td className="py-2.5 px-3 font-mono text-[11px]">2026-10-01</td>
-                  <td className="py-2.5 px-3 font-mono text-slate-500">OPENING-BAL</td>
-                  <td className="py-2.5 px-3 text-slate-500">Balance B/F</td>
-                  <td className="py-2.5 px-3 italic">Opening Account Balance Brought Forward</td>
-                  <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                    {selectedAccount.normalBalance === 'Debit'
-                      ? `${selectedAccount.openingBalance.toFixed(2)}`
-                      : '—'}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                    {selectedAccount.normalBalance === 'Credit'
-                      ? `${selectedAccount.openingBalance.toFixed(2)}`
-                      : '—'}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold text-slate-800">
-                    {selectedAccount.openingBalance.toFixed(2)}
-                  </td>
-                  <td className="py-2.5 px-3 text-center text-slate-400 text-[11px]">Locked</td>
-                </tr>
-              )}
-
               {filteredEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-500">
-                    No transactions recorded for this account head in current period.
+                  <td colSpan={10} className="py-12 text-center text-slate-500">
+                    No postings found for this account. Create and Post vouchers to see chronological ledger activity.
                   </td>
                 </tr>
               ) : (
                 filteredEntries.map((entry, idx) => {
-                  const isEditing = editingRowKey === entry.id;
+                  const code = getTypeCode(entry.voucherType);
+                  const matchingVoucher = vouchers.find((v) => v.id === entry.voucherId);
 
                   return (
-                    <tr
-                      key={entry.id}
-                      className={`hover:bg-slate-50/70 transition-colors ${
-                        isEditing ? 'bg-emerald-50/30 ring-1 ring-emerald-500' : ''
-                      }`}
-                    >
+                    <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="py-2.5 px-3 text-center font-mono text-slate-500">
                         {idx + 1}
                       </td>
@@ -349,110 +333,46 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                         {entry.voucherNo}
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
-                        <span className="text-[11px] font-medium text-slate-600">
-                          {entry.voucherType.split(' ')[0]}
+                        <span
+                          className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${
+                            code === 'CP'
+                              ? 'bg-amber-100 text-amber-900'
+                              : code === 'CR'
+                              ? 'bg-emerald-100 text-emerald-900'
+                              : code === 'BP'
+                              ? 'bg-blue-100 text-blue-900'
+                              : code === 'BR'
+                              ? 'bg-cyan-100 text-cyan-900'
+                              : 'bg-purple-100 text-purple-900'
+                          }`}
+                        >
+                          {code}
                         </span>
                       </td>
-
-                      {/* Particulars */}
-                      <td className="py-2.5 px-3">
-                        {isEditing ? (
-                          <input
-                            type="text"
-                            value={editParticulars}
-                            onChange={(e) => setEditParticulars(e.target.value)}
-                            className="w-full px-2 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-emerald-500 text-slate-900"
-                          />
-                        ) : (
-                          <span className="text-slate-800 font-medium">
-                            {entry.particulars}
-                          </span>
-                        )}
+                      <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
+                        {entry.referenceNo || '—'}
                       </td>
-
-                      {/* Debit */}
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={editDebit === 0 ? '' : editDebit}
-                            onChange={(e) => {
-                              const d = Number(e.target.value) || 0;
-                              setEditDebit(d);
-                              if (d > 0) setEditCredit(0);
-                            }}
-                            className="w-24 px-2 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-emerald-500 text-slate-900 text-right font-mono font-semibold"
-                          />
-                        ) : entry.debit > 0 ? (
-                          <span className="font-semibold text-slate-900">
-                            {entry.debit.toFixed(2)}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
+                      <td className="py-2.5 px-4 text-slate-800 font-medium">
+                        {entry.particulars}
                       </td>
-
-                      {/* Credit */}
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={editCredit === 0 ? '' : editCredit}
-                            onChange={(e) => {
-                              const c = Number(e.target.value) || 0;
-                              setEditCredit(c);
-                              if (c > 0) setEditDebit(0);
-                            }}
-                            className="w-24 px-2 py-1 text-xs bg-white border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-emerald-500 text-slate-900 text-right font-mono font-semibold"
-                          />
-                        ) : entry.credit > 0 ? (
-                          <span className="font-semibold text-slate-900">
-                            {entry.credit.toFixed(2)}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-semibold text-slate-900 whitespace-nowrap">
+                        {entry.debit > 0 ? formatWholeNumber(entry.debit) : '—'}
                       </td>
-
-                      {/* Running Balance */}
-                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                        {entry.runningBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-semibold text-slate-900 whitespace-nowrap">
+                        {entry.credit > 0 ? formatWholeNumber(entry.credit) : '—'}
                       </td>
-
-                      {/* Action */}
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums font-bold text-emerald-700 whitespace-nowrap">
+                        PKR {formatWholeNumber(entry.runningBalance)}
+                      </td>
                       <td className="py-2.5 px-3 text-center whitespace-nowrap">
-                        {isEditing ? (
-                          <div className="inline-flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleSaveEdit(entry)}
-                              className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer shadow-xs"
-                              title="Save Changes"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleCancelEdit}
-                              className="p-1 rounded bg-slate-200 text-slate-600 hover:bg-slate-300 cursor-pointer"
-                              title="Cancel"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
+                        {matchingVoucher && onViewVoucherDetails && (
                           <button
                             type="button"
-                            onClick={() => handleStartEdit(entry)}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 border border-emerald-200 rounded transition-colors cursor-pointer"
-                            title="Edit Ledger Entry"
+                            onClick={() => onViewVoucherDetails(matchingVoucher)}
+                            className="p-1 rounded text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                            title="Inspect source voucher in Voucher Register"
                           >
-                            <Edit2 className="w-3 h-3" />
-                            <span>Edit</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
                           </button>
                         )}
                       </td>
@@ -463,17 +383,17 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
             </tbody>
             <tfoot>
               <tr className="bg-slate-50 border-t-2 border-slate-200 font-bold text-xs">
-                <td colSpan={5} className="py-2.5 px-4 text-right uppercase text-[11px] text-slate-700">
+                <td colSpan={6} className="py-2.5 px-4 text-right uppercase text-[11px] text-slate-700">
                   Total Activity & Closing Position:
                 </td>
                 <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 font-bold">
-                  {totalPeriodDebits.toFixed(2)}
+                  {formatWholeNumber(totalPeriodDebits)}
                 </td>
                 <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 font-bold">
-                  {totalPeriodCredits.toFixed(2)}
+                  {formatWholeNumber(totalPeriodCredits)}
                 </td>
                 <td className="py-2.5 px-3 text-right font-mono tabular-nums text-emerald-800 font-bold text-sm">
-                  {closingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  PKR {formatWholeNumber(closingBalance)}
                 </td>
                 <td></td>
               </tr>
@@ -481,6 +401,125 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* PRINTABLE GENERAL LEDGER STATEMENT MODAL */}
+      {isPrintModalOpen && selectedAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 text-left space-y-5 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 print:hidden">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Print Ledger Statement
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Document</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPrintModalOpen(false)}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Document Content */}
+            <div className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900">
+              <div className="text-center pb-3 border-b border-slate-800">
+                <h2 className="text-base font-extrabold uppercase tracking-wider">
+                  AL-HAMD COAL MINES & METALS
+                </h2>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mt-0.5">
+                  General Ledger Account Statement
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Generated as of {new Date().toISOString().split('T')[0]} · Financial Year 2026
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3 rounded border border-slate-200">
+                <div>
+                  <div className="font-bold text-sm text-slate-900">{selectedAccount.name}</div>
+                  <div className="font-mono text-emerald-800 font-bold mt-0.5">
+                    Account Code: {selectedAccount.code}
+                  </div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">
+                    {selectedAccount.classification} ({selectedAccount.accountType})
+                  </div>
+                </div>
+                <div className="text-right space-y-1">
+                  <div>
+                    <span className="text-slate-500">Opening Balance: </span>
+                    <span className="font-mono font-bold">PKR {formatWholeNumber(selectedAccount.openingBalance)}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Closing Balance: </span>
+                    <span className="font-mono font-bold text-emerald-800">PKR {formatWholeNumber(closingBalance)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ledger Rows Table */}
+              <div className="border border-slate-300 rounded overflow-hidden">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-100 text-[10px] font-bold border-b border-slate-300 uppercase">
+                      <th className="py-1.5 px-2 w-8 text-center">Sr.</th>
+                      <th className="py-1.5 px-2 w-20">Date</th>
+                      <th className="py-1.5 px-2 w-24 font-mono">Voucher #</th>
+                      <th className="py-1.5 px-2">Particulars</th>
+                      <th className="py-1.5 px-2 w-24 text-right">Debit (PKR)</th>
+                      <th className="py-1.5 px-2 w-24 text-right">Credit (PKR)</th>
+                      <th className="py-1.5 px-2 w-28 text-right">Balance (PKR)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 text-[11px]">
+                    {filteredEntries.map((e, i) => (
+                      <tr key={e.id}>
+                        <td className="py-1 px-2 text-center font-mono">{i + 1}</td>
+                        <td className="py-1 px-2 font-mono">{e.date}</td>
+                        <td className="py-1 px-2 font-mono font-bold">{e.voucherNo}</td>
+                        <td className="py-1 px-2">{e.particulars}</td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">
+                          {e.debit > 0 ? formatWholeNumber(e.debit) : '—'}
+                        </td>
+                        <td className="py-1 px-2 text-right font-mono font-semibold">
+                          {e.credit > 0 ? formatWholeNumber(e.credit) : '—'}
+                        </td>
+                        <td className="py-1 px-2 text-right font-mono font-bold text-slate-900">
+                          {formatWholeNumber(e.runningBalance)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-100 border-t border-slate-800 font-bold text-[11px]">
+                      <td colSpan={4} className="py-1.5 px-2 text-right uppercase">
+                        Totals:
+                      </td>
+                      <td className="py-1.5 px-2 text-right font-mono">
+                        {formatWholeNumber(totalPeriodDebits)}
+                      </td>
+                      <td className="py-1.5 px-2 text-right font-mono">
+                        {formatWholeNumber(totalPeriodCredits)}
+                      </td>
+                      <td className="py-1.5 px-2 text-right font-mono text-emerald-800">
+                        {formatWholeNumber(closingBalance)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

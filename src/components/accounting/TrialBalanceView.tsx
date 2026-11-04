@@ -8,6 +8,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { ChartAccount, VoucherDocument } from '../../types/accounting';
+import { formatWholeNumber } from '../../utils/formatters';
 
 interface TrialBalanceViewProps {
   accounts: ChartAccount[];
@@ -23,11 +24,14 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
     let debits = 0;
     let credits = 0;
 
-    vouchers.forEach((v) => {
+    // Standard GAAP: Only Posted vouchers impact General Ledger and Trial Balance
+    const postedVouchers = vouchers.filter((v) => v.status === 'Posted');
+
+    postedVouchers.forEach((v) => {
       v.lines.forEach((l) => {
         if (l.accountId === acc.id) {
-          debits += l.debit;
-          credits += l.credit;
+          debits += Number(l.debit) || 0;
+          credits += Number(l.credit) || 0;
         }
       });
     });
@@ -49,18 +53,18 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
       ...acc,
       periodDebits: debits,
       periodCredits: credits,
-      debitBal: Number(debitBal.toFixed(2)),
-      creditBal: Number(creditBal.toFixed(2)),
+      debitBal: Math.round(debitBal),
+      creditBal: Math.round(creditBal),
     };
   });
 
-  const totalDebits = Number(
-    trialBalanceRows.reduce((sum, r) => sum + r.debitBal, 0).toFixed(2)
+  const totalDebits = Math.round(
+    trialBalanceRows.reduce((sum, r) => sum + r.debitBal, 0)
   );
-  const totalCredits = Number(
-    trialBalanceRows.reduce((sum, r) => sum + r.creditBal, 0).toFixed(2)
+  const totalCredits = Math.round(
+    trialBalanceRows.reduce((sum, r) => sum + r.creditBal, 0)
   );
-  const difference = Number(Math.abs(totalDebits - totalCredits).toFixed(2));
+  const difference = Math.abs(totalDebits - totalCredits);
   const isBalanced = difference === 0;
 
   return (
@@ -118,8 +122,8 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
             </h3>
             <p className="text-xs opacity-90">
               {isBalanced
-                ? `Total Debit Balances (${totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2 })}) exactly balance Total Credit Balances (${totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2 })}).`
-                : `Net Discrepancy of ${difference.toFixed(2)}. Check unposted or modified double-entry vouchers.`}
+                ? `Total Debit Balances (${formatWholeNumber(totalDebits)}) exactly balance Total Credit Balances (${formatWholeNumber(totalCredits)}).`
+                : `Net Discrepancy of ${formatWholeNumber(difference)}. Check unposted or modified double-entry vouchers.`}
             </p>
           </div>
         </div>
@@ -129,14 +133,14 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
             <span className="text-[10px] text-slate-500 uppercase block font-sans">
               Total Dr
             </span>
-            <span>{totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+            <span>{formatWholeNumber(totalDebits)}</span>
           </div>
           <span className="text-slate-300">|</span>
           <div>
             <span className="text-[10px] text-slate-500 uppercase block font-sans">
               Total Cr
             </span>
-            <span>{totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+            <span>{formatWholeNumber(totalCredits)}</span>
           </div>
         </div>
       </div>
@@ -172,12 +176,12 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
                   </td>
                   <td className="py-2.5 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">
                     {row.debitBal > 0
-                      ? `${row.debitBal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                      ? formatWholeNumber(row.debitBal)
                       : '—'}
                   </td>
                   <td className="py-2.5 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">
                     {row.creditBal > 0
-                      ? `${row.creditBal.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                      ? formatWholeNumber(row.creditBal)
                       : '—'}
                   </td>
                 </tr>
@@ -189,10 +193,10 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
                   Total Trial Balance:
                 </td>
                 <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-800 font-bold text-sm">
-                  {totalDebits.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {formatWholeNumber(totalDebits)}
                 </td>
                 <td className="py-3 px-4 text-right font-mono tabular-nums text-emerald-800 font-bold text-sm">
-                  {totalCredits.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {formatWholeNumber(totalCredits)}
                 </td>
               </tr>
             </tfoot>

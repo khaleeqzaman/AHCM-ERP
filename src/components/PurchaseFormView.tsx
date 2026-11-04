@@ -10,6 +10,7 @@ import {
   AlertCircle 
 } from 'lucide-react';
 import { PurchaseDocument, PurchaseSummaryItem, PaymentType } from '../types';
+import { formatWholeNumber } from '../utils/formatters';
 
 interface PurchaseFormViewProps {
   initialPurchase?: PurchaseDocument | null;
@@ -82,8 +83,8 @@ export const PurchaseFormView: React.FC<PurchaseFormViewProps> = ({
       const newItem = { ...item };
       if (field === 'companyName') newItem.companyName = String(value);
       else if (field === 'itemName') newItem.itemName = String(value);
-      else if (field === 'quantity') newItem.quantity = Math.max(0, Number(value) || 0);
-      else if (field === 'amount') newItem.amount = Math.max(0, Number(value) || 0);
+      else if (field === 'quantity') newItem.quantity = Math.max(0, Math.round(Number(value) || 0));
+      else if (field === 'amount') newItem.amount = Math.max(0, Math.round(Number(value) || 0));
       else if (field === 'remarks') newItem.remarks = String(value);
       return newItem;
     });
@@ -117,8 +118,8 @@ export const PurchaseFormView: React.FC<PurchaseFormViewProps> = ({
     setItems(renumbered);
   };
 
-  const totalAmount = Number(
-    items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0).toFixed(2)
+  const totalAmount = Math.round(
+    items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
   );
 
   const validate = (): boolean => {
@@ -365,8 +366,8 @@ export const PurchaseFormView: React.FC<PurchaseFormViewProps> = ({
                     <input
                       type="number"
                       min="0"
-                      step="0.01"
-                      placeholder="0.00"
+                      step="1"
+                      placeholder="0"
                       value={item.amount === 0 ? '' : item.amount}
                       onChange={(e) => handleItemChange(idx, 'amount', e.target.value)}
                       className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white text-slate-900 text-right font-mono tabular-nums font-semibold"
@@ -401,7 +402,7 @@ export const PurchaseFormView: React.FC<PurchaseFormViewProps> = ({
                   Total Amount ({items.length} items):
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-blue-700 text-sm font-bold">
-                  {totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatWholeNumber(totalAmount)}
                 </td>
                 <td colSpan={2}></td>
               </tr>

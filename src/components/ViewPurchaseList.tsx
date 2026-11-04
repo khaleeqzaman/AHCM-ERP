@@ -21,6 +21,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { PurchaseDocument, PurchaseSummaryItem, DocumentStatus, PaymentType } from '../types';
+import { formatWholeNumber } from '../utils/formatters';
 
 interface ViewPurchaseListProps {
   purchases: PurchaseDocument[];
@@ -183,8 +184,8 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
       const copy = { ...item };
       if (field === 'companyName') copy.companyName = String(val);
       else if (field === 'itemName') copy.itemName = String(val);
-      else if (field === 'quantity') copy.quantity = Math.max(0, Number(val) || 0);
-      else if (field === 'amount') copy.amount = Math.max(0, Number(val) || 0);
+      else if (field === 'quantity') copy.quantity = Math.max(0, Math.round(Number(val) || 0));
+      else if (field === 'amount') copy.amount = Math.max(0, Math.round(Number(val) || 0));
       else if (field === 'remarks') copy.remarks = String(val);
       return copy;
     });
@@ -571,7 +572,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                         </td>
 
                         <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900 whitespace-nowrap">
-                          {purchase.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(purchase.totalAmount)}
                         </td>
 
                         <td className="py-3 px-4 whitespace-nowrap">
@@ -817,7 +818,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                                             <input
                                               type="number"
                                               min="0"
-                                              step="0.01"
+                                              step="1"
                                               value={it.amount}
                                               onChange={(e) =>
                                                 handleInlineItemChange(
@@ -831,7 +832,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                                             />
                                           ) : (
                                             <span className="font-mono tabular-nums font-semibold text-slate-900">
-                                              {it.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                              {formatWholeNumber(it.amount)}
                                             </span>
                                           )}
                                         </td>
@@ -878,7 +879,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                                         Total Amount:
                                       </td>
                                       <td className="py-2 px-3 text-right font-mono tabular-nums text-blue-700 font-bold">
-                                        {purchase.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        {formatWholeNumber(purchase.totalAmount)}
                                       </td>
                                       <td colSpan={isDraft ? 2 : 1}></td>
                                     </tr>
@@ -931,7 +932,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
               </div>
               <div className="flex justify-between border-t border-slate-200 pt-2 font-semibold">
                 <span className="text-slate-700">Total Amount:</span>
-                <span className="font-mono text-rose-600">PKR {confirmDeletePurchase.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="font-mono text-rose-600">PKR {formatWholeNumber(confirmDeletePurchase.totalAmount)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Current Status:</span>

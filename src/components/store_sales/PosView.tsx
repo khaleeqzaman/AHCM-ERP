@@ -19,6 +19,8 @@ import {
   BuyerRecord, 
   CompanySettings 
 } from '../../types/storeSales';
+import { formatWholeNumber } from '../../utils/formatters';
+import { DatePickerInput } from '../common/DatePickerInput';
 
 interface PosViewProps {
   entries: PosCoalSellEntry[];
@@ -485,12 +487,10 @@ export const PosView: React.FC<PosViewProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Document Date (DD-MM-YYYY) <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <DatePickerInput
                   required
                   value={formDocDate}
-                  onChange={(e) => setFormDocDate(e.target.value)}
-                  placeholder="DD-MM-YYYY"
+                  onChange={(newDate) => setFormDocDate(newDate)}
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
@@ -502,11 +502,12 @@ export const PosView: React.FC<PosViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   required
                   value={formQuantity}
-                  onChange={(e) => setFormQuantity(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormQuantity(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
@@ -518,11 +519,12 @@ export const PosView: React.FC<PosViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   required
                   value={formValueExclTax}
-                  onChange={(e) => setFormValueExclTax(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormValueExclTax(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
@@ -534,10 +536,11 @@ export const PosView: React.FC<PosViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formSalesTaxFed}
-                  onChange={(e) => setFormSalesTaxFed(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormSalesTaxFed(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
@@ -549,10 +552,11 @@ export const PosView: React.FC<PosViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formFurtherTax}
-                  onChange={(e) => setFormFurtherTax(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormFurtherTax(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
@@ -567,7 +571,7 @@ export const PosView: React.FC<PosViewProps> = ({
                 <div className="bg-white p-3 rounded-lg border border-slate-200">
                   <span className="text-[11px] text-slate-500 block">Excluding Tax Value</span>
                   <span className="text-sm font-bold font-mono text-slate-800">
-                    {numValExcl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatWholeNumber(numValExcl)}
                   </span>
                 </div>
 
@@ -577,7 +581,7 @@ export const PosView: React.FC<PosViewProps> = ({
                     <span className="text-[9px] text-amber-600 font-mono">(ST/FED + Further Tax)</span>
                   </div>
                   <span className="text-sm font-bold font-mono text-amber-900">
-                    {calculatedTotalTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatWholeNumber(calculatedTotalTax)}
                   </span>
                 </div>
 
@@ -587,7 +591,7 @@ export const PosView: React.FC<PosViewProps> = ({
                     <span className="text-[9px] text-blue-600 font-mono">(Excl. Tax + Sales Tax/FED + Further Tax)</span>
                   </div>
                   <span className="text-base font-extrabold font-mono text-blue-950">
-                    {calculatedTotalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatWholeNumber(calculatedTotalValue)}
                   </span>
                 </div>
               </div>
@@ -808,22 +812,22 @@ export const PosView: React.FC<PosViewProps> = ({
                           {e.documentDate}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                          {e.quantity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(e.quantity)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {e.valueExcludingTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(e.valueExcludingTax)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {e.salesTaxFed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(e.salesTaxFed)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {e.furtherTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(e.furtherTax)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-semibold text-amber-900 bg-amber-50/50">
-                          {e.totalTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(e.totalTax)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-950 bg-emerald-50/40">
-                          {e.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(e.totalValue)}
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <div className="inline-flex items-center gap-1">
@@ -857,22 +861,22 @@ export const PosView: React.FC<PosViewProps> = ({
                       Totals / Summary ({filteredEntries.length} records):
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-900">
-                      {totalQuantity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalQuantity)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-800">
-                      {totalValueExclTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalValueExclTax)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-800">
-                      {totalSalesTaxFed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalSalesTaxFed)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-800">
-                      {totalFurtherTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalFurtherTax)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-amber-950 bg-amber-100/70">
-                      {grandTotalTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(grandTotalTax)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-950 bg-emerald-100/80">
-                      {grandTotalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(grandTotalValue)}
                     </td>
                     <td className="py-3 px-3 text-center text-slate-400 font-mono text-[11px]">—</td>
                   </tr>
@@ -953,20 +957,20 @@ export const PosView: React.FC<PosViewProps> = ({
                       <td className="p-2 border-r border-slate-200 font-mono">{e.documentDate}</td>
                       <td className="p-2 border-r border-slate-200 font-semibold">{e.buyerName}</td>
                       <td className="p-2 border-r border-slate-200 font-mono text-[11px]">{e.buyerNTN || e.buyerCNIC || '—'}</td>
-                      <td className="p-2 border-r border-slate-200 text-right font-mono">{e.quantity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-2 border-r border-slate-200 text-right font-mono">{e.valueExcludingTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-2 border-r border-slate-200 text-right font-mono">{e.totalTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-2 text-right font-mono font-bold">{e.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="p-2 border-r border-slate-200 text-right font-mono">{formatWholeNumber(e.quantity)}</td>
+                      <td className="p-2 border-r border-slate-200 text-right font-mono">{formatWholeNumber(e.valueExcludingTax)}</td>
+                      <td className="p-2 border-r border-slate-200 text-right font-mono">{formatWholeNumber(e.totalTax)}</td>
+                      <td className="p-2 text-right font-mono font-bold">{formatWholeNumber(e.totalValue)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-slate-100 border-t-2 border-slate-400 font-bold">
                   <tr>
                     <td colSpan={5} className="p-2 border-r border-slate-300 text-right font-extrabold">TOTALS:</td>
-                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{totalQuantity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{totalValueExclTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{grandTotalTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="p-2 text-right font-mono font-extrabold">{grandTotalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{formatWholeNumber(totalQuantity)}</td>
+                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{formatWholeNumber(totalValueExclTax)}</td>
+                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{formatWholeNumber(grandTotalTax)}</td>
+                    <td className="p-2 text-right font-mono font-extrabold">{formatWholeNumber(grandTotalValue)}</td>
                   </tr>
                 </tfoot>
               </table>

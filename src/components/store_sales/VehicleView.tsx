@@ -20,6 +20,8 @@ import {
   VehicleConsumptionRecord, 
   CompanySettings 
 } from '../../types/storeSales';
+import { formatWholeNumber } from '../../utils/formatters';
+import { DatePickerInput } from '../common/DatePickerInput';
 
 interface VehicleViewProps {
   vehicles: VehicleRecord[];
@@ -631,12 +633,10 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
                   Date (DD-MM-YYYY) <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <DatePickerInput
                   required
                   value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  placeholder="DD-MM-YYYY"
+                  onChange={(newDate) => setFormDate(newDate)}
                   className="w-full text-xs font-mono font-semibold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 />
               </div>
@@ -649,11 +649,12 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   required
                   value={formDiesel}
-                  onChange={(e) => setFormDiesel(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormDiesel(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono font-bold px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 />
               </div>
@@ -666,10 +667,11 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formMOil}
-                  onChange={(e) => setFormMOil(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormMOil(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 />
               </div>
@@ -682,10 +684,11 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formDOil}
-                  onChange={(e) => setFormDOil(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormDOil(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 />
               </div>
@@ -697,9 +700,10 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formOFltr}
-                  onChange={(e) => setFormOFltr(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                  onChange={(e) => setFormOFltr(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
                   placeholder="0"
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 />
@@ -712,9 +716,10 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formDFltr}
-                  onChange={(e) => setFormDFltr(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                  onChange={(e) => setFormDFltr(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
                   placeholder="0"
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 />
@@ -727,10 +732,11 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formKOil}
-                  onChange={(e) => setFormKOil(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormKOil(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 />
               </div>
@@ -742,10 +748,11 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formCOil}
-                  onChange={(e) => setFormCOil(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormCOil(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 />
               </div>
@@ -757,10 +764,11 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                 </label>
                 <input
                   type="number"
-                  step="any"
+                  step="1"
+                  min="0"
                   value={formBOil}
-                  onChange={(e) => setFormBOil(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                  placeholder="0.00"
+                  onChange={(e) => setFormBOil(e.target.value === '' ? '' : Math.round(Number(e.target.value)))}
+                  placeholder="0"
                   className="w-full text-xs font-mono px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                 />
               </div>
@@ -1003,28 +1011,28 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                           {c.vehicleNo}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-900 bg-amber-50/30">
-                          {c.diesel.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(c.diesel)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {c.mOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(c.mOil)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {c.dOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(c.dOil)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {c.oFltr}
+                          {formatWholeNumber(c.oFltr)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {c.dFltr}
+                          {formatWholeNumber(c.dFltr)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {c.kOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(c.kOil)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {c.cOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(c.cOil)}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-700">
-                          {c.bOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {formatWholeNumber(c.bOil)}
                         </td>
                         <td className="py-2.5 px-3 text-slate-500 text-[11px]">
                           {c.remarks || '—'}
@@ -1061,28 +1069,28 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                       Column Totals:
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-amber-950 bg-amber-100/80">
-                      {totalDiesel.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalDiesel)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-900">
-                      {totalMOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalMOil)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-900">
-                      {totalDOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalDOil)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-900">
-                      {totalOFltr}
+                      {formatWholeNumber(totalOFltr)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-900">
-                      {totalDFltr}
+                      {formatWholeNumber(totalDFltr)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-900">
-                      {totalKOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalKOil)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-900">
-                      {totalCOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalCOil)}
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-900">
-                      {totalBOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatWholeNumber(totalBOil)}
                     </td>
                     <td colSpan={2} className="py-3 px-3 text-center text-slate-400 font-mono text-[11px]">—</td>
                   </tr>
@@ -1163,28 +1171,28 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                       <td className="p-2 border-r border-slate-200 text-center font-mono">{idx + 1}</td>
                       <td className="p-2 border-r border-slate-200 font-mono">{c.date}</td>
                       <td className="p-2 border-r border-slate-200 font-mono font-bold">{c.vehicleNo}</td>
-                      <td className="p-2 border-r border-slate-200 text-right font-mono">{c.diesel.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-2 border-r border-slate-200 text-right font-mono">{c.mOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-2 border-r border-slate-200 text-right font-mono">{c.dOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="p-2 border-r border-slate-200 text-right font-mono">{formatWholeNumber(c.diesel)}</td>
+                      <td className="p-2 border-r border-slate-200 text-right font-mono">{formatWholeNumber(c.mOil)}</td>
+                      <td className="p-2 border-r border-slate-200 text-right font-mono">{formatWholeNumber(c.dOil)}</td>
                       <td className="p-2 border-r border-slate-200 text-right font-mono">{c.oFltr}</td>
                       <td className="p-2 border-r border-slate-200 text-right font-mono">{c.dFltr}</td>
-                      <td className="p-2 border-r border-slate-200 text-right font-mono">{c.kOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-2 border-r border-slate-200 text-right font-mono">{c.cOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="p-2 text-right font-mono">{c.bOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="p-2 border-r border-slate-200 text-right font-mono">{formatWholeNumber(c.kOil)}</td>
+                      <td className="p-2 border-r border-slate-200 text-right font-mono">{formatWholeNumber(c.cOil)}</td>
+                      <td className="p-2 text-right font-mono">{formatWholeNumber(c.bOil)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-slate-100 border-t-2 border-slate-400 font-bold">
                   <tr>
                     <td colSpan={3} className="p-2 border-r border-slate-300 text-right font-extrabold">COLUMN TOTALS:</td>
-                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{totalDiesel.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{totalMOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{totalDOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{formatWholeNumber(totalDiesel)}</td>
+                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{formatWholeNumber(totalMOil)}</td>
+                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{formatWholeNumber(totalDOil)}</td>
                     <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{totalOFltr}</td>
                     <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{totalDFltr}</td>
-                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{totalKOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{totalCOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="p-2 text-right font-mono font-extrabold">{totalBOil.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{formatWholeNumber(totalKOil)}</td>
+                    <td className="p-2 border-r border-slate-300 text-right font-mono font-extrabold">{formatWholeNumber(totalCOil)}</td>
+                    <td className="p-2 text-right font-mono font-extrabold">{formatWholeNumber(totalBOil)}</td>
                   </tr>
                 </tfoot>
               </table>

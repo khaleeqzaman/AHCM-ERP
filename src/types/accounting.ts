@@ -1,12 +1,15 @@
 export type AccountType = 'Asset' | 'Liability' | 'Equity' | 'Revenue' | 'Expense';
 
-export type VoucherType = 
-  | 'Journal Voucher (JV)' 
-  | 'Payment Voucher (PV)' 
-  | 'Receipt Voucher (RV)' 
-  | 'Contra Voucher (CV)';
+export type VoucherTypeCode = 'CP' | 'CR' | 'BP' | 'BR' | 'JV';
 
-export type VoucherStatus = 'Draft' | 'Posted';
+export type VoucherType = 
+  | 'CP - Cash Payment Voucher' 
+  | 'CR - Cash Receipt Voucher' 
+  | 'BP - Bank Payment Voucher' 
+  | 'BR - Bank Receipt Voucher' 
+  | 'JV - Journal Voucher';
+
+export type VoucherStatus = 'Draft' | 'Approved' | 'Posted' | 'Reversed' | 'Cancelled';
 
 export interface ChartAccount {
   id: string;
@@ -29,18 +32,19 @@ export interface ChartAccount {
 export interface VoucherLine {
   id: string;
   srNo: number;
-  accountId: string;
-  accountCode: string;
-  accountName: string;
-  description: string;
+  accountId: string;    // Chart of Accounts account_id
+  accountCode: string;  // T-C-GG-SSS code
+  accountName: string;  // Account title
+  description: string;  // Line particulars/remarks
   debit: number;
   credit: number;
 }
 
 export interface VoucherDocument {
   id: string;
-  voucherNo: string; // e.g. JV-2026-001, PV-2026-001
+  voucherNo: string; // e.g. CP-2026-001, CR-2026-001, BP-2026-001, BR-2026-001, JV-2026-001
   voucherType: VoucherType;
+  typeCode?: VoucherTypeCode;
   date: string;
   referenceNo: string;
   narration: string;
@@ -48,7 +52,18 @@ export interface VoucherDocument {
   totalDebit: number;
   totalCredit: number;
   status: VoucherStatus;
+  preparedBy?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  postedBy?: string;
   postedAt?: string;
+  reversedBy?: string;
+  reversedAt?: string;
+  reversalReason?: string;
+  reversalVoucherNo?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  cancelReason?: string;
 }
 
 export interface LedgerEntry {
@@ -64,4 +79,6 @@ export interface LedgerEntry {
   debit: number;
   credit: number;
   runningBalance: number;
+  referenceNo?: string;
+  status?: VoucherStatus;
 }

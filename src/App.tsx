@@ -45,7 +45,6 @@ import {
   VehicleRecord, 
   VehicleConsumptionRecord 
 } from './types/storeSales';
-import { TableDefinition, OldLedgerDataMap, ImportSummary } from './types/oldLedger';
 import { initialDemands, initialPurchases } from './data/mockData';
 import { initialChartOfAccounts, initialVouchers } from './data/mockAccountingData';
 import { 
@@ -65,7 +64,6 @@ import {
   initialVehicles, 
   initialVehicleConsumptions 
 } from './data/mockStoreSalesData';
-import { standardOldLedgerSchemas, initialOldLedgerData } from './data/mockOldLedgerData';
 import { Sidebar } from './components/Sidebar';
 import { PurchaseScreen } from './components/PurchaseScreen';
 import { AdminApprovalView } from './components/AdminApprovalView';
@@ -335,11 +333,6 @@ export default function App() {
   const [stockEntries, setStockEntries] = useState<StockEntry[]>(() => loadCache('stock_entries', []));
   const [vehicles, setVehicles] = useState<VehicleRecord[]>(() => loadCache('vehicles', []));
   const [vehicleConsumptions, setVehicleConsumptions] = useState<VehicleConsumptionRecord[]>(() => loadCache('consumptions', []));
-
-  // 100% ISOLATED OLD LEDGER DATA STATE (Microsoft Access Engine)
-  const [oldLedgerTables, setOldLedgerTables] = useState<TableDefinition[]>(() => loadCache('old_ledger_tables', standardOldLedgerSchemas));
-  const [oldLedgerData, setOldLedgerData] = useState<OldLedgerDataMap>(() => loadCache('old_ledger_data', initialOldLedgerData));
-  const [oldLedgerImportSummary, setOldLedgerImportSummary] = useState<ImportSummary | null>(() => loadCache('old_ledger_summary', null));
 
   // Database Synchronization & Diagnostics state
   const [isRefreshingDb, setIsRefreshingDb] = useState(false);
@@ -729,7 +722,7 @@ export default function App() {
     });
     apiSaveVoucher(voucher);
 
-    // Update account balances
+    // If saving directly as Posted, update accounts
     if (voucher.status === 'Posted') {
       voucher.lines.forEach((line) => {
         setAccounts((prevAccounts) => {
@@ -741,7 +734,7 @@ export default function App() {
                   : line.credit - line.debit;
               const updatedAcc = {
                 ...acc,
-                currentBalance: Number((acc.currentBalance + delta).toFixed(2)),
+                currentBalance: Math.round(acc.currentBalance + delta),
               };
               apiSaveChartAccount(updatedAcc);
               return updatedAcc;
@@ -755,14 +748,38 @@ export default function App() {
     }
   };
 
-  const handlePostDraftVoucher = (voucherId: string) => {
+  const handleApproveVoucher = (voucherId: string) => {
     const target = vouchers.find((v) => v.id === voucherId);
     if (!target) return;
 
+    const nowIso = new Date().toISOString();
+    const updatedVoucher: VoucherDocument = {
+      ...target,
+      status: 'Approved',
+      approvedBy: currentUser?.name || 'Chief Accountant',
+      approvedAt: nowIso,
+    };
+
+    setVouchers((prev) => {
+      const next = prev.map((v) => (v.id === voucherId ? updatedVoucher : v));
+      saveCache('vouchers', next);
+      return next;
+    });
+    apiSaveVoucher(updatedVoucher);
+  };
+
+  const handlePostVoucher = (voucherId: string) => {
+    const target = vouchers.find((v) => v.id === voucherId);
+    if (!target) return;
+
+    const nowIso = new Date().toISOString();
     const updatedVoucher: VoucherDocument = {
       ...target,
       status: 'Posted',
-      postedAt: new Date().toISOString().substring(0, 16),
+      approvedBy: target.approvedBy || currentUser?.name || 'Chief Accountant',
+      approvedAt: target.approvedAt || nowIso,
+      postedBy: currentUser?.name || 'Chief Accountant',
+      postedAt: nowIso,
     };
 
     setVouchers((prev) => {
@@ -772,7 +789,7 @@ export default function App() {
     });
     apiSaveVoucher(updatedVoucher);
 
-    // Update account balances
+    // Post to General Ledger - update Account balances
     target.lines.forEach((line) => {
       setAccounts((prevAccounts) => {
         const next = prevAccounts.map((acc) => {
@@ -783,7 +800,7 @@ export default function App() {
                 : line.credit - line.debit;
             const updatedAcc = {
               ...acc,
-              currentBalance: Number((acc.currentBalance + delta).toFixed(2)),
+              currentBalance: Math.round(acc.currentBalance + delta),
             };
             apiSaveChartAccount(updatedAcc);
             return updatedAcc;
@@ -796,47 +813,109 @@ export default function App() {
     });
   };
 
-  const handleUpdateLedgerEntry = (
-    voucherId: string,
-    lineId: string,
-    updatedDebit: number,
-    updatedCredit: number,
-    updatedDescription: string
-  ) => {
-    let targetVoucher: VoucherDocument | null = null;
-    setVouchers((prevVouchers) => {
-      const next = prevVouchers.map((voucher) => {
-        if (voucher.id !== voucherId) return voucher;
+  const handleCancelVoucher = (voucherId: string, reason: string) => {
+    const target = vouchers.find((v) => v.id === voucherId);
+    if (!target) return;
+    if (target.status === 'Posted') return; // Posted vouchers must use Reverse
 
-        const updatedLines = voucher.lines.map((l) => {
-          if (l.id !== lineId) return l;
-          return {
-            ...l,
-            debit: updatedDebit,
-            credit: updatedCredit,
-            description: updatedDescription,
-          };
-        });
+    const nowIso = new Date().toISOString();
+    const updatedVoucher: VoucherDocument = {
+      ...target,
+      status: 'Cancelled',
+      cancelledBy: currentUser?.name || 'Authorized Auditor',
+      cancelledAt: nowIso,
+      cancelReason: reason,
+    };
 
-        const newTotalDebit = Number(
-          updatedLines.reduce((sum, l) => sum + l.debit, 0).toFixed(2)
-        );
-        const newTotalCredit = Number(
-          updatedLines.reduce((sum, l) => sum + l.credit, 0).toFixed(2)
-        );
-
-        targetVoucher = {
-          ...voucher,
-          lines: updatedLines,
-          totalDebit: newTotalDebit,
-          totalCredit: newTotalCredit,
-        };
-        return targetVoucher;
-      });
+    setVouchers((prev) => {
+      const next = prev.map((v) => (v.id === voucherId ? updatedVoucher : v));
       saveCache('vouchers', next);
       return next;
     });
-    if (targetVoucher) apiSaveVoucher(targetVoucher);
+    apiSaveVoucher(updatedVoucher);
+  };
+
+  const handleReverseVoucher = (voucherId: string, reason: string) => {
+    const target = vouchers.find((v) => v.id === voucherId);
+    if (!target) return;
+    if (target.status !== 'Posted') return;
+
+    const nowIso = new Date().toISOString();
+    const today = nowIso.split('T')[0];
+    const cleanPrefix = target.voucherNo.replace(/^(CP|CR|BP|BR|JV)-/i, '');
+    const revVoucherNo = `JV-REV-${cleanPrefix}`;
+    const revVoucherId = `vouch-rev-${Date.now()}`;
+
+    // Standard GAAP: Invert debit and credit on each line for a balancing reversal
+    const invertedLines = target.lines.map((line, idx) => ({
+      id: `rev-line-${Date.now()}-${idx}`,
+      srNo: idx + 1,
+      accountId: line.accountId,
+      accountCode: line.accountCode,
+      accountName: line.accountName,
+      description: `Reversal of ${target.voucherNo}: ${line.description || reason}`,
+      debit: line.credit, // Invert
+      credit: line.debit, // Invert
+    }));
+
+    const reversalVoucher: VoucherDocument = {
+      id: revVoucherId,
+      voucherNo: revVoucherNo,
+      voucherType: 'JV - Journal Voucher',
+      typeCode: 'JV',
+      date: today,
+      referenceNo: target.voucherNo,
+      narration: `Reversal entry for voucher ${target.voucherNo}. Controlled reason: ${reason}`,
+      status: 'Posted',
+      lines: invertedLines,
+      totalDebit: target.totalCredit,
+      totalCredit: target.totalDebit,
+      preparedBy: currentUser?.name || 'Chief Accountant',
+      approvedBy: currentUser?.name || 'Chief Accountant',
+      approvedAt: nowIso,
+      postedBy: currentUser?.name || 'Chief Accountant',
+      postedAt: nowIso,
+    };
+
+    const updatedTarget: VoucherDocument = {
+      ...target,
+      status: 'Reversed',
+      reversedBy: currentUser?.name || 'Chief Accountant',
+      reversedAt: nowIso,
+      reversalReason: reason,
+      reversalVoucherNo: revVoucherNo,
+    };
+
+    setVouchers((prev) => {
+      const next = [reversalVoucher, ...prev.map((v) => (v.id === voucherId ? updatedTarget : v))];
+      saveCache('vouchers', next);
+      return next;
+    });
+    apiSaveVoucher(updatedTarget);
+    apiSaveVoucher(reversalVoucher);
+
+    // Apply the inverted balance to accounts
+    invertedLines.forEach((line) => {
+      setAccounts((prevAccounts) => {
+        const next = prevAccounts.map((acc) => {
+          if (acc.id === line.accountId) {
+            const delta =
+              acc.normalBalance === 'Debit'
+                ? line.debit - line.credit
+                : line.credit - line.debit;
+            const updatedAcc = {
+              ...acc,
+              currentBalance: Math.round(acc.currentBalance + delta),
+            };
+            apiSaveChartAccount(updatedAcc);
+            return updatedAcc;
+          }
+          return acc;
+        });
+        saveCache('accounts', next);
+        return next;
+      });
+    });
   };
 
   // TREASURY / CASHIER HANDLERS (Completely isolated)
@@ -1297,23 +1376,6 @@ export default function App() {
     apiSaveCompanySettings(cs);
   };
 
-  // 100% ISOLATED OLD LEDGER (MICROSOFT ACCESS) HANDLERS
-  const handleOldLedgerImportSuccess = (
-    newTables: TableDefinition[],
-    newData: OldLedgerDataMap,
-    summary: ImportSummary
-  ) => {
-    setOldLedgerTables(newTables);
-    setOldLedgerData(newData);
-    setOldLedgerImportSummary(summary);
-  };
-
-  const handleResetOldLedger = () => {
-    setOldLedgerTables(standardOldLedgerSchemas);
-    setOldLedgerData(initialOldLedgerData);
-    setOldLedgerImportSummary(null);
-  };
-
   const pendingApprovalsCount =
     demands.filter((d) => d.status === 'Submitted for Approval').length +
     purchases.filter((p) => p.status === 'Submitted for Approval').length;
@@ -1501,7 +1563,6 @@ export default function App() {
               vehicles={vehicles}
               consumptions={vehicleConsumptions}
               users={users}
-              oldLedgerTables={oldLedgerTables}
               onNavigate={setCurrentModule}
             />
           )}
@@ -1562,13 +1623,10 @@ export default function App() {
               onAddAccount={handleAddAccount}
               onUpdateAccount={handleUpdateAccount}
               onSaveVoucher={handleSaveVoucher}
-              onPostDraftVoucher={handlePostDraftVoucher}
-              onUpdateLedgerEntry={handleUpdateLedgerEntry}
-              oldLedgerTables={oldLedgerTables}
-              oldLedgerData={oldLedgerData}
-              oldLedgerImportSummary={oldLedgerImportSummary}
-              onOldLedgerImportSuccess={handleOldLedgerImportSuccess}
-              onResetOldLedger={handleResetOldLedger}
+              onApproveVoucher={handleApproveVoucher}
+              onPostVoucher={handlePostVoucher}
+              onCancelVoucher={handleCancelVoucher}
+              onReverseVoucher={handleReverseVoucher}
             />
           )}
 

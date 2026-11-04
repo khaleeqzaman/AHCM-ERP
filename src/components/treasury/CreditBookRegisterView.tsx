@@ -18,6 +18,8 @@ import {
   Check
 } from 'lucide-react';
 import { CreditBookEntry } from '../../types/treasury';
+import { formatWholeNumber } from '../../utils/formatters';
+import { DatePickerInput } from '../common/DatePickerInput';
 
 interface CreditBookRegisterViewProps {
   entries: CreditBookEntry[];
@@ -408,7 +410,7 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
             </span>
           </div>
           <span className="text-2xl font-bold font-mono tabular-nums text-indigo-900 mt-1 block">
-            {totalCreditAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatWholeNumber(totalCreditAmount)}
           </span>
           <span className="text-[11px] text-slate-400 mt-0.5 block">
             Sum of all credit amounts in the current register view
@@ -478,11 +480,9 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white">
             <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">From:</span>
-            <input
-              type="text"
-              placeholder="DD-MM-YYYY"
+            <DatePickerInput
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+              onChange={(newDate) => setDateFrom(newDate)}
               className="w-full text-xs bg-transparent border-none focus:outline-hidden text-slate-900 font-mono"
             />
           </div>
@@ -491,11 +491,9 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:bg-white">
             <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">To:</span>
-            <input
-              type="text"
-              placeholder="DD-MM-YYYY"
+            <DatePickerInput
               value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(newDate) => setDateTo(newDate)}
               className="w-full text-xs bg-transparent border-none focus:outline-hidden text-slate-900 font-mono"
             />
           </div>
@@ -590,12 +588,10 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
 
                   {/* Date Input */}
                   <td className="py-2.5 px-3">
-                    <input
-                      type="text"
-                      placeholder="DD-MM-YYYY"
+                    <DatePickerInput
                       value={draftRow.date}
-                      onChange={(e) => setDraftRow({ ...draftRow, date: e.target.value })}
-                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-indigo-300 rounded focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
+                      onChange={(newDate) => setDraftRow({ ...draftRow, date: newDate })}
+                      className="w-full px-2 py-1.5 text-xs bg-white border border-indigo-300 rounded focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono text-slate-900"
                     />
                   </td>
 
@@ -625,14 +621,14 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
                   <td className="py-2.5 px-3 text-right">
                     <input
                       type="number"
-                      step="0.01"
+                      step="1"
                       min="0"
-                      placeholder="0.00"
+                      placeholder="0"
                       value={draftRow.amount}
                       onChange={(e) =>
                         setDraftRow({
                           ...draftRow,
-                          amount: e.target.value === '' ? '' : parseFloat(e.target.value),
+                          amount: e.target.value === '' ? '' : Math.round(Number(e.target.value)),
                         })
                       }
                       className="w-full px-2.5 py-1.5 text-xs bg-white border border-indigo-300 rounded focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-mono tabular-nums text-right font-bold text-indigo-900"
@@ -694,13 +690,11 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
                         {effectiveSr}
                       </td>
                       <td className="py-2.5 px-3">
-                        <input
-                          type="text"
+                        <DatePickerInput
                           value={entry.date}
-                          placeholder="DD-MM-YYYY"
-                          onChange={(e) => {
+                          onChange={(newDate) => {
                             const updated = [...bulkEditRows];
-                            updated[index].date = e.target.value;
+                            updated[index].date = newDate;
                             setBulkEditRows(updated);
                           }}
                           className="w-full px-2 py-1 text-xs bg-white border border-amber-300 rounded font-mono"
@@ -735,13 +729,13 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
                       <td className="py-2.5 px-3 text-right">
                         <input
                           type="number"
-                          step="0.01"
+                          step="1"
                           min="0"
-                          value={entry.amount === 0 ? '' : entry.amount}
-                          placeholder="0.00"
+                          value={entry.amount === 0 ? '' : Math.round(entry.amount)}
+                          placeholder="0"
                           onChange={(e) => {
                             const updated = [...bulkEditRows];
-                            updated[index].amount = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                            updated[index].amount = e.target.value === '' ? 0 : Math.round(Number(e.target.value));
                             setBulkEditRows(updated);
                           }}
                           className="w-full px-2 py-1 text-xs bg-white border border-amber-300 rounded text-right font-mono font-bold"
@@ -766,12 +760,10 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
                           {effectiveSr}
                         </td>
                         <td className="py-2.5 px-3">
-                          <input
-                            type="text"
+                          <DatePickerInput
                             value={editingRowData.date}
-                            placeholder="DD-MM-YYYY"
-                            onChange={(e) =>
-                              setEditingRowData({ ...editingRowData, date: e.target.value })
+                            onChange={(newDate) =>
+                              setEditingRowData({ ...editingRowData, date: newDate })
                             }
                             className="w-full px-2 py-1 text-xs bg-white border border-amber-300 rounded font-mono"
                           />
@@ -801,14 +793,14 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
                         <td className="py-2.5 px-3 text-right">
                           <input
                             type="number"
-                            step="0.01"
+                            step="1"
                             min="0"
-                            value={editingRowData.amount === 0 ? '' : editingRowData.amount}
-                            placeholder="0.00"
+                            value={editingRowData.amount === 0 ? '' : Math.round(Number(editingRowData.amount))}
+                            placeholder="0"
                             onChange={(e) =>
                               setEditingRowData({
                                 ...editingRowData,
-                                amount: e.target.value === '' ? 0 : parseFloat(e.target.value),
+                                amount: e.target.value === '' ? 0 : Math.round(Number(e.target.value)),
                               })
                             }
                             className="w-full px-2 py-1 text-xs bg-white border border-amber-300 rounded font-mono font-bold text-right"
@@ -861,10 +853,7 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
 
                       {/* Amount (strictly no $ sign) */}
                       <td className="py-2.5 px-4 text-right font-mono tabular-nums font-bold text-indigo-950 whitespace-nowrap">
-                        {entry.amount.toLocaleString('en-US', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatWholeNumber(entry.amount)}
                       </td>
 
                       {/* Action buttons at the end of each row: Edit row, Delete row */}
@@ -904,10 +893,7 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
                   Total Credit Amount:
                 </td>
                 <td className="py-3 px-4 text-right font-mono tabular-nums text-indigo-950 text-sm whitespace-nowrap">
-                  {totalCreditAmount.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatWholeNumber(totalCreditAmount)}
                 </td>
                 <td className="py-3 px-4 text-center">
                   <div className="flex items-center justify-center gap-2">

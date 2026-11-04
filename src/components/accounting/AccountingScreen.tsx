@@ -9,21 +9,19 @@ import {
   ArrowRight,
   TrendingUp,
   ShieldCheck,
-  CheckCircle2,
-  Database
+  CheckCircle2
 } from 'lucide-react';
 import { 
   ChartAccount, 
   VoucherDocument, 
   VoucherLine 
 } from '../../types/accounting';
-import { TableDefinition, OldLedgerDataMap, ImportSummary } from '../../types/oldLedger';
+import { formatWholeNumber } from '../../utils/formatters';
 import { ChartOfAccountsView } from './ChartOfAccountsView';
 import { VoucherEntryForm } from './VoucherEntryForm';
 import { VouchersListView } from './VouchersListView';
 import { LedgersView } from './LedgersView';
 import { TrialBalanceView } from './TrialBalanceView';
-import { OldLedgerScreen } from '../old_ledger/OldLedgerScreen';
 
 interface AccountingScreenProps {
   accounts: ChartAccount[];
@@ -31,20 +29,10 @@ interface AccountingScreenProps {
   onAddAccount: (account: ChartAccount) => void;
   onUpdateAccount: (account: ChartAccount) => void;
   onSaveVoucher: (voucher: VoucherDocument) => void;
-  onPostDraftVoucher: (id: string) => void;
-  onUpdateLedgerEntry: (
-    voucherId: string,
-    lineId: string,
-    updatedDebit: number,
-    updatedCredit: number,
-    updatedDescription: string
-  ) => void;
-  // Old Ledger (Access DB) Section Props
-  oldLedgerTables: TableDefinition[];
-  oldLedgerData: OldLedgerDataMap;
-  oldLedgerImportSummary?: ImportSummary | null;
-  onOldLedgerImportSuccess: (newTables: TableDefinition[], newData: OldLedgerDataMap, summary: ImportSummary) => void;
-  onResetOldLedger: () => void;
+  onApproveVoucher: (id: string) => void;
+  onPostVoucher: (id: string) => void;
+  onCancelVoucher: (id: string, reason: string) => void;
+  onReverseVoucher: (id: string, reason: string) => void;
 }
 
 export type AccountantTab = 
@@ -52,8 +40,7 @@ export type AccountantTab =
   | 'voucher_entry' 
   | 'vouchers_list' 
   | 'ledgers' 
-  | 'trial_balance'
-  | 'old_ledger';
+  | 'trial_balance';
 
 export const AccountingScreen: React.FC<AccountingScreenProps> = ({
   accounts,
@@ -61,13 +48,10 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
   onAddAccount,
   onUpdateAccount,
   onSaveVoucher,
-  onPostDraftVoucher,
-  onUpdateLedgerEntry,
-  oldLedgerTables,
-  oldLedgerData,
-  oldLedgerImportSummary,
-  onOldLedgerImportSuccess,
-  onResetOldLedger,
+  onApproveVoucher,
+  onPostVoucher,
+  onCancelVoucher,
+  onReverseVoucher,
 }) => {
   const [activeTab, setActiveTab] = useState<AccountantTab>('chart_of_accounts');
   const [editingVoucher, setEditingVoucher] = useState<VoucherDocument | null>(null);
@@ -101,7 +85,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
               Accounting Module
             </h1>
             <p className="text-sm text-slate-600 mt-0.5">
-              Standard Chart of Accounts (T-C-GG-SSS), balanced double-entry vouchers, and editable general ledger journals.
+              Standard Chart of Accounts (T-C-GG-SSS), 5 voucher types (CP, CR, BP, BR, JV), approval/posting workflows, and immutable General Ledger.
             </p>
           </div>
 
@@ -117,14 +101,14 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
             <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-slate-500 block text-[11px]">Vouchers Posted</span>
               <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
-                {vouchers.length} Vouchers
+                {vouchers.filter((v) => v.status === 'Posted').length} / {vouchers.length}
               </span>
             </div>
 
             <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-              <span className="text-slate-500 block text-[11px]">Total Ledger Turnover</span>
+              <span className="text-slate-500 block text-[11px]">Posted Ledger Turnover</span>
               <span className="text-sm font-bold font-mono tabular-nums text-emerald-700">
-                {totalVoucherVolume.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {formatWholeNumber(vouchers.filter((v) => v.status === 'Posted').reduce((sum, v) => sum + v.totalDebit, 0))}
               </span>
             </div>
           </div>
@@ -149,7 +133,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
                 }`}
               >
                 <FolderTree className="w-3.5 h-3.5 shrink-0" />
-                <span>Chart of Accounts (T-C-GG-SSS)</span>
+                <span>Chart of Accounts</span>
               </button>
 
               {/* Tab 2: Double-Entry Voucher */}
@@ -163,7 +147,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
                 }`}
               >
                 <Plus className="w-3.5 h-3.5 shrink-0" />
-                <span>Double-Entry Voucher</span>
+                <span>Create Voucher (CP/CR/BP/BR/JV)</span>
               </button>
 
               {/* Tab 3: Vouchers List */}
@@ -186,7 +170,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
                 </span>
               </button>
 
-              {/* Tab 4: Ledgers (Editable entries) */}
+              {/* Tab 4: General Ledger */}
               <button
                 type="button"
                 onClick={() => setActiveTab('ledgers')}
@@ -197,7 +181,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
                 }`}
               >
                 <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                <span>Ledgers (Editable)</span>
+                <span>General Ledger</span>
               </button>
 
               {/* Tab 5: Trial Balance */}
@@ -212,25 +196,6 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
               >
                 <Scale className="w-3.5 h-3.5 shrink-0" />
                 <span>Trial Balance</span>
-              </button>
-
-              {/* Tab 6: Old Ledger (Access DB) Section */}
-              <button
-                type="button"
-                onClick={() => setActiveTab('old_ledger')}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs whitespace-nowrap cursor-pointer ${
-                  activeTab === 'old_ledger'
-                    ? 'bg-indigo-600 text-white ring-2 ring-indigo-600/30'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                <Database className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
-                <span>Old Ledger</span>
-                <span className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
-                  activeTab === 'old_ledger' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-700'
-                }`}>
-                  {oldLedgerTables.length} Tables
-                </span>
               </button>
             </div>
           </div>
@@ -267,7 +232,10 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
           <VouchersListView
             vouchers={vouchers}
             onEditVoucher={handleEditVoucher}
-            onPostDraftVoucher={onPostDraftVoucher}
+            onApproveVoucher={onApproveVoucher}
+            onPostVoucher={onPostVoucher}
+            onCancelVoucher={onCancelVoucher}
+            onReverseVoucher={onReverseVoucher}
             onNavigateToCreate={handleOpenNewVoucher}
           />
         )}
@@ -276,7 +244,9 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
           <LedgersView
             accounts={accounts}
             vouchers={vouchers}
-            onUpdateLedgerEntry={onUpdateLedgerEntry}
+            onViewVoucherDetails={() => {
+              setActiveTab('vouchers_list');
+            }}
           />
         )}
 
@@ -284,16 +254,6 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
           <TrialBalanceView
             accounts={accounts}
             vouchers={vouchers}
-          />
-        )}
-
-        {activeTab === 'old_ledger' && (
-          <OldLedgerScreen
-            tables={oldLedgerTables}
-            dataMap={oldLedgerData}
-            lastImportSummary={oldLedgerImportSummary}
-            onImportSuccess={onOldLedgerImportSuccess}
-            onResetToSampleData={onResetOldLedger}
           />
         )}
       </div>

@@ -12,6 +12,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { CashBookEntry } from '../../types/treasury';
+import { formatWholeNumber } from '../../utils/formatters';
+import { DatePickerInput } from '../common/DatePickerInput';
 
 interface CashBookRegisterViewProps {
   entries: CashBookEntry[];
@@ -112,7 +114,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <span className="text-xs font-medium text-slate-500 block">Total Credit (Inflow)</span>
           <span className="text-xl font-bold font-mono tabular-nums text-emerald-700 mt-1 block">
-            {totalCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatWholeNumber(totalCredit)}
           </span>
           <span className="text-[11px] text-slate-400 mt-0.5 block">Sum of cash deposits & collections</span>
         </div>
@@ -120,7 +122,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
           <span className="text-xs font-medium text-slate-500 block">Total Debit (Outflow)</span>
           <span className="text-xl font-bold font-mono tabular-nums text-rose-700 mt-1 block">
-            {totalDebit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatWholeNumber(totalDebit)}
           </span>
           <span className="text-[11px] text-slate-400 mt-0.5 block">Sum of cash expenses & settlements</span>
         </div>
@@ -130,7 +132,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
           <span className={`text-xl font-bold font-mono tabular-nums mt-1 block ${
             totalBalance >= 0 ? 'text-blue-700' : 'text-amber-700'
           }`}>
-            {totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatWholeNumber(totalBalance)}
           </span>
           <span className="text-[11px] text-slate-400 mt-0.5 block">Credit − Debit cumulative reserve</span>
         </div>
@@ -198,14 +200,12 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                         {entry.srNo}
                       </td>
 
-                      {/* Date (Manual input, format: DD-MM-YYYY) */}
+                      {/* Date (DatePickerInput, format: DD-MM-YYYY) */}
                       <td className="py-2.5 px-3">
-                        <input
-                          type="text"
+                        <DatePickerInput
                           value={entry.date}
-                          placeholder="DD-MM-YYYY"
-                          onChange={(e) => onUpdateEntry(entry.id, 'date', e.target.value)}
-                          className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 font-mono"
+                          onChange={(newDate) => onUpdateEntry(entry.id, 'date', newDate)}
+                          className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 font-mono"
                         />
                       </td>
 
@@ -224,12 +224,12 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                       <td className="py-2.5 px-3 text-right">
                         <input
                           type="number"
-                          step="0.01"
+                          step="1"
                           min="0"
-                          value={entry.credit === 0 ? '' : entry.credit}
-                          placeholder="0.00"
+                          value={entry.credit === 0 ? '' : Math.round(entry.credit)}
+                          placeholder="0"
                           onChange={(e) =>
-                            onUpdateEntry(entry.id, 'credit', e.target.value === '' ? 0 : Number(e.target.value))
+                            onUpdateEntry(entry.id, 'credit', e.target.value === '' ? 0 : Math.round(Number(e.target.value)))
                           }
                           className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 font-mono tabular-nums text-right font-semibold"
                         />
@@ -239,12 +239,12 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                       <td className="py-2.5 px-3 text-right">
                         <input
                           type="number"
-                          step="0.01"
+                          step="1"
                           min="0"
-                          value={entry.debit === 0 ? '' : entry.debit}
-                          placeholder="0.00"
+                          value={entry.debit === 0 ? '' : Math.round(entry.debit)}
+                          placeholder="0"
                           onChange={(e) =>
-                            onUpdateEntry(entry.id, 'debit', e.target.value === '' ? 0 : Number(e.target.value))
+                            onUpdateEntry(entry.id, 'debit', e.target.value === '' ? 0 : Math.round(Number(e.target.value)))
                           }
                           className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 font-mono tabular-nums text-right font-semibold"
                         />
@@ -259,10 +259,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                               : 'text-rose-700 bg-rose-50'
                           }`}
                         >
-                          {rowBalance.toLocaleString('en-US', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                          {formatWholeNumber(rowBalance)}
                         </span>
                       </td>
 
@@ -296,13 +293,13 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                   Register Totals:
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-emerald-800 text-sm">
-                  {totalCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatWholeNumber(totalCredit)}
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-rose-800 text-sm">
-                  {totalDebit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatWholeNumber(totalDebit)}
                 </td>
                 <td className="py-3 px-4 text-right font-mono tabular-nums text-blue-900 text-sm whitespace-nowrap">
-                  {totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatWholeNumber(totalBalance)}
                 </td>
                 <td></td>
               </tr>

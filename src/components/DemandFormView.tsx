@@ -10,6 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { DemandDocument, DemandItem, DemandType, DemandCategory } from '../types';
+import { formatWholeNumber } from '../utils/formatters';
 
 interface DemandFormViewProps {
   initialDemand?: DemandDocument | null;
@@ -88,13 +89,13 @@ export const DemandFormView: React.FC<DemandFormViewProps> = ({
       if (field === 'itemName') {
         newItem.itemName = String(value);
       } else if (field === 'quantity') {
-        const qty = Math.max(0, Number(value) || 0);
+        const qty = Math.max(0, Math.round(Number(value)) || 0);
         newItem.quantity = qty;
-        newItem.amount = Number((qty * newItem.rate).toFixed(2));
+        newItem.amount = Math.round(qty * newItem.rate);
       } else if (field === 'rate') {
-        const r = Math.max(0, Number(value) || 0);
+        const r = Math.max(0, Math.round(Number(value)) || 0);
         newItem.rate = r;
-        newItem.amount = Number((newItem.quantity * r).toFixed(2));
+        newItem.amount = Math.round(newItem.quantity * r);
       }
       return newItem;
     });
@@ -383,14 +384,14 @@ export const DemandFormView: React.FC<DemandFormViewProps> = ({
                     <input
                       type="number"
                       min="0"
-                      step="0.01"
-                      value={item.rate === 0 ? '' : item.rate}
+                      step="1"
+                      value={item.rate === 0 ? '' : Math.round(item.rate)}
                       onChange={(e) => handleItemChange(idx, 'rate', e.target.value)}
                       className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white text-slate-900 text-right font-mono tabular-nums"
                     />
                   </td>
                   <td className="py-2 px-3 text-right font-mono tabular-nums font-semibold text-slate-900">
-                    {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatWholeNumber(item.amount)}
                   </td>
                   <td className="py-2 px-3 text-center">
                     <button
@@ -412,7 +413,7 @@ export const DemandFormView: React.FC<DemandFormViewProps> = ({
                   Total Amount ({items.length} items):
                 </td>
                 <td className="py-3 px-3 text-right font-mono tabular-nums text-blue-700 text-sm font-bold">
-                  {totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatWholeNumber(totalAmount)}
                 </td>
                 <td></td>
               </tr>
