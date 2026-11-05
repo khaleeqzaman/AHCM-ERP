@@ -400,6 +400,21 @@ export async function apiSaveVoucher(voucher: VoucherDocument): Promise<VoucherD
   }
 }
 
+export async function apiDeleteVoucher(voucherId: string): Promise<boolean> {
+  try {
+    const res = await diagnosticRequest<{ success: boolean }>(
+      'apiDeleteVoucher',
+      `/api/accounting/vouchers/${encodeURIComponent(voucherId)}`,
+      'DELETE',
+      { voucherId }
+    );
+    return !!res?.success;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiDeleteVoucher:', err);
+    return false;
+  }
+}
+
 // ==========================================
 // 6. TREASURY (CASH BOOK, CREDIT BOOK, BANKS)
 // ==========================================
@@ -783,3 +798,41 @@ export async function fetchItemWiseStockSummary(): Promise<ItemWiseStockSummary[
     return [];
   }
 }
+
+// ==========================================
+// 9. LIVE CONNECTIVITY & HEALTH DIAGNOSTICS
+// ==========================================
+export interface DatabaseStatusResponse {
+  connected: boolean;
+  message: string;
+  version?: string;
+  timestamp: string;
+  provider: string;
+}
+
+export async function apiCheckDatabaseStatus(): Promise<DatabaseStatusResponse | null> {
+  try {
+    return await diagnosticRequest<DatabaseStatusResponse>(
+      'apiCheckDatabaseStatus',
+      '/api/database/status',
+      'GET'
+    );
+  } catch (err: any) {
+    console.error('Unhandled exception in apiCheckDatabaseStatus:', err);
+    return null;
+  }
+}
+
+export async function apiRunHealthPing(): Promise<{ status: string; time: string } | null> {
+  try {
+    return await diagnosticRequest<{ status: string; time: string }>(
+      'apiRunHealthPing',
+      '/api/health',
+      'GET'
+    );
+  } catch (err: any) {
+    console.error('Unhandled exception in apiRunHealthPing:', err);
+    return null;
+  }
+}
+

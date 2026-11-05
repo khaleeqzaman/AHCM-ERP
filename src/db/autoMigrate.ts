@@ -267,6 +267,7 @@ const TABLE_CREATION_STATEMENTS = [
     "id" text PRIMARY KEY NOT NULL,
     "voucher_no" text NOT NULL,
     "voucher_type" text NOT NULL,
+    "type_code" text,
     "date" text NOT NULL,
     "reference_no" text,
     "narration" text,
@@ -274,8 +275,34 @@ const TABLE_CREATION_STATEMENTS = [
     "total_debit" double precision NOT NULL,
     "total_credit" double precision NOT NULL,
     "status" text NOT NULL,
-    "posted_at" text
+    "prepared_by" text,
+    "approved_by" text,
+    "approved_at" text,
+    "posted_by" text,
+    "posted_at" text,
+    "reversed_by" text,
+    "reversed_at" text,
+    "reversal_reason" text,
+    "reversal_voucher_no" text,
+    "cancelled_by" text,
+    "cancelled_at" text,
+    "cancel_reason" text
   );`,
+];
+
+const COLUMN_MIGRATION_STATEMENTS = [
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "type_code" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "prepared_by" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "approved_by" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "approved_at" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "posted_by" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "reversed_by" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "reversed_at" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "reversal_reason" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "reversal_voucher_no" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "cancelled_by" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "cancelled_at" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "cancel_reason" text;`,
 ];
 
 /**
@@ -297,6 +324,15 @@ export async function autoMigrateAndSeed(): Promise<{ success: boolean; message:
         if (!tableErr.message?.includes('already exists')) {
           console.warn('Migration warning on DDL statement:', tableErr.message);
         }
+      }
+    }
+
+    // 2. Ensure non-breaking columns exist on existing tables
+    for (const alterSql of COLUMN_MIGRATION_STATEMENTS) {
+      try {
+        await client.query(alterSql);
+      } catch (colErr: any) {
+        // Ignore column errors
       }
     }
 

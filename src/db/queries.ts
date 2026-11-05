@@ -300,6 +300,7 @@ export async function dbGetVouchers(): Promise<VoucherDocument[]> {
       id: r.id,
       voucherNo: r.voucherNo,
       voucherType: r.voucherType as any,
+      typeCode: (r.typeCode as any) || undefined,
       date: r.date,
       referenceNo: r.referenceNo || '',
       narration: r.narration || '',
@@ -307,7 +308,18 @@ export async function dbGetVouchers(): Promise<VoucherDocument[]> {
       totalDebit: r.totalDebit,
       totalCredit: r.totalCredit,
       status: r.status as any,
+      preparedBy: r.preparedBy || undefined,
+      approvedBy: r.approvedBy || undefined,
+      approvedAt: r.approvedAt || undefined,
+      postedBy: r.postedBy || undefined,
       postedAt: r.postedAt || undefined,
+      reversedBy: r.reversedBy || undefined,
+      reversedAt: r.reversedAt || undefined,
+      reversalReason: r.reversalReason || undefined,
+      reversalVoucherNo: r.reversalVoucherNo || undefined,
+      cancelledBy: r.cancelledBy || undefined,
+      cancelledAt: r.cancelledAt || undefined,
+      cancelReason: r.cancelReason || undefined,
     }));
   } catch (error) {
     console.error('Failed to get vouchers from database:', error);
@@ -323,34 +335,68 @@ export async function dbSaveVoucher(voucher: VoucherDocument): Promise<VoucherDo
         id: voucher.id,
         voucherNo: voucher.voucherNo,
         voucherType: voucher.voucherType,
+        typeCode: voucher.typeCode || null,
         date: voucher.date,
-        referenceNo: voucher.referenceNo,
-        narration: voucher.narration,
+        referenceNo: voucher.referenceNo || null,
+        narration: voucher.narration || null,
         lines: voucher.lines,
         totalDebit: voucher.totalDebit,
         totalCredit: voucher.totalCredit,
         status: voucher.status,
-        postedAt: voucher.postedAt,
+        preparedBy: voucher.preparedBy || null,
+        approvedBy: voucher.approvedBy || null,
+        approvedAt: voucher.approvedAt || null,
+        postedBy: voucher.postedBy || null,
+        postedAt: voucher.postedAt || null,
+        reversedBy: voucher.reversedBy || null,
+        reversedAt: voucher.reversedAt || null,
+        reversalReason: voucher.reversalReason || null,
+        reversalVoucherNo: voucher.reversalVoucherNo || null,
+        cancelledBy: voucher.cancelledBy || null,
+        cancelledAt: voucher.cancelledAt || null,
+        cancelReason: voucher.cancelReason || null,
       })
       .onConflictDoUpdate({
         target: schema.vouchers.id,
         set: {
           voucherNo: voucher.voucherNo,
           voucherType: voucher.voucherType,
+          typeCode: voucher.typeCode || null,
           date: voucher.date,
-          referenceNo: voucher.referenceNo,
-          narration: voucher.narration,
+          referenceNo: voucher.referenceNo || null,
+          narration: voucher.narration || null,
           lines: voucher.lines,
           totalDebit: voucher.totalDebit,
           totalCredit: voucher.totalCredit,
           status: voucher.status,
-          postedAt: voucher.postedAt,
+          preparedBy: voucher.preparedBy || null,
+          approvedBy: voucher.approvedBy || null,
+          approvedAt: voucher.approvedAt || null,
+          postedBy: voucher.postedBy || null,
+          postedAt: voucher.postedAt || null,
+          reversedBy: voucher.reversedBy || null,
+          reversedAt: voucher.reversedAt || null,
+          reversalReason: voucher.reversalReason || null,
+          reversalVoucherNo: voucher.reversalVoucherNo || null,
+          cancelledBy: voucher.cancelledBy || null,
+          cancelledAt: voucher.cancelledAt || null,
+          cancelReason: voucher.cancelReason || null,
         },
       });
     return voucher;
   } catch (error) {
     console.error('Failed to save voucher in database:', error);
     throw new Error('Failed to save voucher', { cause: error });
+  }
+}
+
+export async function dbDeleteVoucher(id: string): Promise<boolean> {
+  try {
+    await db.delete(schema.vouchers).where(eq(schema.vouchers.id, id));
+    return true;
+  } catch (error) {
+    console.error('Failed to delete voucher in database:', error);
+    throw new Error('Failed to delete voucher', { cause: error });
   }
 }
 

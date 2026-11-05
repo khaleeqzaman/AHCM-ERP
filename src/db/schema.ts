@@ -74,6 +74,7 @@ export const vouchers = pgTable('vouchers', {
   id: text('id').primaryKey(),
   voucherNo: text('voucher_no').notNull(),
   voucherType: text('voucher_type').notNull(),
+  typeCode: text('type_code'),
   date: text('date').notNull(),
   referenceNo: text('reference_no'),
   narration: text('narration'),
@@ -81,7 +82,18 @@ export const vouchers = pgTable('vouchers', {
   totalDebit: doublePrecision('total_debit').notNull(),
   totalCredit: doublePrecision('total_credit').notNull(),
   status: text('status').notNull(),
+  preparedBy: text('prepared_by'),
+  approvedBy: text('approved_by'),
+  approvedAt: text('approved_at'),
+  postedBy: text('posted_by'),
   postedAt: text('posted_at'),
+  reversedBy: text('reversed_by'),
+  reversedAt: text('reversed_at'),
+  reversalReason: text('reversal_reason'),
+  reversalVoucherNo: text('reversal_voucher_no'),
+  cancelledBy: text('cancelled_by'),
+  cancelledAt: text('cancelled_at'),
+  cancelReason: text('cancel_reason'),
 });
 
 // 6. Treasury Cash Book Entries Table

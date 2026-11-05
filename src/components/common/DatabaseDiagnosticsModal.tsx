@@ -18,7 +18,10 @@ import {
   getDbApiDiagnosticLogs, 
   clearDbApiDiagnosticLogs, 
   subscribeDbApiDiagnostics, 
-  DiagnosticLogEntry 
+  DiagnosticLogEntry,
+  apiCheckDatabaseStatus,
+  apiRunHealthPing,
+  DatabaseStatusResponse
 } from '../../api/client';
 
 interface DatabaseDiagnosticsModalProps {
@@ -38,14 +41,52 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
   const [filter, setFilter] = useState<'all' | 'errors' | 'success'>('all');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [dbStatus, setDbStatus] = useState<DatabaseStatusResponse | null>(null);
+  const [serverOnline, setServerOnline] = useState<boolean | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+
+  const fetchLiveStatus = async () => {
+    try {
+      const [health, db] = await Promise.all([
+        apiRunHealthPing(),
+        apiCheckDatabaseStatus(),
+      ]);
+      setServerOnline(!!health && health.status === 'ok');
+      setDbStatus(db);
+    } catch {
+      setServerOnline(false);
+    }
+  };
 
   useEffect(() => {
-    setLogs(getDbApiDiagnosticLogs());
+    if (isOpen) {
+      setLogs(getDbApiDiagnosticLogs());
+      fetchLiveStatus();
+    }
     const unsubscribe = subscribeDbApiDiagnostics(() => {
       setLogs(getDbApiDiagnosticLogs());
     });
     return unsubscribe;
-  }, []);
+  }, [isOpen]);
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    await fetchLiveStatus();
+    await onRefreshDatabase();
+    setIsTesting(false);
+  };
+
+  const handleClearLogs = () => {
+    clearDbApiDiagnosticLogs();
+    setLogs([]);
+  };
+
+  const handleCopyLogs = () => {
+    const jsonStr = JSON.stringify(logs, null, 2);
+    navigator.clipboard.writeText(jsonStr);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (!isOpen) return null;
 
@@ -57,13 +98,6 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
 
   const successCount = logs.filter((l) => l.success).length;
   const errorCount = logs.filter((l) => !l.success).length;
-
-  const handleCopyLogs = () => {
-    const jsonStr = JSON.stringify(logs, null, 2);
-    navigator.clipboard.writeText(jsonStr);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
@@ -93,12 +127,12 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={onRefreshDatabase}
-              disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+              onClick={handleTestConnection}
+              disabled={isRefreshing || isTesting}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
-              <span>{isRefreshing ? 'Syncing...' : 'Sync DB'}</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${(isRefreshing || isTesting) ? 'animate-spin' : ''}`} />
+              <span>{isTesting ? 'Testing...' : 'Test Connection'}</span>
             </button>
             <button
               type="button"
@@ -107,6 +141,43 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
             >
               <X className="w-5 h-5" />
             </button>
+          </div>
+        </div>
+
+        {/* Live Connectivity Banner */}
+        <div className="bg-slate-900 text-white p-3.5 border-b border-slate-800 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400 font-sans text-[11px]">Backend API:</span>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                  serverOnline === true 
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : serverOnline === false
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    : 'bg-slate-800 text-slate-400'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${serverOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
+                  {serverOnline ? 'Online (HTTP 200)' : serverOnline === false ? 'Offline' : 'Checking...'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400 font-sans text-[11px]">Supabase DB:</span>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                  dbStatus?.connected
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${dbStatus?.connected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                  {dbStatus?.connected ? 'PostgreSQL Connected' : 'Checking connection...'}
+                </span>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-slate-400 font-sans">
+              Proxy Port: <span className="font-mono text-slate-200 font-bold">3000</span>
+            </div>
           </div>
         </div>
 
@@ -162,7 +233,7 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
             </button>
             <button
               type="button"
-              onClick={clearDbApiDiagnosticLogs}
+              onClick={handleClearLogs}
               disabled={logs.length === 0}
               className="inline-flex items-center gap-1 px-2.5 py-1 text-red-600 bg-red-50 hover:bg-red-100 rounded font-semibold cursor-pointer disabled:opacity-40"
             >
@@ -171,6 +242,22 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
             </button>
           </div>
         </div>
+
+        {/* Cold Start Explanation Notice if errors present */}
+        {errorCount > 0 && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-[11px] text-amber-800 flex items-center justify-between gap-2">
+            <span className="font-sans">
+              <strong>Notice:</strong> 404 errors with <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">sin1::...</code> occur when browser calls hit the URL before the server boots. Click <strong>Test Connection</strong> to verify live status or <strong>Clear</strong> to purge stale errors.
+            </span>
+            <button
+              type="button"
+              onClick={handleClearLogs}
+              className="shrink-0 font-bold underline hover:text-amber-950 cursor-pointer"
+            >
+              Purge Stale Errors
+            </button>
+          </div>
+        )}
 
         {/* Logs List Viewport */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs">

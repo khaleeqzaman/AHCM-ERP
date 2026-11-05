@@ -19,6 +19,7 @@ import {
   dbSaveChartAccount,
   dbGetVouchers,
   dbSaveVoucher,
+  dbDeleteVoucher,
   dbGetCashBookEntries,
   dbSaveCashBookEntry,
   dbDeleteCashBookEntry,
@@ -400,6 +401,15 @@ async function startServer() {
       res.json(saved);
     } catch (err) {
       handleError(res, err, 'Failed to save voucher');
+    }
+  });
+
+  app.delete('/api/accounting/vouchers/:id', async (req: Request, res: Response) => {
+    try {
+      await dbDeleteVoucher(req.params.id);
+      res.json({ success: true, id: req.params.id });
+    } catch (err) {
+      handleError(res, err, 'Failed to delete voucher');
     }
   });
 
