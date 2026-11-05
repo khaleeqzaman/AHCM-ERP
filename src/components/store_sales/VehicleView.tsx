@@ -13,7 +13,8 @@ import {
   Fuel,
   Droplet,
   Layers,
-  ArrowUpDown
+  ArrowUpDown,
+  X
 } from 'lucide-react';
 import { 
   VehicleRecord, 
@@ -66,6 +67,8 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
   const [vehicleNoInput, setVehicleNoInput] = useState('');
   const [driverNameInput, setDriverNameInput] = useState('');
   const [vehicleTypeInput, setVehicleTypeInput] = useState('Dump Truck (25 Ton)');
+  const [vehicleStatusInput, setVehicleStatusInput] = useState<'Active' | 'Under Maintenance'>('Active');
+  const [vehicleRosterSearch, setVehicleRosterSearch] = useState('');
 
   // Consumption form state
   const [editingConsumptionId, setEditingConsumptionId] = useState<string | null>(null);
@@ -144,26 +147,27 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
         id: editingVehicleId,
         vehicleNo: vehicleNoInput.trim().toUpperCase(),
         driverName: driverNameInput.trim() || 'Unassigned',
-        vehicleType: vehicleTypeInput.trim(),
-        status: 'Active',
+        vehicleType: vehicleTypeInput.trim() || 'Dump Truck (25 Ton)',
+        status: vehicleStatusInput,
       });
-      showNotice(`Vehicle ${vehicleNoInput.toUpperCase()} updated.`);
+      showNotice(`Vehicle ${vehicleNoInput.toUpperCase()} updated successfully.`);
     } else {
       const newV: VehicleRecord = {
         id: `v-${Date.now()}`,
         vehicleNo: vehicleNoInput.trim().toUpperCase(),
         driverName: driverNameInput.trim() || 'Unassigned',
-        vehicleType: vehicleTypeInput.trim(),
-        status: 'Active',
+        vehicleType: vehicleTypeInput.trim() || 'Dump Truck (25 Ton)',
+        status: vehicleStatusInput,
       };
       onAddVehicle(newV);
-      showNotice(`Vehicle ${newV.vehicleNo} added.`);
+      showNotice(`Vehicle ${newV.vehicleNo} added to fleet roster.`);
     }
 
     setIsVehicleFormOpen(false);
     setEditingVehicleId(null);
     setVehicleNoInput('');
     setDriverNameInput('');
+    setVehicleStatusInput('Active');
   };
 
   // Submit Consumption
@@ -288,6 +292,18 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
       return sortOrder === 'desc' ? tB - tA : tA - tB;
     });
   }, [consumptions, selectedVehicleId, searchTerm, dateFrom, dateTo, timeFilter, selectedMonth, sortOrder]);
+
+  const filteredVehicles = useMemo(() => {
+    if (!vehicleRosterSearch.trim()) return vehicles;
+    const q = vehicleRosterSearch.toLowerCase();
+    return vehicles.filter(
+      (v) =>
+        v.vehicleNo.toLowerCase().includes(q) ||
+        v.driverName.toLowerCase().includes(q) ||
+        v.vehicleType.toLowerCase().includes(q) ||
+        v.status.toLowerCase().includes(q)
+    );
+  }, [vehicles, vehicleRosterSearch]);
 
   // Column wise totals at the end of table
   const totalDiesel = filteredConsumptions.reduce((sum, c) => sum + (Number(c.diesel) || 0), 0);
@@ -440,89 +456,151 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
       {/* MANAGE VEHICLES VIEW */}
       {activeTab === 'manage_vehicles' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900">
-              Fleet & Heavy Machinery Roster
-            </h3>
-            <button
-              type="button"
-              onClick={() => {
-                setEditingVehicleId(null);
-                setVehicleNoInput('');
-                setDriverNameInput('');
-                setVehicleTypeInput('Dump Truck (25 Ton)');
-                setIsVehicleFormOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 rounded-lg hover:bg-teal-700 cursor-pointer shadow-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Vehicle</span>
-            </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <span>Fleet & Heavy Machinery Roster</span>
+                <span className="text-xs font-normal text-slate-500">
+                  ({filteredVehicles.length} of {vehicles.length} machinery)
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Register dump trucks, excavators, loaders, pickups, and site generators with assigned operators.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={vehicleRosterSearch}
+                  onChange={(e) => setVehicleRosterSearch(e.target.value)}
+                  placeholder="Search vehicle, driver, type..."
+                  className="pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-teal-600 focus:border-teal-600 w-52 shadow-2xs"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingVehicleId(null);
+                  setVehicleNoInput('');
+                  setDriverNameInput('');
+                  setVehicleTypeInput('Dump Truck (25 Ton)');
+                  setVehicleStatusInput('Active');
+                  setIsVehicleFormOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-teal-600 rounded-lg hover:bg-teal-700 cursor-pointer shadow-xs transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Vehicle</span>
+              </button>
+            </div>
           </div>
 
-          {/* Add Vehicle Inline Modal */}
+          {/* Add / Edit Vehicle Modal */}
           {isVehicleFormOpen && (
-            <div className="bg-slate-50 border border-teal-200 rounded-xl p-5 shadow-xs space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-teal-900">
-                {editingVehicleId ? 'Edit Vehicle Master' : 'Add Vehicle to Fleet'}
-              </h4>
-              <form onSubmit={handleSaveVehicleMaster} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Vehicle / Reg No. <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={vehicleNoInput}
-                    onChange={(e) => setVehicleNoInput(e.target.value)}
-                    placeholder="e.g. TK-8842"
-                    className="w-full text-xs font-mono uppercase px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Driver / Operator Name
-                  </label>
-                  <input
-                    type="text"
-                    value={driverNameInput}
-                    onChange={(e) => setDriverNameInput(e.target.value)}
-                    placeholder="e.g. Muhammad Gulzar"
-                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                    Vehicle / Machine Type
-                  </label>
-                  <input
-                    type="text"
-                    value={vehicleTypeInput}
-                    onChange={(e) => setVehicleTypeInput(e.target.value)}
-                    placeholder="Dump Truck, Loader, Excavator, Generator"
-                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white"
-                  />
-                </div>
-
-                <div className="sm:col-span-3 flex justify-end gap-2 pt-2 border-t border-slate-200">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center">
+                      <Truck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">
+                        {editingVehicleId ? 'Edit Vehicle Master' : 'Add Vehicle to Fleet'}
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        {editingVehicleId ? 'Update registration details, operator, or equipment status' : 'Register machinery or logistics transport into fleet roster'}
+                      </p>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setIsVehicleFormOpen(false)}
-                    className="px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-300 rounded-lg"
+                    className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/60 cursor-pointer"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-1.5 text-xs font-bold text-white bg-teal-600 rounded-lg"
-                  >
-                    Save Vehicle
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
-              </form>
+
+                <form onSubmit={handleSaveVehicleMaster} className="p-5 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Vehicle / Reg No. <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={vehicleNoInput}
+                        onChange={(e) => setVehicleNoInput(e.target.value)}
+                        placeholder="e.g. TK-8842, KBL-552"
+                        className="w-full text-xs font-mono uppercase px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-teal-600 focus:border-teal-600 shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Driver / Operator Name
+                      </label>
+                      <input
+                        type="text"
+                        value={driverNameInput}
+                        onChange={(e) => setDriverNameInput(e.target.value)}
+                        placeholder="e.g. Muhammad Gulzar"
+                        className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-teal-600 focus:border-teal-600 shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Vehicle / Machine Type
+                      </label>
+                      <input
+                        type="text"
+                        value={vehicleTypeInput}
+                        onChange={(e) => setVehicleTypeInput(e.target.value)}
+                        placeholder="Dump Truck, Loader, Excavator, Generator"
+                        className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-teal-600 focus:border-teal-600 shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Operational Status
+                      </label>
+                      <select
+                        value={vehicleStatusInput}
+                        onChange={(e) => setVehicleStatusInput(e.target.value as 'Active' | 'Under Maintenance')}
+                        className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg bg-white focus:outline-teal-600 focus:border-teal-600 shadow-2xs"
+                      >
+                        <option value="Active">Active (In Service)</option>
+                        <option value="Under Maintenance">Under Maintenance (Workshop)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setIsVehicleFormOpen(false)}
+                      className="px-3.5 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg cursor-pointer shadow-xs inline-flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{editingVehicleId ? 'Update Vehicle' : 'Save Vehicle'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
 
@@ -535,48 +613,93 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                   <th className="py-2.5 px-3">Vehicle Number</th>
                   <th className="py-2.5 px-3">Driver / Operator</th>
                   <th className="py-2.5 px-3">Type</th>
-                  <th className="py-2.5 px-3">Status</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                  <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-center min-w-[240px]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {vehicles.map((v, idx) => (
-                  <tr key={v.id} className="hover:bg-slate-50/70">
-                    <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{v.vehicleNo}</td>
-                    <td className="py-2.5 px-3 text-slate-700">{v.driverName}</td>
-                    <td className="py-2.5 px-3 text-slate-600">{v.vehicleType}</td>
-                    <td className="py-2.5 px-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">
-                        {v.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingVehicleId(v.id);
-                            setVehicleNoInput(v.vehicleNo);
-                            setDriverNameInput(v.driverName);
-                            setVehicleTypeInput(v.vehicleType);
-                            setIsVehicleFormOpen(true);
-                          }}
-                          className="p-1 text-slate-400 hover:text-teal-600 rounded cursor-pointer"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setVehicleToDelete(v)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                {filteredVehicles.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400">
+                      No vehicles found. Click &quot;Add Vehicle&quot; to register fleet machinery.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredVehicles.map((v, idx) => (
+                    <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{v.vehicleNo}</td>
+                      <td className="py-2.5 px-3 text-slate-700">{v.driverName}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{v.vehicleType}</td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                          v.status === 'Active'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                            : 'bg-amber-100 text-amber-800 border border-amber-200'
+                        }`}>
+                          {v.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <div className="inline-flex items-center gap-1.5 justify-center flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingVehicleId(null);
+                              setVehicleNoInput('');
+                              setDriverNameInput('');
+                              setVehicleTypeInput(v.vehicleType || 'Dump Truck (25 Ton)');
+                              setVehicleStatusInput('Active');
+                              setIsVehicleFormOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md cursor-pointer transition-colors shadow-2xs"
+                            title="Add New Vehicle"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingVehicleId(v.id);
+                              setVehicleNoInput(v.vehicleNo);
+                              setDriverNameInput(v.driverName);
+                              setVehicleTypeInput(v.vehicleType);
+                              setVehicleStatusInput(v.status || 'Active');
+                              setIsVehicleFormOpen(true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md cursor-pointer transition-colors shadow-2xs"
+                            title={`Edit Vehicle ${v.vehicleNo}`}
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setVehicleToDelete(v)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md cursor-pointer transition-colors shadow-2xs"
+                            title={`Delete Vehicle ${v.vehicleNo}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleOpenAddConsumption();
+                              setFormVehicleId(v.id);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md cursor-pointer transition-colors shadow-2xs"
+                            title={`Log Fuel / Lubricant Consumption for ${v.vehicleNo}`}
+                          >
+                            <Fuel className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Log Fuel</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -1038,22 +1161,36 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
                           {c.remarks || '—'}
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          <div className="inline-flex items-center gap-1">
+                          <div className="inline-flex items-center gap-1.5 justify-center flex-wrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleOpenAddConsumption();
+                                setFormVehicleId(c.vehicleId);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded cursor-pointer transition-colors shadow-2xs"
+                              title={`Add Consumption Entry for ${c.vehicleNo}`}
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Add</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => handleOpenEditConsumption(c)}
-                              className="p-1 text-slate-400 hover:text-teal-600 rounded cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded cursor-pointer transition-colors shadow-2xs"
                               title="Edit Entry"
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              <Edit2 className="w-3 h-3" />
+                              <span>Edit</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => setConsumptionToDelete(c)}
-                              className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded cursor-pointer transition-colors shadow-2xs"
                               title="Delete Entry"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-3 h-3" />
+                              <span>Delete</span>
                             </button>
                           </div>
                         </td>
