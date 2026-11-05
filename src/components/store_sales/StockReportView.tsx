@@ -11,7 +11,11 @@ import {
   Layers,
   ArrowUpDown,
   Filter,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Boxes,
+  X,
+  Tag,
+  Check
 } from 'lucide-react';
 import { StockItem, StockEntry } from '../../types/storeSales';
 import { DatePickerInput } from '../common/DatePickerInput';
@@ -20,6 +24,8 @@ interface StockReportViewProps {
   stockItems: StockItem[];
   stockEntries: StockEntry[];
   onAddItem: (item: StockItem) => void;
+  onUpdateItem?: (item: StockItem) => void;
+  onDeleteItem?: (id: string) => void;
   onAddStockEntry: (entry: StockEntry) => void;
   onUpdateStockEntry: (entry: StockEntry) => void;
   onDeleteStockEntry: (id: string) => void;
@@ -29,11 +35,13 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
   stockItems,
   stockEntries,
   onAddItem,
+  onUpdateItem,
+  onDeleteItem,
   onAddStockEntry,
   onUpdateStockEntry,
   onDeleteStockEntry,
 }) => {
-  const [activeTab, setActiveTab] = useState<'view_stock' | 'add_stock' | 'add_item'>('view_stock');
+  const [activeTab, setActiveTab] = useState<'view_stock' | 'add_stock' | 'add_item' | 'view_items'>('view_stock');
   const [selectedItemId, setSelectedItemId] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [timeFilter, setTimeFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
@@ -41,6 +49,18 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
   const [dateTo, setDateTo] = useState('');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Items Management View State (View Items tab)
+  const [itemsSearchTerm, setItemsSearchTerm] = useState('');
+  const [itemsCategoryFilter, setItemsCategoryFilter] = useState('all');
+  const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null);
+
+  // Edit item form state
+  const [editItemName, setEditItemName] = useState('');
+  const [editItemCode, setEditItemCode] = useState('');
+  const [editItemCategory, setEditItemCategory] = useState('');
+  const [editItemUnit, setEditItemUnit] = useState('Tons');
 
   // Editing state
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
@@ -132,8 +152,75 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
     setNewItemName('');
     setNewItemCode('');
     setNewItemCategory('');
-    setActiveTab('view_stock');
+    setActiveTab('view_items');
   };
+
+  const handleOpenEditItem = (item: StockItem) => {
+    setEditingItem(item);
+    setEditItemName(item.itemName);
+    setEditItemCode(item.itemCode);
+    setEditItemCategory(item.category || '');
+    setEditItemUnit(item.unit || 'Tons');
+  };
+
+  const handleSaveEditItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    if (!editItemName.trim() || !editItemCode.trim()) {
+      alert('Item Name and Item Code are required.');
+      return;
+    }
+
+    const updated: StockItem = {
+      ...editingItem,
+      itemName: editItemName.trim(),
+      itemCode: editItemCode.trim().toUpperCase(),
+      category: editItemCategory.trim() || 'General Store',
+      unit: editItemUnit.trim() || 'Units',
+    };
+
+    if (onUpdateItem) {
+      onUpdateItem(updated);
+    }
+    showNotice(`Item "${updated.itemName} (${updated.itemCode})" updated successfully.`);
+    setEditingItem(null);
+  };
+
+  const handleConfirmDeleteItem = () => {
+    if (itemToDelete) {
+      if (onDeleteItem) {
+        onDeleteItem(itemToDelete.id);
+      }
+      showNotice(`Item "${itemToDelete.itemName}" deleted successfully.`);
+      setItemToDelete(null);
+    }
+  };
+
+  // Filtered master stock items for "View Items" tab
+  const filteredItems = useMemo(() => {
+    return stockItems.filter((item) => {
+      const term = itemsSearchTerm.toLowerCase();
+      const matchesSearch =
+        !itemsSearchTerm ||
+        item.itemName.toLowerCase().includes(term) ||
+        item.itemCode.toLowerCase().includes(term) ||
+        (item.category || '').toLowerCase().includes(term) ||
+        item.unit.toLowerCase().includes(term);
+
+      const matchesCategory =
+        itemsCategoryFilter === 'all' || item.category === itemsCategoryFilter;
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [stockItems, itemsSearchTerm, itemsCategoryFilter]);
+
+  const distinctCategories = useMemo(() => {
+    const cats = new Set<string>();
+    stockItems.forEach((i) => {
+      if (i.category) cats.add(i.category);
+    });
+    return Array.from(cats);
+  }, [stockItems]);
 
   // Submit Add / Edit Stock Form
   const handleStockSubmit = (e: React.FormEvent) => {
@@ -359,6 +446,26 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
 
           <button
             type="button"
+            onClick={() => setActiveTab('view_items')}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+              activeTab === 'view_items'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Boxes className="w-3.5 h-3.5" />
+            <span>View Items</span>
+            <span
+              className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
+                activeTab === 'view_items' ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {stockItems.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('add_item')}
             className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'add_item'
@@ -456,7 +563,7 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
             <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setActiveTab('view_stock')}
+                onClick={() => setActiveTab('view_items')}
                 className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
               >
                 Cancel
@@ -469,6 +576,170 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* VIEW ITEMS (STORE MASTER ITEMS CATALOG & MANAGEMENT) */}
+      {activeTab === 'view_items' && (
+        <div className="space-y-4">
+          {/* Header Controls: Search, Category Filter, and Add Item Button */}
+          <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Boxes className="w-4 h-4 text-amber-600" />
+                  <span>Store Inventory Master Items</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-800">
+                    {stockItems.length} Master Items
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Master catalog for commodity codes, categories, units of measurement, and associated stock register entries.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('add_item')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs self-start sm:self-auto cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add New Item</span>
+              </button>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search item code, name, category, unit..."
+                  value={itemsSearchTerm}
+                  onChange={(e) => setItemsSearchTerm(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500 focus:bg-white text-slate-900"
+                />
+              </div>
+
+              {/* Category Filter */}
+              <div className="flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5 text-slate-400" />
+                <select
+                  value={itemsCategoryFilter}
+                  onChange={(e) => setItemsCategoryFilter(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-medium text-slate-700"
+                >
+                  <option value="all">All Categories ({stockItems.length})</option>
+                  {distinctCategories.map((c) => (
+                    <option key={c} value={c}>
+                      {c} ({stockItems.filter((i) => i.category === c).length})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {(itemsSearchTerm || itemsCategoryFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setItemsSearchTerm('');
+                    setItemsCategoryFilter('all');
+                  }}
+                  className="px-2.5 py-1.5 text-xs text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors cursor-pointer"
+                >
+                  Reset Filters
+                </button>
+              )}
+
+              <div className="text-xs text-slate-500 ml-auto hidden sm:block">
+                Showing <strong>{filteredItems.length}</strong> of {stockItems.length} items
+              </div>
+            </div>
+          </div>
+
+          {/* Items Table */}
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                    <th className="py-3 px-3 w-14 text-center">Sr.</th>
+                    <th className="py-3 px-4 w-40 font-mono">Item Code</th>
+                    <th className="py-3 px-4">Item Name</th>
+                    <th className="py-3 px-4 w-48">Category</th>
+                    <th className="py-3 px-3 w-32 text-center">Unit</th>
+                    <th className="py-3 px-3 w-36 text-center">Stock Entries</th>
+                    <th className="py-3 px-3 w-28 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-500">
+                        No inventory items found matching your filters. Click "Add New Item" to create one.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredItems.map((item, index) => {
+                      const associatedCount = stockEntries.filter((e) => e.itemId === item.id).length;
+                      return (
+                        <tr key={item.id} className="hover:bg-amber-50/20 transition-colors">
+                          <td className="py-3 px-3 text-center font-mono text-slate-500 font-medium">
+                            {index + 1}
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-blue-700 whitespace-nowrap">
+                            {item.itemCode}
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-slate-900">
+                            {item.itemName}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                              {item.category || 'General Store'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center font-medium text-slate-700">
+                            {item.unit}
+                          </td>
+                          <td className="py-3 px-3 text-center font-mono text-slate-600">
+                            {associatedCount > 0 ? (
+                              <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                {associatedCount} records
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">0 records</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-center whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditItem(item)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-50 border border-blue-200 rounded transition-colors cursor-pointer"
+                                title="Edit item details"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setItemToDelete(item)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 rounded transition-colors cursor-pointer"
+                                title="Delete item"
+                              >
+                                <Trash2 className="w-3 h-3 text-rose-600" />
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -982,6 +1253,154 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
                 className="px-3.5 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-xs cursor-pointer"
               >
                 Delete Stock Entry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT ITEM MODAL */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Boxes className="w-5 h-5 text-amber-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  Edit Store Item: {editingItem.itemCode}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditItem} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Item Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editItemName}
+                  onChange={(e) => setEditItemName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-slate-900 font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Item Code <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editItemCode}
+                    onChange={(e) => setEditItemCode(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 font-mono uppercase text-slate-900 font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Unit of Measurement <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editItemUnit}
+                    onChange={(e) => setEditItemUnit(e.target.value)}
+                    placeholder="Tons, Litres, Bags, Pieces, Units"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Category
+                </label>
+                <input
+                  type="text"
+                  value={editItemCategory}
+                  onChange={(e) => setEditItemCategory(e.target.value)}
+                  placeholder="Coal Products, Fuel & Lubricants, Mining Consumables, Rigging..."
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 text-slate-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors shadow-xs cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Save Item Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ITEM CONFIRMATION MODAL */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden p-6 space-y-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  Delete Inventory Item?
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  Are you sure you want to permanently delete item <strong className="text-slate-900">{itemToDelete.itemName}</strong> (<span className="font-mono font-bold text-slate-800">{itemToDelete.itemCode}</span>)?
+                </p>
+              </div>
+            </div>
+
+            {stockEntries.some((e) => e.itemId === itemToDelete.id) && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 space-y-1">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-600 inline-block" />
+                  Associated Stock Records Notice:
+                </p>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  This item has {stockEntries.filter((e) => e.itemId === itemToDelete.id).length} recorded stock transactions in the register. Deleting this master definition will remove it from dropdown lists.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer border border-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteItem}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Yes, Delete Item</span>
               </button>
             </div>
           </div>

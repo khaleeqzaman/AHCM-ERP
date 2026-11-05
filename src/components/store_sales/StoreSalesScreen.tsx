@@ -68,6 +68,8 @@ interface StoreSalesScreenProps {
   onDeleteBuyer: (id: string) => void;
 
   onAddStockItem: (item: StockItem) => void;
+  onUpdateStockItem?: (item: StockItem) => void;
+  onDeleteStockItem?: (id: string) => void;
   onAddStockEntry: (entry: StockEntry) => void;
   onUpdateStockEntry: (entry: StockEntry) => void;
   onDeleteStockEntry: (id: string) => void;
@@ -107,6 +109,8 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   onUpdateBuyer,
   onDeleteBuyer,
   onAddStockItem,
+  onUpdateStockItem,
+  onDeleteStockItem,
   onAddStockEntry,
   onUpdateStockEntry,
   onDeleteStockEntry,
@@ -323,6 +327,8 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             stockItems={stockItems}
             stockEntries={stockEntries}
             onAddItem={onAddStockItem}
+            onUpdateItem={onUpdateStockItem}
+            onDeleteItem={onDeleteStockItem}
             onAddStockEntry={onAddStockEntry}
             onUpdateStockEntry={onUpdateStockEntry}
             onDeleteStockEntry={onDeleteStockEntry}

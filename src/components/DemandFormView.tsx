@@ -103,15 +103,20 @@ export const DemandFormView: React.FC<DemandFormViewProps> = ({
   };
 
   const handleAddRow = () => {
+    const nextIdx = items.length;
     const newRow: DemandItem = {
-      id: `item-${Date.now()}-${items.length + 1}`,
-      srNo: items.length + 1,
+      id: `item-${Date.now()}-${nextIdx + 1}`,
+      srNo: nextIdx + 1,
       itemName: '',
       quantity: 1,
       rate: 0,
       amount: 0,
     };
-    setItems([...items, newRow]);
+    setItems((prev) => [...prev, newRow]);
+    setTimeout(() => {
+      const nextInput = document.getElementById(`demand-item-name-${nextIdx}`);
+      if (nextInput) (nextInput as HTMLElement).focus();
+    }, 50);
   };
 
   const handleDeleteRow = (index: number) => {
@@ -362,6 +367,7 @@ export const DemandFormView: React.FC<DemandFormViewProps> = ({
                   </td>
                   <td className="py-2 px-3">
                     <input
+                      id={`demand-item-name-${idx}`}
                       type="text"
                       required
                       placeholder="Enter item name or specification..."
@@ -387,6 +393,12 @@ export const DemandFormView: React.FC<DemandFormViewProps> = ({
                       step="1"
                       value={item.rate === 0 ? '' : Math.round(item.rate)}
                       onChange={(e) => handleItemChange(idx, 'rate', e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Tab' && !e.shiftKey && idx === items.length - 1) {
+                          e.preventDefault();
+                          handleAddRow();
+                        }
+                      }}
                       className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white text-slate-900 text-right font-mono tabular-nums"
                     />
                   </td>

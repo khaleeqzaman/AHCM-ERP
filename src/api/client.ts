@@ -681,6 +681,21 @@ export async function apiSaveStockItem(item: StockItem): Promise<StockItem | nul
   }
 }
 
+export async function apiDeleteStockItem(id: string): Promise<boolean> {
+  try {
+    const res = await diagnosticRequest<{ success: boolean }>(
+      'apiDeleteStockItem',
+      `/api/store-sales/stock-items/${encodeURIComponent(id)}`,
+      'DELETE',
+      { id }
+    );
+    return !!res?.success;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiDeleteStockItem:', err);
+    return false;
+  }
+}
+
 export async function apiSaveStockEntry(entry: StockEntry): Promise<StockEntry | null> {
   try {
     return await diagnosticRequest<StockEntry>(

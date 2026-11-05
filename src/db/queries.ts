@@ -873,6 +873,16 @@ export async function dbSaveStockItem(it: StockItem): Promise<StockItem> {
   }
 }
 
+export async function dbDeleteStockItem(id: string): Promise<boolean> {
+  try {
+    await db.delete(schema.stockItems).where(eq(schema.stockItems.id, id));
+    return true;
+  } catch (error) {
+    console.error('Failed to delete stock item:', error);
+    throw new Error('Failed to delete stock item', { cause: error });
+  }
+}
+
 export async function dbGetStockEntries(): Promise<StockEntry[]> {
   try {
     const rows = await db.select().from(schema.stockEntries);

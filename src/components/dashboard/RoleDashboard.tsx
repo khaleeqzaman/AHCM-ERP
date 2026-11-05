@@ -28,13 +28,15 @@ import {
   PackageCheck,
   Layers,
   Wrench,
-  BarChart2
+  BarChart2,
+  CreditCard
 } from 'lucide-react';
 import { User } from '../../types/user';
 import { NavModule, DemandDocument, PurchaseDocument } from '../../types';
 import { ChartAccount, VoucherDocument } from '../../types/accounting';
 import { CashBookEntry, CreditBookEntry, BankRecord, BankAccountRecord } from '../../types/treasury';
 import { PosCoalSellEntry, StockItem, StockEntry, VehicleRecord, VehicleConsumptionRecord } from '../../types/storeSales';
+import { formatWholeNumber } from '../../utils/formatters';
 
 interface RoleDashboardProps {
   currentUser: User;
@@ -370,8 +372,8 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
           </div>
         </div>
 
-        {/* 4 Pillars Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 5 Pillars Summary (Including Total Bank Balance) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
               <span className="text-xs font-medium">Pending Approvals</span>
@@ -385,6 +387,77 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
             </div>
           </div>
 
+          {/* Pillar 2: Total Bank Balance */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-medium">Total Bank Balance</span>
+                <Landmark className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="text-2xl font-bold font-mono text-blue-700">
+                PKR {formatWholeNumber(totalBankBalances)}
+              </div>
+            </div>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span className="text-slate-500 truncate">
+                {bankAccounts.length} Accounts ({banks.length} Banks)
+              </span>
+              <button
+                type="button"
+                onClick={() => onNavigate('treasury')}
+                className="font-semibold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer shrink-0 ml-1"
+              >
+                View →
+              </button>
+            </div>
+          </div>
+
+          {/* Pillar 3: Treasury Cash in Hand */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between text-slate-500 mb-2">
+                <span className="text-xs font-medium">Treasury Cash in Hand</span>
+                <Vault className="w-4 h-4 text-amber-600" />
+              </div>
+              <div className="text-2xl font-bold font-mono text-amber-700">
+                PKR {formatWholeNumber(netCashInHand)}
+              </div>
+            </div>
+
+            {/* Inflow & Outflow Display */}
+            <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+              <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50/80 border border-emerald-100 rounded-lg px-2 py-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase font-semibold text-emerald-600 leading-tight">Inflow</div>
+                  <div className="font-mono font-bold truncate">PKR {formatWholeNumber(cashInflow)}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-rose-700 bg-rose-50/80 border border-rose-100 rounded-lg px-2 py-1.5">
+                <TrendingDown className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase font-semibold text-rose-600 leading-tight">Outflow</div>
+                  <div className="font-mono font-bold truncate">PKR {formatWholeNumber(cashOutflow)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Pillar 4: Store POS Sales */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+            <div className="flex items-center justify-between text-slate-500 mb-2">
+              <span className="text-xs font-medium">Store POS Sales</span>
+              <Boxes className="w-4 h-4 text-cyan-600" />
+            </div>
+            <div className="text-2xl font-bold font-mono text-cyan-700">
+              PKR {formatWholeNumber(totalPosRevenue)}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              {totalCoalTonsSold.toFixed(1)} MT Dispatched ({posEntries.length} Invoices)
+            </div>
+          </div>
+
+          {/* Pillar 5: System Users */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
               <span className="text-xs font-medium">System Users</span>
@@ -395,49 +468,6 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
             </div>
             <div className="text-[11px] text-emerald-600 mt-1 font-medium">
               {users.filter(u => u.status === 'active').length} Active across 5 roles
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-xs font-medium">Treasury Cash in Hand</span>
-                <Vault className="w-4 h-4 text-amber-600" />
-              </div>
-              <div className="text-2xl font-bold font-mono text-amber-700">
-                PKR {netCashInHand.toLocaleString()}
-              </div>
-            </div>
-
-            {/* Inflow & Outflow Display */}
-            <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
-              <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50/80 border border-emerald-100 rounded-lg px-2 py-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-[10px] uppercase font-semibold text-emerald-600 leading-tight">Inflow</div>
-                  <div className="font-mono font-bold truncate">PKR {cashInflow.toLocaleString()}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 text-rose-700 bg-rose-50/80 border border-rose-100 rounded-lg px-2 py-1.5">
-                <TrendingDown className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-[10px] uppercase font-semibold text-rose-600 leading-tight">Outflow</div>
-                  <div className="font-mono font-bold truncate">PKR {cashOutflow.toLocaleString()}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">Store POS Sales</span>
-              <Boxes className="w-4 h-4 text-cyan-600" />
-            </div>
-            <div className="text-2xl font-bold font-mono text-cyan-700">
-              PKR {totalPosRevenue.toLocaleString()}
-            </div>
-            <div className="text-[11px] text-slate-500 mt-1">
-              {totalCoalTonsSold.toFixed(1)} MT Dispatched ({posEntries.length} Invoices)
             </div>
           </div>
         </div>
@@ -463,7 +493,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                 <div key={d.id} className="bg-white p-3 rounded-lg border border-purple-200 text-xs">
                   <div className="flex justify-between font-semibold text-slate-900">
                     <span>Demand #{d.referenceNo}</span>
-                    <span className="font-mono text-purple-700">PKR {d.totalAmount.toLocaleString()}</span>
+                    <span className="font-mono text-purple-700">PKR {formatWholeNumber(d.totalAmount)}</span>
                   </div>
                   <div className="text-slate-500 text-[11px] mt-0.5">{d.demandType} · {d.category} · {d.date}</div>
                 </div>
@@ -472,7 +502,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                 <div key={p.id} className="bg-white p-3 rounded-lg border border-purple-200 text-xs">
                   <div className="flex justify-between font-semibold text-slate-900">
                     <span>Purchase Summary #{p.reference}</span>
-                    <span className="font-mono text-purple-700">PKR {p.totalAmount.toLocaleString()}</span>
+                    <span className="font-mono text-purple-700">PKR {formatWholeNumber(p.totalAmount)}</span>
                   </div>
                   <div className="text-slate-500 text-[11px] mt-0.5">{p.paymentType} · {p.date} · {p.items.length} items</div>
                 </div>
@@ -487,7 +517,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
         )}
 
         {/* Department Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white border border-slate-200 rounded-xl p-4">
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
               <span>Procurement & Purchases</span>
@@ -496,11 +526,32 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
             <div className="space-y-1 text-xs text-slate-600">
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span>Total Demands:</span>
-                <span className="font-mono font-bold text-slate-900">{demands.length} (PKR {totalDemandAmount.toLocaleString()})</span>
+                <span className="font-mono font-bold text-slate-900">{demands.length} (PKR {formatWholeNumber(totalDemandAmount)})</span>
               </div>
               <div className="flex justify-between py-1">
                 <span>Total Purchases:</span>
-                <span className="font-mono font-bold text-slate-900">{purchases.length} (PKR {totalPurchaseAmount.toLocaleString()})</span>
+                <span className="font-mono font-bold text-slate-900">{purchases.length} (PKR {formatWholeNumber(totalPurchaseAmount)})</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span>Treasury & Bank Liquidity</span>
+              <Landmark className="w-4 h-4 text-blue-600" />
+            </h4>
+            <div className="space-y-1 text-xs text-slate-600">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span>Total Bank Balance:</span>
+                <span className="font-mono font-bold text-blue-700">PKR {formatWholeNumber(totalBankBalances)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span>Physical Cash in Hand:</span>
+                <span className="font-mono font-bold text-amber-700">PKR {formatWholeNumber(netCashInHand)}</span>
+              </div>
+              <div className="flex justify-between py-1 font-semibold">
+                <span className="text-slate-800">Total Liquid Reserves:</span>
+                <span className="font-mono font-bold text-emerald-700">PKR {formatWholeNumber(totalBankBalances + netCashInHand)}</span>
               </div>
             </div>
           </div>
@@ -517,7 +568,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
               </div>
               <div className="flex justify-between py-1">
                 <span>Vouchers Posted:</span>
-                <span className="font-mono font-bold text-slate-900">{vouchers.length} (Turnover: {totalTurnover.toLocaleString()})</span>
+                <span className="font-mono font-bold text-slate-900">{vouchers.length} (PKR {formatWholeNumber(totalTurnover)})</span>
               </div>
             </div>
           </div>
@@ -537,6 +588,83 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                 <span className="font-mono font-bold text-slate-900">{vehicles.length} Active Vehicles</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Executive Active Bank Accounts & Liquidity Breakdown */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-blue-50 text-blue-700">
+                <Landmark className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                  Executive Banking Reserves & Account Balances
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Real-time multi-account bank balances across all enterprise financial institutions
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="px-3.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-900 flex items-center gap-2">
+                <span className="text-slate-500 font-normal">Total Bank Balance:</span>
+                <span className="font-mono font-bold text-sm text-blue-700">
+                  PKR {formatWholeNumber(totalBankBalances)}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('treasury')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+              >
+                <span>Treasury Module</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {bankAccounts.length === 0 ? (
+              <div className="col-span-full py-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                No bank accounts registered. Configure bank accounts in the Treasury module.
+              </div>
+            ) : (
+              bankAccounts.map((b) => {
+                const bal = getAccountBalance(b);
+                return (
+                  <div
+                    key={b.id}
+                    className="p-3.5 rounded-xl bg-slate-50 hover:bg-blue-50/40 border border-slate-200 hover:border-blue-200 transition-all text-xs flex flex-col justify-between space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 truncate flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span className="truncate">{b.bankName}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-mono truncate mt-0.5">
+                          {b.accountNumber} ({b.accountTitle})
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 shrink-0">
+                        {b.transactions?.length || 0} Txns
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/70 flex items-baseline justify-between">
+                      <span className="text-[11px] text-slate-500 font-medium">Account Balance:</span>
+                      <span className={`font-mono font-bold text-sm ${bal >= 0 ? 'text-blue-700' : 'text-rose-600'}`}>
+                        PKR {formatWholeNumber(bal)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

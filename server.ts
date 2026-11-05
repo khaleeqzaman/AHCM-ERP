@@ -46,6 +46,7 @@ import {
   dbDeletePartner,
   dbGetStockItems,
   dbSaveStockItem,
+  dbDeleteStockItem,
   dbGetStockEntries,
   dbSaveStockEntry,
   dbDeleteStockEntry,
@@ -666,6 +667,15 @@ async function startServer() {
       res.json(saved);
     } catch (err) {
       handleError(res, err, 'Failed to save stock item');
+    }
+  });
+
+  app.delete('/api/store-sales/stock-items/:id', async (req: Request, res: Response) => {
+    try {
+      await dbDeleteStockItem(req.params.id);
+      res.json({ success: true });
+    } catch (err) {
+      handleError(res, err, 'Failed to delete stock item');
     }
   });
 

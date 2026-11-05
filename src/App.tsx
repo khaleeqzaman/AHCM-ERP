@@ -98,6 +98,7 @@ import {
   apiSaveCoalSellRecord,
   apiDeleteCoalSellRecord,
   apiSaveStockItem,
+  apiDeleteStockItem,
   apiSaveStockEntry,
   apiDeleteStockEntry,
   apiSaveVehicle,
@@ -1289,6 +1290,24 @@ export default function App() {
     apiSaveStockItem(item);
   };
 
+  const handleUpdateStockItem = (item: StockItem) => {
+    setStockItems((prev) => {
+      const next = prev.map((i) => (i.id === item.id ? item : i));
+      saveCache('stock_items', next);
+      return next;
+    });
+    apiSaveStockItem(item);
+  };
+
+  const handleDeleteStockItem = (id: string) => {
+    setStockItems((prev) => {
+      const next = prev.filter((i) => i.id !== id);
+      saveCache('stock_items', next);
+      return next;
+    });
+    apiDeleteStockItem(id);
+  };
+
   const handleAddStockEntry = (entry: StockEntry) => {
     setStockEntries((prev) => {
       const next = [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 }));
@@ -1682,6 +1701,8 @@ export default function App() {
               onUpdateBuyer={handleUpdateBuyer}
               onDeleteBuyer={handleDeleteBuyer}
               onAddStockItem={handleAddStockItem}
+              onUpdateStockItem={handleUpdateStockItem}
+              onDeleteStockItem={handleDeleteStockItem}
               onAddStockEntry={handleAddStockEntry}
               onUpdateStockEntry={handleUpdateStockEntry}
               onDeleteStockEntry={handleDeleteStockEntry}

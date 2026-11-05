@@ -92,16 +92,21 @@ export const PurchaseFormView: React.FC<PurchaseFormViewProps> = ({
   };
 
   const handleAddRow = () => {
+    const nextIdx = items.length;
     const newRow: PurchaseSummaryItem = {
-      id: `p-item-${Date.now()}-${items.length + 1}`,
-      srNo: items.length + 1,
+      id: `p-item-${Date.now()}-${nextIdx + 1}`,
+      srNo: nextIdx + 1,
       companyName: '',
       itemName: '',
       quantity: 1,
       amount: 0,
       remarks: '',
     };
-    setItems([...items, newRow]);
+    setItems((prev) => [...prev, newRow]);
+    setTimeout(() => {
+      const nextInput = document.getElementById(`purchase-item-name-${nextIdx}`);
+      if (nextInput) (nextInput as HTMLElement).focus();
+    }, 50);
   };
 
   const handleDeleteRow = (index: number) => {
@@ -344,6 +349,7 @@ export const PurchaseFormView: React.FC<PurchaseFormViewProps> = ({
                   </td>
                   <td className="py-2 px-3">
                     <input
+                      id={`purchase-item-name-${idx}`}
                       type="text"
                       required
                       placeholder="Item description or parts..."
@@ -379,6 +385,12 @@ export const PurchaseFormView: React.FC<PurchaseFormViewProps> = ({
                       placeholder="Remarks, invoice details..."
                       value={item.remarks}
                       onChange={(e) => handleItemChange(idx, 'remarks', e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Tab' && !e.shiftKey && idx === items.length - 1) {
+                          e.preventDefault();
+                          handleAddRow();
+                        }
+                      }}
                       className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white text-slate-900"
                     />
                   </td>

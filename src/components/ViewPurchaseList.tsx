@@ -18,7 +18,11 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  RotateCcw
+  RotateCcw,
+  Printer,
+  Calendar,
+  Building2,
+  X
 } from 'lucide-react';
 import { PurchaseDocument, PurchaseSummaryItem, DocumentStatus, PaymentType } from '../types';
 import { formatWholeNumber } from '../utils/formatters';
@@ -52,9 +56,13 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [paymentTypeFilter, setPaymentTypeFilter] = useState<string>('All');
-  const [sortField, setSortField] = useState<PurchaseSortField>('none');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [sortField, setSortField] = useState<PurchaseSortField>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [notification, setNotification] = useState<string | null>(null);
+  const [isPrintReportOpen, setIsPrintReportOpen] = useState(false);
+  const [printingPurchase, setPrintingPurchase] = useState<PurchaseDocument | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -98,14 +106,19 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
     searchTerm !== '' ||
     statusFilter !== 'All' ||
     paymentTypeFilter !== 'All' ||
-    sortField !== 'none';
+    startDate !== '' ||
+    endDate !== '' ||
+    sortField !== 'date' ||
+    sortOrder !== 'desc';
 
   const handleClearFilters = () => {
     setSearchTerm('');
     setStatusFilter('All');
     setPaymentTypeFilter('All');
-    setSortField('none');
-    setSortOrder('asc');
+    setStartDate('');
+    setEndDate('');
+    setSortField('date');
+    setSortOrder('desc');
   };
 
   // Filtered & Sorted Purchases
@@ -122,7 +135,13 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
           );
         const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
         const matchesPaymentType = paymentTypeFilter === 'All' || p.paymentType === paymentTypeFilter;
-        return matchesSearch && matchesStatus && matchesPaymentType;
+        
+        // Date range filter
+        const purchaseDate = new Date(p.date).getTime();
+        const matchesStart = !startDate || purchaseDate >= new Date(startDate).getTime();
+        const matchesEnd = !endDate || purchaseDate <= new Date(endDate).getTime();
+
+        return matchesSearch && matchesStatus && matchesPaymentType && matchesStart && matchesEnd;
       })
       .sort((a, b) => {
         if (sortField === 'paymentType') {
@@ -143,7 +162,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
         }
         return 0;
       });
-  }, [purchases, searchTerm, statusFilter, paymentTypeFilter, sortField, sortOrder]);
+  }, [purchases, searchTerm, statusFilter, paymentTypeFilter, startDate, endDate, sortField, sortOrder]);
 
   const finalizedPurchases = filteredPurchases.filter((p) => p.status === 'Finalized');
 
@@ -235,14 +254,26 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onNavigateToCreate}
-          className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs self-start sm:self-auto cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>New Purchase Form</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setIsPrintReportOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors shadow-xs cursor-pointer"
+            title="Print purchase summaries report"
+          >
+            <Printer className="w-3.5 h-3.5 text-blue-600" />
+            <span>Print Report</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onNavigateToCreate}
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Purchase Form</span>
+          </button>
+        </div>
       </div>
 
       {/* Notifications */}
@@ -257,7 +288,7 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
       <div className="bg-white p-3.5 border border-slate-200 rounded-xl shadow-xs space-y-3">
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Search Input */}
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -266,6 +297,40 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900"
             />
+          </div>
+
+          {/* Date Range Sorting / Filtering ("From Date" to "To Date") */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg">
+            <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">From:</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-1.5 py-0.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              title="Filter from this date"
+            />
+            <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">To:</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-1.5 py-0.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+              title="Filter to this date"
+            />
+            {(startDate || endDate) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="text-[10px] text-slate-400 hover:text-rose-600 p-0.5 rounded cursor-pointer"
+                title="Clear date range"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
           {/* Quick Payment Type Filter Tabs / Pills: Cash & Cheque */}
@@ -670,6 +735,17 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                               </span>
                             )}
 
+                            {/* Print Individual Purchase Summary */}
+                            <button
+                              type="button"
+                              onClick={() => setPrintingPurchase(purchase)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-slate-700 hover:text-blue-700 hover:bg-slate-100 border border-slate-200 rounded transition-colors cursor-pointer"
+                              title="Print purchase slip"
+                            >
+                              <Printer className="w-3 h-3 text-slate-500" />
+                              <span>Print</span>
+                            </button>
+
                             {/* Delete Option */}
                             <button
                               type="button"
@@ -961,6 +1037,278 @@ export const ViewPurchaseList: React.FC<ViewPurchaseListProps> = ({
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Yes, Delete Purchase</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRINT MODAL 1: PURCHASES REGISTER REPORT (Date Range Filtered) */}
+      {isPrintReportOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full p-6 space-y-6 shadow-2xl border border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto">
+            {/* Modal Controls */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  Print Purchase Summaries Report
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Document</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPrintReportOpen(false)}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Formal Report Layout */}
+            <div className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900">
+              <div className="text-center pb-3 border-b border-slate-800">
+                <h2 className="text-lg font-extrabold uppercase tracking-wider text-slate-950">
+                  AL-HAMD COAL MINES & METALS (PVT) LTD.
+                </h2>
+                <p className="text-xs font-medium text-slate-600">
+                  Head Office & Mining Sites: Quetta / Balochistan, Pakistan · Finance & Procurement Audit
+                </p>
+                <div className="mt-2 inline-block px-3 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs font-bold uppercase tracking-wider">
+                  Purchase Summaries Register Report
+                </div>
+              </div>
+
+              {/* Scope & Date Range Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Date Range:</span>
+                  <span className="font-semibold text-slate-900">
+                    {startDate ? startDate : 'From Inception'} to {endDate ? endDate : 'To Present'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Total Purchases:</span>
+                  <span className="font-semibold font-mono text-slate-900">{filteredPurchases.length} summaries</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Status / Payment:</span>
+                  <span className="font-semibold text-slate-900">{statusFilter} · {paymentTypeFilter}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Grand Total Value:</span>
+                  <span className="font-semibold font-mono text-blue-700">
+                    PKR {formatWholeNumber(filteredPurchases.reduce((sum, p) => sum + p.totalAmount, 0))}
+                  </span>
+                </div>
+              </div>
+
+              {/* Purchases Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b-2 border-slate-800 bg-slate-100 text-[10px] font-bold text-slate-800 uppercase tracking-wider">
+                      <th className="py-2 px-2 text-center w-10">Sr</th>
+                      <th className="py-2 px-3 w-24">Date</th>
+                      <th className="py-2 px-3 font-mono">Reference</th>
+                      <th className="py-2 px-2">Payment Type</th>
+                      <th className="py-2 px-2 text-center">Items</th>
+                      <th className="py-2 px-3 text-right">Total Amount</th>
+                      <th className="py-2 px-2 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {filteredPurchases.map((p, idx) => (
+                      <tr key={p.id} className="text-slate-800">
+                        <td className="py-1.5 px-2 text-center font-mono">{idx + 1}</td>
+                        <td className="py-1.5 px-3 font-mono whitespace-nowrap">{p.date}</td>
+                        <td className="py-1.5 px-3 font-mono font-bold whitespace-nowrap">{p.reference}</td>
+                        <td className="py-1.5 px-2 whitespace-nowrap">{p.paymentType}</td>
+                        <td className="py-1.5 px-2 text-center font-mono">{p.items.length}</td>
+                        <td className="py-1.5 px-3 text-right font-mono font-semibold whitespace-nowrap">
+                          {formatWholeNumber(p.totalAmount)}
+                        </td>
+                        <td className="py-1.5 px-2 text-center font-medium text-[11px] whitespace-nowrap">{p.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-800 bg-slate-50 font-bold">
+                      <td colSpan={5} className="py-2 px-3 text-right uppercase tracking-wider">
+                        Cumulative Total ({filteredPurchases.length} summaries):
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono text-sm text-blue-900">
+                        PKR {formatWholeNumber(filteredPurchases.reduce((sum, p) => sum + p.totalAmount, 0))}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Formal Signatures */}
+              <div className="pt-8 grid grid-cols-3 gap-6 text-center text-xs">
+                <div>
+                  <div className="border-b border-slate-400 pb-1 mb-1 font-semibold text-slate-800">
+                    Store Officer / Purchaser
+                  </div>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">Prepared By</span>
+                </div>
+                <div>
+                  <div className="border-b border-slate-400 pb-1 mb-1 font-semibold text-slate-800">
+                    Audit & Accounts Dept.
+                  </div>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">Verified By</span>
+                </div>
+                <div>
+                  <div className="border-b border-slate-400 pb-1 mb-1 font-semibold text-slate-800">
+                    Chief Executive / General Manager
+                  </div>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">Approved By</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRINT MODAL 2: INDIVIDUAL PURCHASE SLIP */}
+      {printingPurchase && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl border border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto">
+            {/* Modal Controls */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">
+                  Print Purchase Summary Slip: {printingPurchase.reference}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Slip</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintingPurchase(null)}
+                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Formal Individual Slip */}
+            <div className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900">
+              <div className="text-center pb-3 border-b border-slate-800">
+                <h2 className="text-lg font-extrabold uppercase tracking-wider text-slate-950">
+                  AL-HAMD COAL MINES & METALS (PVT) LTD.
+                </h2>
+                <p className="text-xs font-medium text-slate-600">
+                  Mine Site & Regional Office: Quetta / Balochistan, Pakistan · Procurement Division
+                </p>
+                <div className="mt-2 inline-block px-3 py-0.5 bg-blue-50 border border-blue-300 rounded text-xs font-bold uppercase tracking-wider text-blue-900">
+                  PURCHASE SUMMARY SLIP
+                </div>
+              </div>
+
+              {/* Purchase Particulars */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 p-3.5 rounded-lg border border-slate-200 font-sans">
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Reference:</span>
+                  <span className="font-mono font-bold text-sm text-blue-900">{printingPurchase.reference}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Date:</span>
+                  <span className="font-mono font-semibold text-slate-900">{printingPurchase.date}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Payment Mode:</span>
+                  <span className="font-semibold text-slate-800">{printingPurchase.paymentType}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Status:</span>
+                  <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800">
+                    {printingPurchase.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* Itemized Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b-2 border-slate-800 bg-slate-100 text-[10px] font-bold text-slate-800 uppercase tracking-wider">
+                      <th className="py-2 px-2 text-center w-12">Sr. No.</th>
+                      <th className="py-2 px-3 w-40">Company / Supplier</th>
+                      <th className="py-2 px-3">Item Description</th>
+                      <th className="py-2 px-3 text-right w-20">Quantity</th>
+                      <th className="py-2 px-3 text-right w-28">Amount (PKR)</th>
+                      <th className="py-2 px-3 w-36">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {printingPurchase.items.map((item, idx) => (
+                      <tr key={item.id} className="text-slate-800">
+                        <td className="py-2 px-2 text-center font-mono">{idx + 1}</td>
+                        <td className="py-2 px-3 font-semibold text-slate-900">{item.companyName}</td>
+                        <td className="py-2 px-3 font-medium">{item.itemName}</td>
+                        <td className="py-2 px-3 text-right font-mono tabular-nums">{item.quantity}</td>
+                        <td className="py-2 px-3 text-right font-mono tabular-nums font-semibold">
+                          {formatWholeNumber(item.amount)}
+                        </td>
+                        <td className="py-2 px-3 text-slate-600 text-[11px]">{item.remarks || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-800 bg-slate-50 font-bold">
+                      <td colSpan={4} className="py-2.5 px-3 text-right uppercase tracking-wider text-slate-800">
+                        Total Purchase Amount:
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono text-sm text-blue-900 font-bold">
+                        PKR {formatWholeNumber(printingPurchase.totalAmount)}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Formal Signatures */}
+              <div className="pt-10 grid grid-cols-3 gap-6 text-center text-xs">
+                <div>
+                  <div className="border-b border-slate-400 pb-1 mb-1 font-semibold text-slate-800">
+                    Procurement Officer
+                  </div>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">Prepared By</span>
+                </div>
+                <div>
+                  <div className="border-b border-slate-400 pb-1 mb-1 font-semibold text-slate-800">
+                    Internal Auditor / Accounts
+                  </div>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">Verified By</span>
+                </div>
+                <div>
+                  <div className="border-b border-slate-400 pb-1 mb-1 font-semibold text-slate-800">
+                    General Manager / Mining Director
+                  </div>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">Approved By</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
