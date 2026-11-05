@@ -347,3 +347,24 @@ ON CONFLICT (id) DO NOTHING;
 -- Grant permissions for Supabase standard roles
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+
+-- Disable Row Level Security (RLS) across all application tables so client & backend calls can read and write without policy restrictions
+ALTER TABLE IF EXISTS public.app_users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.demands DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.purchases DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.chart_accounts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.vouchers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.cash_book_entries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.credit_book_entries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.banks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.bank_accounts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.pos_coal_sales DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.coal_sell_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.buyers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.partners DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.stock_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.stock_entries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.vehicles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.vehicle_consumptions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.company_settings DISABLE ROW LEVEL SECURITY;
+

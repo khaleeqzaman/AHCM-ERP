@@ -88,26 +88,8 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function startServer() {
+export function createApiApp(): express.Express {
   const app = express();
-
-  // Parse CLI arguments (--port, --host) or default to 3000 as required in AI Studio
-  let port = 3000;
-  let host = '0.0.0.0';
-  for (let i = 0; i < process.argv.length; i++) {
-    if (process.argv[i] === '--port' || process.argv[i] === '-p') {
-      const parsed = parseInt(process.argv[i + 1], 10);
-      if (!isNaN(parsed)) port = parsed;
-    }
-    if (process.argv[i] === '--host' || process.argv[i] === '-h') {
-      if (process.argv[i + 1] && !process.argv[i + 1].startsWith('-')) {
-        host = process.argv[i + 1];
-      }
-    }
-  }
-  const PORT = port;
-  const HOST = host;
-
   app.use(express.json({ limit: '10mb' }));
 
   // In-memory request log ring buffer to diagnose browser API traffic
@@ -760,6 +742,29 @@ async function startServer() {
     }
   });
 
+  return app;
+}
+
+async function startServer() {
+  const app = createApiApp();
+
+  // Parse CLI arguments (--port, --host) or default to 3000 as required in AI Studio
+  let port = 3000;
+  let host = '0.0.0.0';
+  for (let i = 0; i < process.argv.length; i++) {
+    if (process.argv[i] === '--port' || process.argv[i] === '-p') {
+      const parsed = parseInt(process.argv[i + 1], 10);
+      if (!isNaN(parsed)) port = parsed;
+    }
+    if (process.argv[i] === '--host' || process.argv[i] === '-h') {
+      if (process.argv[i + 1] && !process.argv[i + 1].startsWith('-')) {
+        host = process.argv[i + 1];
+      }
+    }
+  }
+  const PORT = port;
+  const HOST = host;
+
   // Vite middleware in dev or static serving in production
   const isProduction = process.env.NODE_ENV === 'production';
   if (!isProduction) {
@@ -789,7 +794,11 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
-  console.error('Fatal error starting server:', err);
-  process.exit(1);
-});
+if (!process.env.VERCEL) {
+  startServer().catch((err) => {
+    console.error('Fatal error starting server:', err);
+    process.exit(1);
+  });
+}
+
+export default createApiApp;
