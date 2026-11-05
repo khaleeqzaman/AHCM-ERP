@@ -821,6 +821,8 @@ export interface DatabaseStatusResponse {
   connected: boolean;
   message: string;
   version?: string;
+  host?: string;
+  database?: string;
   timestamp: string;
   provider: string;
 }

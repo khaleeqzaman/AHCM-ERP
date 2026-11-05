@@ -296,6 +296,7 @@ const COLUMN_MIGRATION_STATEMENTS = [
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "approved_by" text;`,
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "approved_at" text;`,
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "posted_by" text;`,
+  `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "posted_at" text;`,
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "reversed_by" text;`,
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "reversed_at" text;`,
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "reversal_reason" text;`,
@@ -310,14 +311,36 @@ const COLUMN_MIGRATION_STATEMENTS = [
  * and seeds baseline data (app users, chart of accounts, company settings) if empty.
  */
 export async function autoMigrateAndSeed(): Promise<{ success: boolean; message: string; tablesCreated: number }> {
-  const client = await pool.connect();
+  // Use admin client if available (for Cloud SQL socket connections where app_user does not own tables)
+  let ddlClient = await pool.connect();
+  let adminPoolInstance: any = null;
+
+  if (process.env.SQL_ADMIN_USER && process.env.SQL_ADMIN_PASSWORD && !process.env.DATABASE_URL) {
+    try {
+      const pgModule = await import('pg');
+      const { Pool } = (pgModule.default || pgModule) as any;
+      adminPoolInstance = new Pool({
+        host: process.env.SQL_HOST,
+        port: process.env.SQL_PORT ? parseInt(process.env.SQL_PORT, 10) : 5432,
+        user: process.env.SQL_ADMIN_USER,
+        password: process.env.SQL_ADMIN_PASSWORD,
+        database: process.env.SQL_DB_NAME,
+      });
+      const adminClient = await adminPoolInstance.connect();
+      ddlClient.release();
+      ddlClient = adminClient;
+    } catch {
+      // Fallback to standard client
+    }
+  }
+
   let tablesCreated = 0;
 
   try {
     // 1. Ensure tables exist in public schema
     for (const ddl of TABLE_CREATION_STATEMENTS) {
       try {
-        await client.query(ddl);
+        await ddlClient.query(ddl);
         tablesCreated++;
       } catch (tableErr: any) {
         // Ignore "already exists" errors
@@ -330,15 +353,26 @@ export async function autoMigrateAndSeed(): Promise<{ success: boolean; message:
     // 2. Ensure non-breaking columns exist on existing tables
     for (const alterSql of COLUMN_MIGRATION_STATEMENTS) {
       try {
-        await client.query(alterSql);
+        await ddlClient.query(alterSql);
       } catch (colErr: any) {
         // Ignore column errors
       }
     }
 
+    // 3. Ensure app user has full permissions on all tables
+    if (adminPoolInstance && process.env.SQL_USER) {
+      try {
+        await ddlClient.query(`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "${process.env.SQL_USER}";`);
+        await ddlClient.query(`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "${process.env.SQL_USER}";`);
+      } catch {}
+    }
+
     console.log(`Auto-migration complete: verified/created ${tablesCreated} tables in PostgreSQL database.`);
   } finally {
-    client.release();
+    ddlClient.release();
+    if (adminPoolInstance) {
+      adminPoolInstance.end().catch(() => {});
+    }
   }
 
   // 2. Baseline seed if tables are empty

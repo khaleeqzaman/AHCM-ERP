@@ -163,14 +163,14 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
               </div>
 
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-400 font-sans text-[11px]">Supabase DB:</span>
+                <span className="text-slate-400 font-sans text-[11px]">Database:</span>
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
                   dbStatus?.connected
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                     : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${dbStatus?.connected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                  {dbStatus?.connected ? 'PostgreSQL Connected' : 'Checking connection...'}
+                  {dbStatus?.connected ? (dbStatus.host ? `${dbStatus.host} (Connected)` : 'Connected') : 'Checking connection...'}
                 </span>
               </div>
             </div>

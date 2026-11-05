@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS public.vouchers (
     id TEXT PRIMARY KEY,
     voucher_no TEXT NOT NULL UNIQUE,
     voucher_type TEXT NOT NULL,
+    type_code TEXT,
     date TEXT NOT NULL,
     reference_no TEXT,
     narration TEXT,
@@ -92,8 +93,34 @@ CREATE TABLE IF NOT EXISTS public.vouchers (
     total_debit DOUBLE PRECISION NOT NULL DEFAULT 0,
     total_credit DOUBLE PRECISION NOT NULL DEFAULT 0,
     status TEXT NOT NULL,
-    posted_at TEXT
+    prepared_by TEXT,
+    approved_by TEXT,
+    approved_at TEXT,
+    posted_by TEXT,
+    posted_at TEXT,
+    reversed_by TEXT,
+    reversed_at TEXT,
+    reversal_reason TEXT,
+    reversal_voucher_no TEXT,
+    cancelled_by TEXT,
+    cancelled_at TEXT,
+    cancel_reason TEXT
 );
+
+-- Ensure non-breaking columns exist on existing vouchers tables
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS type_code TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS prepared_by TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS approved_by TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS approved_at TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS posted_by TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS posted_at TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS reversed_by TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS reversed_at TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS reversal_reason TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS reversal_voucher_no TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS cancelled_by TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS cancelled_at TEXT;
+ALTER TABLE public.vouchers ADD COLUMN IF NOT EXISTS cancel_reason TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_vouchers_no ON public.vouchers(voucher_no);
 CREATE INDEX IF NOT EXISTS idx_vouchers_date ON public.vouchers(date);

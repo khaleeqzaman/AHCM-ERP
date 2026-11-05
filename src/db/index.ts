@@ -74,16 +74,24 @@ export const db = drizzle(pool, { schema });
 /**
  * Diagnostic helper to test the database connection
  */
-export async function testDatabaseConnection(): Promise<{ connected: boolean; message: string; version?: string }> {
+export async function testDatabaseConnection(): Promise<{ connected: boolean; message: string; version?: string; host?: string; database?: string }> {
   try {
     const client = await pool.connect();
     try {
-      const res = await client.query('SELECT version();');
+      const res = await client.query('SELECT version(), current_database();');
       const version = res.rows[0]?.version || 'PostgreSQL';
+      const database = res.rows[0]?.current_database || 'postgres';
+      const rawConn = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || process.env.SUPABASE_DATABASE_URL || '';
+      const host = rawConn
+        ? (rawConn.slice(rawConn.lastIndexOf('@') + 1).split(':')[0].split('/')[0] || 'Supabase PostgreSQL')
+        : (process.env.SQL_HOST?.includes('cloudsql') ? 'Cloud SQL (PostgreSQL)' : process.env.SQL_HOST || 'Local');
+
       return {
         connected: true,
         message: 'Successfully connected to database',
         version,
+        host,
+        database,
       };
     } finally {
       client.release();
