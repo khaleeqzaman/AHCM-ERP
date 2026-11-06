@@ -8,7 +8,8 @@ import {
   ShieldCheck, 
   ArrowRight,
   TrendingUp,
-  Clock
+  Clock,
+  FileCheck2
 } from 'lucide-react';
 import { 
   DemandDocument, 
@@ -22,6 +23,7 @@ import { PurchaseFormView } from './PurchaseFormView';
 import { ViewDemandsList } from './ViewDemandsList';
 import { ViewPurchaseList } from './ViewPurchaseList';
 import { AdminApprovalView } from './AdminApprovalView';
+import { ApprovedRejectedRecordsView } from './ApprovedRejectedRecordsView';
 
 interface PurchaseScreenProps {
   demands: DemandDocument[];
@@ -73,6 +75,12 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
   const pendingPurchasesCount = purchases.filter((p) => p.status === 'Submitted for Approval').length;
   const totalPendingApprovals = pendingDemandsCount + pendingPurchasesCount;
 
+  const approvedDemandsCount = demands.filter((d) => d.status === 'Approved').length;
+  const rejectedDemandsCount = demands.filter((d) => d.status === 'Rejected').length;
+  const approvedPurchasesCount = purchases.filter((p) => p.status === 'Approved').length;
+  const rejectedPurchasesCount = purchases.filter((p) => p.status === 'Rejected').length;
+  const totalDecisionsCount = approvedDemandsCount + rejectedDemandsCount + approvedPurchasesCount + rejectedPurchasesCount;
+
   const handleOpenEditDemand = (demand: DemandDocument) => {
     setEditingDemand(demand);
     setCurrentView('demand_form');
@@ -115,7 +123,7 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
           </div>
 
           {/* Quick Metrics */}
-          <div className="flex items-center gap-4 text-xs font-medium text-slate-600">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600">
             <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-slate-500 block text-[11px]">Total Demands</span>
               <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
@@ -129,6 +137,28 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
                 {purchases.length} docs
               </span>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEditingDemand(null);
+                setEditingPurchase(null);
+                setCurrentView('approved_rejected');
+              }}
+              className={`p-2.5 rounded-lg border transition-all text-left cursor-pointer ${
+                currentView === 'approved_rejected'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                  : 'bg-slate-50 border-slate-200 hover:border-emerald-300 text-slate-700'
+              }`}
+            >
+              <div className="flex items-center gap-1.5">
+                <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-[11px] font-semibold text-emerald-700">Decisions</span>
+              </div>
+              <span className="text-sm font-bold font-mono tabular-nums text-emerald-900 block mt-0.5">
+                {approvedDemandsCount + approvedPurchasesCount} Approved / {rejectedDemandsCount + rejectedPurchasesCount} Rej.
+              </span>
+            </button>
 
             <button
               type="button"
@@ -234,6 +264,28 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
                   {purchases.length}
                 </span>
               </button>
+
+              {/* Button 5: Approved & Rejected Records */}
+              <button
+                type="button"
+                id="btn-approved-rejected-records"
+                onClick={() => {
+                  setEditingDemand(null);
+                  setEditingPurchase(null);
+                  setCurrentView('approved_rejected');
+                }}
+                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs whitespace-nowrap cursor-pointer ${
+                  currentView === 'approved_rejected'
+                    ? 'bg-blue-600 text-white ring-2 ring-blue-600/30'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
+                }`}
+              >
+                <FileCheck2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Approved & Rejected</span>
+                <span className="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
+                  {totalDecisionsCount}
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -305,6 +357,15 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
             onRejectDemand={onRejectDemand}
             onApprovePurchase={onApprovePurchase}
             onRejectPurchase={onRejectPurchase}
+          />
+        )}
+
+        {currentView === 'approved_rejected' && (
+          <ApprovedRejectedRecordsView
+            demands={demands}
+            purchases={purchases}
+            onNavigateToDemands={() => setCurrentView('view_demands')}
+            onNavigateToPurchases={() => setCurrentView('view_purchases')}
           />
         )}
       </div>

@@ -16,6 +16,7 @@ export type PurchaseViewMode =
   | 'purchase_form' 
   | 'view_demands' 
   | 'view_purchases'
+  | 'approved_rejected'
   | 'admin_approvals';
 
 export type DocumentStatus = 
