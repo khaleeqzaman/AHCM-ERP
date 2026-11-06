@@ -23,6 +23,14 @@ import {
   apiRunHealthPing,
   DatabaseStatusResponse
 } from '../../api/client';
+import { 
+  isSupabaseConfigured, 
+  getCurrentSupabaseUrl, 
+  getCurrentSupabaseAnonKey, 
+  setSupabaseCredentials,
+  clearSupabaseCustomCredentials
+} from '../../lib/supabase';
+import { Key, ShieldCheck, Check } from 'lucide-react';
 
 interface DatabaseDiagnosticsModalProps {
   isOpen: boolean;
@@ -44,6 +52,8 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
   const [dbStatus, setDbStatus] = useState<DatabaseStatusResponse | null>(null);
   const [serverOnline, setServerOnline] = useState<boolean | null>(null);
   const [isTesting, setIsTesting] = useState(false);
+  const [anonKeyInput, setAnonKeyInput] = useState(() => getCurrentSupabaseAnonKey());
+  const [keySavedMessage, setKeySavedMessage] = useState(false);
 
   const fetchLiveStatus = async () => {
     try {
@@ -68,6 +78,26 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
     });
     return unsubscribe;
   }, [isOpen]);
+
+  const handleSaveKey = async () => {
+    if (!anonKeyInput.trim()) return;
+    setSupabaseCredentials(undefined, anonKeyInput.trim());
+    setKeySavedMessage(true);
+    setTimeout(() => setKeySavedMessage(false), 3000);
+    setIsTesting(true);
+    await fetchLiveStatus();
+    await onRefreshDatabase();
+    setIsTesting(false);
+  };
+
+  const handleResetKey = async () => {
+    clearSupabaseCustomCredentials();
+    setAnonKeyInput('');
+    setIsTesting(true);
+    await fetchLiveStatus();
+    await onRefreshDatabase();
+    setIsTesting(false);
+  };
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -149,16 +179,10 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-1.5">
-                <span className="text-slate-400 font-sans text-[11px]">Backend API:</span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
-                  serverOnline === true 
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : serverOnline === false
-                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                    : 'bg-slate-800 text-slate-400'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${serverOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`} />
-                  {serverOnline ? 'Online (HTTP 200)' : serverOnline === false ? 'Offline' : 'Checking...'}
+                <span className="text-slate-400 font-sans text-[11px]">Provider:</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Supabase JavaScript SDK
                 </span>
               </div>
 
@@ -170,15 +194,63 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
                     : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${dbStatus?.connected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                  {dbStatus?.connected ? (dbStatus.host ? `${dbStatus.host} (Connected)` : 'Connected') : 'Checking connection...'}
+                  {dbStatus?.connected ? 'Connected' : isSupabaseConfigured() ? 'Connecting...' : 'Local / Preview Mode'}
                 </span>
               </div>
             </div>
 
-            <div className="text-[10px] text-slate-400 font-sans">
-              Proxy Port: <span className="font-mono text-slate-200 font-bold">3000</span>
+            <div className="text-[10px] text-slate-400 font-sans truncate max-w-[280px]">
+              Host: <span className="font-mono text-slate-200">{getCurrentSupabaseUrl()}</span>
             </div>
           </div>
+        </div>
+
+        {/* Supabase Key Configuration Card */}
+        <div className="bg-slate-50 border-b border-slate-200 p-3.5 text-xs">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <Key className="w-4 h-4 text-blue-600" />
+              <span className="font-bold text-slate-800 text-[11px]">Supabase Anon Key Configuration</span>
+            </div>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+              isSupabaseConfigured()
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                : 'bg-amber-100 text-amber-800 border border-amber-200'
+            }`}>
+              {isSupabaseConfigured() ? 'Live Cloud Sync Active' : 'Anon Key Not Set (Local Mode)'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              type="password"
+              value={anonKeyInput}
+              onChange={(e) => setAnonKeyInput(e.target.value)}
+              placeholder={isSupabaseConfigured() ? '•••••••••••••••• (Key active - paste new key to update)' : 'Paste Supabase Anon Key (eyJhbGci...)'}
+              className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-slate-800"
+            />
+            <button
+              type="button"
+              onClick={handleSaveKey}
+              disabled={!anonKeyInput.trim() || isTesting}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold rounded-lg text-xs transition-colors cursor-pointer shrink-0"
+            >
+              {keySavedMessage ? 'Saved & Connected!' : 'Save & Connect'}
+            </button>
+            {isSupabaseConfigured() && (
+              <button
+                type="button"
+                onClick={handleResetKey}
+                className="px-2 py-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 text-[11px] rounded transition-colors cursor-pointer"
+                title="Reset custom key"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-1.5">
+            💡 On Vercel, this key is injected automatically from your <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-700">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> integration variable.
+          </p>
         </div>
 
         {/* Status Bar & Filters */}
@@ -243,11 +315,11 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
           </div>
         </div>
 
-        {/* Cold Start Explanation Notice if errors present */}
+        {/* Supabase Explanation Notice if errors present */}
         {errorCount > 0 && (
           <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-[11px] text-amber-800 flex items-center justify-between gap-2">
             <span className="font-sans">
-              <strong>Notice:</strong> 404 errors with <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">sin1::...</code> occur when browser calls hit the URL before the server boots. Click <strong>Test Connection</strong> to verify live status or <strong>Clear</strong> to purge stale errors.
+              <strong>Notice:</strong> If you see <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">Invalid API key</code>, paste your Supabase Anon Key in the box above or verify your Vercel project environment variables. Click <strong>Clear</strong> to purge stale errors.
             </span>
             <button
               type="button"

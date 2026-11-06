@@ -1,37 +1,93 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Resolve environment variables across Vite client and Node server
-const getEnvVar = (clientKey: string, serverKey: string): string => {
-  // Vite client-side
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[clientKey]) {
-    return import.meta.env[clientKey] as string;
+// Resolve environment variables across Vite client, Vercel NEXT_PUBLIC_, localStorage, and Node server
+const getEnvVar = (keys: string[], fallback = ''): string => {
+  // 1. Browser localStorage (allows user to configure keys directly in the preview UI)
+  if (typeof window !== 'undefined' && window.localStorage) {
+    for (const key of keys) {
+      try {
+        const val = window.localStorage.getItem(key);
+        if (val && val.trim().length > 0) return val.trim();
+      } catch {}
+    }
   }
-  // Node.js server-side
+  // 2. Vite client-side (import.meta.env)
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    for (const key of keys) {
+      const val = import.meta.env[key];
+      if (typeof val === 'string' && val.trim().length > 0) {
+        return val.trim();
+      }
+    }
+  }
+  // 3. Node.js server-side
   if (typeof process !== 'undefined' && process.env) {
-    return process.env[serverKey] || process.env[clientKey] || '';
+    for (const key of keys) {
+      const val = process.env[key];
+      if (typeof val === 'string' && val.trim().length > 0) {
+        return val.trim();
+      }
+    }
   }
-  return '';
+  return fallback;
 };
 
-export const SUPABASE_URL = getEnvVar('VITE_SUPABASE_URL', 'SUPABASE_URL');
-export const SUPABASE_ANON_KEY = getEnvVar('VITE_SUPABASE_ANON_KEY', 'SUPABASE_ANON_KEY');
-export const SUPABASE_SERVICE_ROLE_KEY = getEnvVar('VITE_SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY');
+export const getCurrentSupabaseUrl = (): string => {
+  return getEnvVar(
+    ['NEXT_PUBLIC_SUPABASE_URL', 'VITE_SUPABASE_URL', 'SUPABASE_URL'],
+    'https://mcublmqewmyqgbvylkgo.supabase.co'
+  );
+};
+
+export const getCurrentSupabaseAnonKey = (): string => {
+  return getEnvVar(
+    [
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      'VITE_SUPABASE_ANON_KEY',
+      'SUPABASE_ANON_KEY',
+      'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
+      'ahcm_supabase_anon_key',
+    ],
+    ''
+  );
+};
 
 export const isSupabaseConfigured = (): boolean => {
-  return Boolean(SUPABASE_URL && (SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY));
+  const key = getCurrentSupabaseAnonKey();
+  const url = getCurrentSupabaseUrl();
+  return Boolean(
+    url &&
+    key &&
+    key.length > 20 &&
+    !key.includes('placeholder') &&
+    key !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  );
 };
 
+export const SUPABASE_URL = getCurrentSupabaseUrl();
+export const SUPABASE_ANON_KEY = getCurrentSupabaseAnonKey();
+
 let _supabaseClient: SupabaseClient | null = null;
+let _lastInitializedKey = '';
+let _lastInitializedUrl = '';
 
 /**
- * Returns the initialized Supabase client singleton, or creates one if credentials are present.
+ * Returns the initialized Supabase client singleton.
+ * Uses real key if configured or fallback dummy key to guarantee non-null client object.
  */
-export const getSupabaseClient = (): SupabaseClient | null => {
-  if (_supabaseClient) return _supabaseClient;
-  if (!isSupabaseConfigured()) return null;
+export const getSupabaseClient = (): SupabaseClient => {
+  const currentUrl = getCurrentSupabaseUrl();
+  const currentKey = getCurrentSupabaseAnonKey();
 
-  const keyToUse = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY;
-  _supabaseClient = createClient(SUPABASE_URL, keyToUse, {
+  if (_supabaseClient && _lastInitializedKey === currentKey && _lastInitializedUrl === currentUrl) {
+    return _supabaseClient;
+  }
+
+  const keyToUse = isSupabaseConfigured() ? currentKey : 'anon-key-placeholder';
+  _lastInitializedKey = currentKey;
+  _lastInitializedUrl = currentUrl;
+
+  _supabaseClient = createClient(currentUrl, keyToUse, {
     auth: {
       persistSession: typeof window !== 'undefined',
       autoRefreshToken: true,
@@ -40,7 +96,40 @@ export const getSupabaseClient = (): SupabaseClient | null => {
   return _supabaseClient;
 };
 
-export const supabase = getSupabaseClient();
+// Dynamic client wrapper that always resolves to the active client
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, prop: keyof SupabaseClient) {
+    const client = getSupabaseClient();
+    const val = (client as any)[prop];
+    if (typeof val === 'function') {
+      return val.bind(client);
+    }
+    return val;
+  },
+});
+
+export const setSupabaseCredentials = (url?: string, anonKey?: string): void => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    if (url) {
+      window.localStorage.setItem('NEXT_PUBLIC_SUPABASE_URL', url.trim());
+    }
+    if (anonKey) {
+      window.localStorage.setItem('NEXT_PUBLIC_SUPABASE_ANON_KEY', anonKey.trim());
+      window.localStorage.setItem('ahcm_supabase_anon_key', anonKey.trim());
+    }
+  }
+  _supabaseClient = null;
+  getSupabaseClient();
+};
+
+export const clearSupabaseCustomCredentials = (): void => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.removeItem('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    window.localStorage.removeItem('ahcm_supabase_anon_key');
+  }
+  _supabaseClient = null;
+  getSupabaseClient();
+};
 
 /**
  * Database table names in Supabase matching our PostgreSQL schema
