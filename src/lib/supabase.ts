@@ -2,31 +2,33 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Resolve environment variables across Vite client, Vercel NEXT_PUBLIC_, localStorage, and Node server
 const getEnvVar = (keys: string[], fallback = ''): string => {
-  // 1. Browser localStorage (allows user to configure keys directly in the preview UI)
+  // 1. Vite / Vercel compile-time env (import.meta.env)
+  if (typeof import.meta !== 'undefined' && import.meta.env) {
+    for (const key of keys) {
+      const val = import.meta.env[key];
+      if (typeof val === 'string' && val.trim().length > 0 && !val.includes('placeholder')) {
+        return val.trim();
+      }
+    }
+  }
+  // 2. Node.js / Vercel process.env
+  if (typeof process !== 'undefined' && process.env) {
+    for (const key of keys) {
+      const val = process.env[key];
+      if (typeof val === 'string' && val.trim().length > 0 && !val.includes('placeholder')) {
+        return val.trim();
+      }
+    }
+  }
+  // 3. Browser localStorage (Diagnostics Modal user manual entry)
   if (typeof window !== 'undefined' && window.localStorage) {
     for (const key of keys) {
       try {
         const val = window.localStorage.getItem(key);
-        if (val && val.trim().length > 0) return val.trim();
+        if (val && val.trim().length > 0 && !val.includes('placeholder')) {
+          return val.trim();
+        }
       } catch {}
-    }
-  }
-  // 2. Vite client-side (import.meta.env)
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    for (const key of keys) {
-      const val = import.meta.env[key];
-      if (typeof val === 'string' && val.trim().length > 0) {
-        return val.trim();
-      }
-    }
-  }
-  // 3. Node.js server-side
-  if (typeof process !== 'undefined' && process.env) {
-    for (const key of keys) {
-      const val = process.env[key];
-      if (typeof val === 'string' && val.trim().length > 0) {
-        return val.trim();
-      }
     }
   }
   return fallback;
@@ -34,7 +36,12 @@ const getEnvVar = (keys: string[], fallback = ''): string => {
 
 export const getCurrentSupabaseUrl = (): string => {
   return getEnvVar(
-    ['NEXT_PUBLIC_SUPABASE_URL', 'VITE_SUPABASE_URL', 'SUPABASE_URL'],
+    [
+      'NEXT_PUBLIC_SUPABASE_URL',
+      'VITE_SUPABASE_URL',
+      'SUPABASE_URL',
+      'NEXT_PUBLIC_SUPABASE_HOST',
+    ],
     'https://mcublmqewmyqgbvylkgo.supabase.co'
   );
 };
@@ -46,6 +53,9 @@ export const getCurrentSupabaseAnonKey = (): string => {
       'VITE_SUPABASE_ANON_KEY',
       'SUPABASE_ANON_KEY',
       'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
+      'SUPABASE_PUBLISHABLE_KEY',
+      'NEXT_PUBLIC_SUPABASE_KEY',
+      'SUPABASE_KEY',
       'ahcm_supabase_anon_key',
     ],
     ''

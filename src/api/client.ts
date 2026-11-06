@@ -287,13 +287,24 @@ const mapUserToRow = (u: User) => ({
   phone: u.phone || '',
 });
 
+const parseJsonArray = <T>(val: any, fallback: T[] = []): T[] => {
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string' && val.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
+  return fallback;
+};
+
 const mapDemandFromRow = (r: any): DemandDocument => ({
   id: r.id,
   demandType: r.demand_type,
   category: r.category,
   date: r.date,
   referenceNo: r.reference_no,
-  items: r.items || [],
+  items: parseJsonArray(r.items),
   totalAmount: Number(r.total_amount || 0),
   status: r.status,
   adminRemark: r.admin_remark || undefined,
@@ -306,8 +317,8 @@ const mapDemandToRow = (d: DemandDocument) => ({
   category: d.category,
   date: d.date,
   reference_no: d.referenceNo,
-  items: d.items,
-  total_amount: d.totalAmount,
+  items: d.items || [],
+  total_amount: d.totalAmount || 0,
   status: d.status,
   admin_remark: d.adminRemark || null,
   updated_at: d.updatedAt || new Date().toISOString(),
@@ -318,7 +329,7 @@ const mapPurchaseFromRow = (r: any): PurchaseDocument => ({
   paymentType: r.payment_type,
   date: r.date,
   reference: r.reference,
-  items: r.items || [],
+  items: parseJsonArray(r.items),
   totalAmount: Number(r.total_amount || 0),
   status: r.status,
   adminRemark: r.admin_remark || undefined,
@@ -330,8 +341,8 @@ const mapPurchaseToRow = (p: PurchaseDocument) => ({
   payment_type: p.paymentType,
   date: p.date,
   reference: p.reference,
-  items: p.items,
-  total_amount: p.totalAmount,
+  items: p.items || [],
+  total_amount: p.totalAmount || 0,
   status: p.status,
   admin_remark: p.adminRemark || null,
   updated_at: p.updatedAt || new Date().toISOString(),
@@ -381,7 +392,7 @@ const mapVoucherFromRow = (r: any): VoucherDocument => ({
   date: r.date,
   referenceNo: r.reference_no || '',
   narration: r.narration || '',
-  lines: r.lines || [],
+  lines: parseJsonArray(r.lines),
   totalDebit: Number(r.total_debit || 0),
   totalCredit: Number(r.total_credit || 0),
   status: r.status,
@@ -490,7 +501,7 @@ const mapBankAccountFromRow = (r: any): BankAccountRecord => ({
   accountTitle: r.account_title,
   openingBalance: Number(r.opening_balance || 0),
   openingBalanceDate: r.opening_balance_date || '',
-  transactions: r.transactions || [],
+  transactions: parseJsonArray(r.transactions),
 });
 
 const mapBankAccountToRow = (a: BankAccountRecord) => ({
@@ -700,15 +711,16 @@ const mapVehicleConsumptionToRow = (c: VehicleConsumptionRecord) => ({
 });
 
 const mapCompanySettingsFromRow = (r: any): CompanySettings => ({
+  id: r.id || 'cs_default',
   companyName: r.company_name,
   address: r.address,
   ntnNumber: r.ntn_number || '',
   contactNumber: r.contact_number || '',
   email: r.email || '',
-});
+} as any);
 
 const mapCompanySettingsToRow = (s: CompanySettings) => ({
-  id: 'default',
+  id: (s as any).id || 'cs_default',
   company_name: s.companyName,
   address: s.address,
   ntn_number: s.ntnNumber || '',
@@ -1193,6 +1205,25 @@ export async function apiSaveChartAccount(acc: ChartAccount): Promise<ChartAccou
   } catch (err: any) {
     console.error('Unhandled exception in apiSaveChartAccount:', err);
     return acc;
+  }
+}
+
+export async function apiDeleteChartAccount(accountId: string): Promise<boolean> {
+  try {
+    if (!isSupabaseConfigured()) {
+      return true;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiDeleteChartAccount',
+      SUPABASE_TABLES.CHART_ACCOUNTS,
+      'DELETE',
+      { accountId },
+      () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).delete().eq('id', accountId)
+    );
+    return res !== null;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiDeleteChartAccount:', err);
+    return false;
   }
 }
 

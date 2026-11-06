@@ -6,9 +6,31 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
-    envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
+    envPrefix: ['VITE_', 'NEXT_PUBLIC_', 'SUPABASE_'],
     define: {
       global: 'globalThis',
+      'process.env.NEXT_PUBLIC_SUPABASE_URL': JSON.stringify(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        process.env.SUPABASE_URL ||
+        process.env.VITE_SUPABASE_URL ||
+        'https://mcublmqewmyqgbvylkgo.supabase.co'
+      ),
+      'process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY': JSON.stringify(
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_ANON_KEY ||
+        process.env.VITE_SUPABASE_ANON_KEY ||
+        ''
+      ),
+      'process.env.SUPABASE_URL': JSON.stringify(
+        process.env.SUPABASE_URL ||
+        process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        'https://mcublmqewmyqgbvylkgo.supabase.co'
+      ),
+      'process.env.SUPABASE_ANON_KEY': JSON.stringify(
+        process.env.SUPABASE_ANON_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        ''
+      ),
     },
     resolve: {
       alias: {
