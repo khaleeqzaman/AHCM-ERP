@@ -15,6 +15,7 @@ import {
 } from './api/client';
 import { 
   NavModule, 
+  NavTarget,
   DemandDocument, 
   PurchaseDocument,
   DemandItem,
@@ -165,7 +166,13 @@ export default function App() {
     const saved = localStorage.getItem('ahcm_erp_active_module');
     return (saved as NavModule) || 'dashboard';
   });
+  const [activeNavTarget, setActiveNavTarget] = useState<NavTarget | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  const handleNavigateOperation = (target: NavTarget) => {
+    setCurrentModule(target.module);
+    setActiveNavTarget(target);
+  };
 
   // Sync active module
   useEffect(() => {
@@ -1426,7 +1433,12 @@ export default function App() {
       {/* Sidebar Navigation */}
       <Sidebar
         currentModule={currentModule}
-        onSelectModule={setCurrentModule}
+        onSelectModule={(mod) => {
+          setCurrentModule(mod);
+          setActiveNavTarget(null);
+        }}
+        activeNavTarget={activeNavTarget}
+        onNavigateOperation={handleNavigateOperation}
         isOpenMobile={isMobileSidebarOpen}
         onToggleMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
         pendingApprovalsCount={pendingApprovalsCount}
@@ -1613,6 +1625,7 @@ export default function App() {
           {/* Purchase Module (Purchaser & Admin) */}
           {currentModule === 'purchase' && (currentUser.role === 'admin' || currentUser.role === 'purchaser') && (
             <PurchaseScreen
+              navTarget={activeNavTarget}
               demands={demands}
               purchases={purchases}
               onSaveDemand={handleSaveDemand}
@@ -1637,6 +1650,7 @@ export default function App() {
           {/* ISOLATED ACCOUNTANT MODULE (Accountant & Admin) */}
           {currentModule === 'accounting' && (currentUser.role === 'admin' || currentUser.role === 'accountant') && (
             <AccountingScreen
+              navTarget={activeNavTarget}
               accounts={accounts}
               vouchers={vouchers}
               onAddAccount={handleAddAccount}
@@ -1652,6 +1666,7 @@ export default function App() {
           {/* ISOLATED TREASURY MODULE (Cashier & Admin) */}
           {currentModule === 'treasury' && (currentUser.role === 'admin' || currentUser.role === 'cashier') && (
             <TreasuryScreen
+              navTarget={activeNavTarget}
               cashBookEntries={cashBookEntries}
               creditBookEntries={creditBookEntries}
               banks={banks}
@@ -1677,6 +1692,7 @@ export default function App() {
           {/* 100% ISOLATED STORE & SALES MODULE (Store Manager & Admin) */}
           {currentModule === 'store_sales' && (currentUser.role === 'admin' || currentUser.role === 'store_manager') && (
             <StoreSalesScreen
+              navTarget={activeNavTarget}
               posEntries={posEntries}
               coalSellRecords={coalSellRecords}
               partners={partners}

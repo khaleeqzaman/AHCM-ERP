@@ -16,7 +16,8 @@ import {
   PurchaseDocument, 
   PurchaseViewMode,
   DemandItem,
-  PurchaseSummaryItem
+  PurchaseSummaryItem,
+  NavTarget
 } from '../types';
 import { DemandFormView } from './DemandFormView';
 import { PurchaseFormView } from './PurchaseFormView';
@@ -26,6 +27,7 @@ import { AdminApprovalView } from './AdminApprovalView';
 import { ApprovedRejectedRecordsView } from './ApprovedRejectedRecordsView';
 
 interface PurchaseScreenProps {
+  navTarget?: NavTarget | null;
   demands: DemandDocument[];
   purchases: PurchaseDocument[];
   onSaveDemand: (demand: DemandDocument) => void;
@@ -47,6 +49,7 @@ interface PurchaseScreenProps {
 }
 
 export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
+  navTarget,
   demands,
   purchases,
   onSaveDemand,
@@ -70,6 +73,38 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
   const [currentView, setCurrentView] = useState<PurchaseViewMode>('view_demands');
   const [editingDemand, setEditingDemand] = useState<DemandDocument | null>(null);
   const [editingPurchase, setEditingPurchase] = useState<PurchaseDocument | null>(null);
+  const [decisionTab, setDecisionTab] = useState<'demands' | 'purchases'>('demands');
+
+  // React to navTarget from Sidebar
+  React.useEffect(() => {
+    if (!navTarget || navTarget.module !== 'purchase') return;
+
+    if (navTarget.section === 'demand') {
+      if (navTarget.subPage === 'new_demand') {
+        setEditingDemand(null);
+        setCurrentView('demand_form');
+      } else if (navTarget.subPage === 'view_demands') {
+        setEditingDemand(null);
+        setCurrentView('view_demands');
+      } else if (navTarget.subPage === 'approved_rejected_demands') {
+        setDecisionTab('demands');
+        setCurrentView('approved_rejected');
+      } else if (navTarget.subPage === 'approved_rejected') {
+        setCurrentView('approved_rejected');
+      }
+    } else if (navTarget.section === 'purchase') {
+      if (navTarget.subPage === 'new_purchase') {
+        setEditingPurchase(null);
+        setCurrentView('purchase_form');
+      } else if (navTarget.subPage === 'view_purchases') {
+        setEditingPurchase(null);
+        setCurrentView('view_purchases');
+      } else if (navTarget.subPage === 'approved_rejected_purchases' || navTarget.subPage === 'approved_rejected') {
+        setDecisionTab('purchases');
+        setCurrentView('approved_rejected');
+      }
+    }
+  }, [navTarget]);
 
   const pendingDemandsCount = demands.filter((d) => d.status === 'Submitted for Approval').length;
   const pendingPurchasesCount = purchases.filter((p) => p.status === 'Submitted for Approval').length;
@@ -364,6 +399,7 @@ export const PurchaseScreen: React.FC<PurchaseScreenProps> = ({
           <ApprovedRejectedRecordsView
             demands={demands}
             purchases={purchases}
+            initialTab={decisionTab}
             onNavigateToDemands={() => setCurrentView('view_demands')}
             onNavigateToPurchases={() => setCurrentView('view_purchases')}
           />

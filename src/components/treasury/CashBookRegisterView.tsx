@@ -30,6 +30,7 @@ import { DatePickerInput } from '../common/DatePickerInput';
 
 interface CashBookRegisterViewProps {
   entries: CashBookEntry[];
+  initialMode?: 'add_transaction' | 'view_cash_book';
   onAddEntry: (entry: CashBookEntry) => void;
   onUpdateEntry: (
     id: string,
@@ -57,12 +58,19 @@ const getTodayFormatted = () => {
 
 export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
   entries,
+  initialMode = 'add_transaction',
   onAddEntry,
   onUpdateEntry,
   onDeleteEntry,
 }) => {
   // Navigation Modes: 'add_transaction' (Table form) vs 'view_cash_book' (Historical register table)
-  const [activeMode, setActiveMode] = useState<'add_transaction' | 'view_cash_book'>('add_transaction');
+  const [activeMode, setActiveMode] = useState<'add_transaction' | 'view_cash_book'>(initialMode);
+
+  useEffect(() => {
+    if (initialMode) {
+      setActiveMode(initialMode);
+    }
+  }, [initialMode]);
 
   // Notifications
   const [notification, setNotification] = useState<string | null>(null);

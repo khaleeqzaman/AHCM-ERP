@@ -26,6 +26,7 @@ interface PosViewProps {
   entries: PosCoalSellEntry[];
   buyers: BuyerRecord[];
   companySettings: CompanySettings;
+  initialTab?: 'sheet' | 'form';
   onAddEntry: (entry: PosCoalSellEntry) => void;
   onUpdateEntry: (entry: PosCoalSellEntry) => void;
   onDeleteEntry: (id: string) => void;
@@ -35,11 +36,18 @@ export const PosView: React.FC<PosViewProps> = ({
   entries,
   buyers,
   companySettings,
+  initialTab = 'sheet',
   onAddEntry,
   onUpdateEntry,
   onDeleteEntry,
 }) => {
-  const [activeTab, setActiveTab] = useState<'sheet' | 'form'>('sheet');
+  const [activeTab, setActiveTab] = useState<'sheet' | 'form'>(initialTab);
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [searchTerm, setSearchTerm] = useState('');
   const [timeFilter, setTimeFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
   const [dateFrom, setDateFrom] = useState('');

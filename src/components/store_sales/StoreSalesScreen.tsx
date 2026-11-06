@@ -25,6 +25,7 @@ import {
   VehicleConsumptionRecord, 
   CompanySettings 
 } from '../../types/storeSales';
+import { NavTarget } from '../../types';
 import { SalesScreen } from './SalesScreen';
 import { StockReportView } from './StockReportView';
 import { StoreReportSummaryView } from './StoreReportSummaryView';
@@ -33,6 +34,7 @@ import { PartnersView } from './PartnersView';
 import { BuyersView } from './BuyersView';
 
 interface StoreSalesScreenProps {
+  navTarget?: NavTarget | null;
   // Pos & Coal
   posEntries: PosCoalSellEntry[];
   coalSellRecords: CoalSellRecord[];
@@ -85,6 +87,7 @@ interface StoreSalesScreenProps {
 }
 
 export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
+  navTarget,
   posEntries,
   coalSellRecords,
   partners,
@@ -123,6 +126,27 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   onSaveCompanySettings,
 }) => {
   const [mainTab, setMainTab] = useState<StoreSalesMainTab>('sales');
+  const [stockTab, setStockTab] = useState<'view_stock' | 'add_stock' | 'add_item' | 'view_items'>('view_stock');
+
+  // React to navTarget from Sidebar
+  React.useEffect(() => {
+    if (!navTarget || navTarget.module !== 'store_sales') return;
+
+    if (navTarget.section === 'sale') {
+      setMainTab('sales');
+    } else if (navTarget.section === 'stock_report') {
+      if (navTarget.subPage === 'store_summary') {
+        setMainTab('store_summary');
+      } else {
+        setMainTab('stock_report');
+        if (['add_item', 'view_items', 'add_stock', 'view_stock'].includes(navTarget.subPage || '')) {
+          setStockTab(navTarget.subPage as 'view_stock' | 'add_stock' | 'add_item' | 'view_items');
+        }
+      }
+    } else if (navTarget.section === 'company_setting') {
+      setMainTab('company_settings');
+    }
+  }, [navTarget]);
 
   // Overall KPI stats for isolated store & sales module
   const totalPosValue = posEntries.reduce((sum, e) => sum + (Number(e.totalValue) || 0), 0);
@@ -292,6 +316,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
       <div>
         {mainTab === 'sales' && (
           <SalesScreen
+            navTarget={navTarget}
             posEntries={posEntries}
             coalSellRecords={coalSellRecords}
             partners={partners}
@@ -326,6 +351,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
           <StockReportView
             stockItems={stockItems}
             stockEntries={stockEntries}
+            initialTab={stockTab}
             onAddItem={onAddStockItem}
             onUpdateItem={onUpdateStockItem}
             onDeleteItem={onDeleteStockItem}

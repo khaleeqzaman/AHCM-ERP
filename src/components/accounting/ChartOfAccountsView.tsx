@@ -17,19 +17,27 @@ import { formatWholeNumber } from '../../utils/formatters';
 
 interface ChartOfAccountsViewProps {
   accounts: ChartAccount[];
+  initialOpenAdd?: boolean;
   onAddAccount: (account: ChartAccount) => void;
   onUpdateAccount: (account: ChartAccount) => void;
 }
 
 export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
   accounts,
+  initialOpenAdd = false,
   onAddAccount,
   onUpdateAccount,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('All');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(initialOpenAdd);
   const [notification, setNotification] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof initialOpenAdd === 'boolean') {
+      setIsAddModalOpen(initialOpenAdd);
+    }
+  }, [initialOpenAdd]);
 
   // Form State for New Account
   const [selectedType, setSelectedType] = useState<AccountType>('Asset');

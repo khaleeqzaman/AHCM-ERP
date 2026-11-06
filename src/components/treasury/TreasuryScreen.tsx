@@ -21,6 +21,7 @@ import {
   TreasurySection, 
   BankManagementPage 
 } from '../../types/treasury';
+import { NavTarget } from '../../types';
 import { CashBookRegisterView } from './CashBookRegisterView';
 import { CreditBookRegisterView } from './CreditBookRegisterView';
 import { AddBankForm } from './AddBankForm';
@@ -31,6 +32,7 @@ import { BankAccountDetailsView } from './BankAccountDetailsView';
 import { BanksSummaryView } from './BanksSummaryView';
 
 interface TreasuryScreenProps {
+  navTarget?: NavTarget | null;
   cashBookEntries: CashBookEntry[];
   creditBookEntries: CreditBookEntry[];
   banks: BankRecord[];
@@ -66,6 +68,7 @@ interface TreasuryScreenProps {
 }
 
 export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
+  navTarget,
   cashBookEntries,
   creditBookEntries,
   banks,
@@ -93,6 +96,34 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
   const [bankSubPage, setBankSubPage] = useState<BankManagementPage>('banks_summary');
   const [selectedAccountId, setSelectedAccountId] = useState<string>(bankAccounts[0]?.id || '');
   const [preselectedBankIdForNewAccount, setPreselectedBankIdForNewAccount] = useState<string | undefined>();
+
+  // Sub-modes for Cash Book & Credit Book
+  const [cashBookMode, setCashBookMode] = useState<'add_transaction' | 'view_cash_book'>('add_transaction');
+  const [openCreditAdd, setOpenCreditAdd] = useState<boolean>(false);
+
+  // Sync with navTarget changes from Sidebar
+  React.useEffect(() => {
+    if (!navTarget || navTarget.module !== 'treasury') return;
+
+    if (navTarget.section === 'cash_book') {
+      setActiveSection('cash_book');
+      if (navTarget.subPage === 'add_transaction' || navTarget.subPage === 'view_cash_book') {
+        setCashBookMode(navTarget.subPage);
+      }
+    } else if (navTarget.section === 'credit_book') {
+      setActiveSection('credit_book');
+      if (navTarget.subPage === 'add_credit') {
+        setOpenCreditAdd(true);
+      } else if (navTarget.subPage === 'view_credit_book') {
+        setOpenCreditAdd(false);
+      }
+    } else if (navTarget.section === 'bank_management') {
+      setActiveSection('bank_management');
+      if (navTarget.subPage) {
+        setBankSubPage(navTarget.subPage as BankManagementPage);
+      }
+    }
+  }, [navTarget]);
 
   // Totals
   const totalCashBookBalance = cashBookEntries.reduce(
@@ -368,6 +399,7 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
         {activeSection === 'cash_book' && (
           <CashBookRegisterView
             entries={cashBookEntries}
+            initialMode={cashBookMode}
             onAddEntry={onAddCashBookEntry}
             onUpdateEntry={onUpdateCashBookEntry}
             onDeleteEntry={onDeleteCashBookEntry}
@@ -377,6 +409,7 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
         {activeSection === 'credit_book' && (
           <CreditBookRegisterView
             entries={creditBookEntries}
+            initialOpenAddRow={openCreditAdd}
             onAddEntry={onAddCreditBookEntry}
             onUpdateEntry={onUpdateCreditBookEntry}
             onDeleteEntry={onDeleteCreditBookEntry}

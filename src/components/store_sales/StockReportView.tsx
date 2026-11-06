@@ -29,6 +29,7 @@ interface StockReportViewProps {
   onAddStockEntry: (entry: StockEntry) => void;
   onUpdateStockEntry: (entry: StockEntry) => void;
   onDeleteStockEntry: (id: string) => void;
+  initialTab?: 'view_stock' | 'add_stock' | 'add_item' | 'view_items';
 }
 
 export const StockReportView: React.FC<StockReportViewProps> = ({
@@ -40,8 +41,15 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
   onAddStockEntry,
   onUpdateStockEntry,
   onDeleteStockEntry,
+  initialTab = 'view_stock',
 }) => {
-  const [activeTab, setActiveTab] = useState<'view_stock' | 'add_stock' | 'add_item' | 'view_items'>('view_stock');
+  const [activeTab, setActiveTab] = useState<'view_stock' | 'add_stock' | 'add_item' | 'view_items'>(initialTab);
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [selectedItemId, setSelectedItemId] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [timeFilter, setTimeFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');

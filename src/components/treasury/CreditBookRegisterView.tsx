@@ -53,6 +53,12 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
 }) => {
   // Draft row on top state
   const [showNewRowOnTop, setShowNewRowOnTop] = useState<boolean>(initialOpenAddRow);
+
+  React.useEffect(() => {
+    if (typeof initialOpenAddRow === 'boolean') {
+      setShowNewRowOnTop(initialOpenAddRow);
+    }
+  }, [initialOpenAddRow]);
   const [draftRow, setDraftRow] = useState<DraftNewRow>({
     date: '',
     name: '',

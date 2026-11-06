@@ -18,6 +18,7 @@ interface BuyersViewProps {
   onAddBuyer: (buyer: BuyerRecord) => void;
   onUpdateBuyer: (buyer: BuyerRecord) => void;
   onDeleteBuyer: (id: string) => void;
+  initialFormOpen?: boolean;
 }
 
 export const BuyersView: React.FC<BuyersViewProps> = ({
@@ -25,10 +26,17 @@ export const BuyersView: React.FC<BuyersViewProps> = ({
   onAddBuyer,
   onUpdateBuyer,
   onDeleteBuyer,
+  initialFormOpen = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(initialFormOpen);
+
+  React.useEffect(() => {
+    if (typeof initialFormOpen === 'boolean') {
+      setIsFormOpen(initialFormOpen);
+    }
+  }, [initialFormOpen]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [buyerToDelete, setBuyerToDelete] = useState<BuyerRecord | null>(null);

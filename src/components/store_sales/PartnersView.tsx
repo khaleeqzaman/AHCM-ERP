@@ -21,6 +21,7 @@ interface PartnersViewProps {
   onDeletePartner: (id: string) => void;
   onToggleActive: (id: string) => void;
   onToggleShowInReport: (id: string) => void;
+  initialFormOpen?: boolean;
 }
 
 export const PartnersView: React.FC<PartnersViewProps> = ({
@@ -30,9 +31,16 @@ export const PartnersView: React.FC<PartnersViewProps> = ({
   onDeletePartner,
   onToggleActive,
   onToggleShowInReport,
+  initialFormOpen = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(initialFormOpen);
+
+  React.useEffect(() => {
+    if (typeof initialFormOpen === 'boolean') {
+      setIsFormOpen(initialFormOpen);
+    }
+  }, [initialFormOpen]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
   const [partnerToDelete, setPartnerToDelete] = useState<PartnerRecord | null>(null);

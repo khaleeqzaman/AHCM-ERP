@@ -11,6 +11,14 @@ export type NavModule =
 
 export type * from './user.ts';
 
+export interface NavTarget {
+  module: NavModule;
+  section?: string;
+  subPage?: string;
+  action?: string;
+  timestamp?: number;
+}
+
 export type PurchaseViewMode = 
   | 'demand_form' 
   | 'purchase_form' 

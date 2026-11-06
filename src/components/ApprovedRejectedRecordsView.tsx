@@ -26,6 +26,7 @@ import { formatWholeNumber } from '../utils/formatters';
 interface ApprovedRejectedRecordsViewProps {
   demands: DemandDocument[];
   purchases: PurchaseDocument[];
+  initialTab?: 'demands' | 'purchases';
   onNavigateToDemands?: () => void;
   onNavigateToPurchases?: () => void;
 }
@@ -35,10 +36,17 @@ export type RecordSortField = 'date' | 'reference' | 'amount' | 'status' | 'type
 export const ApprovedRejectedRecordsView: React.FC<ApprovedRejectedRecordsViewProps> = ({
   demands,
   purchases,
+  initialTab = 'demands',
   onNavigateToDemands,
   onNavigateToPurchases,
 }) => {
-  const [activeTab, setActiveTab] = useState<'demands' | 'purchases'>('demands');
+  const [activeTab, setActiveTab] = useState<'demands' | 'purchases'>(initialTab);
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'Approved' | 'Rejected'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');

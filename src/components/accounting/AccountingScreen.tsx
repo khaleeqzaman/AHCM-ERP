@@ -16,6 +16,7 @@ import {
   VoucherDocument, 
   VoucherLine 
 } from '../../types/accounting';
+import { NavTarget } from '../../types';
 import { formatWholeNumber } from '../../utils/formatters';
 import { ChartOfAccountsView } from './ChartOfAccountsView';
 import { VoucherEntryForm } from './VoucherEntryForm';
@@ -24,6 +25,7 @@ import { LedgersView } from './LedgersView';
 import { TrialBalanceView } from './TrialBalanceView';
 
 interface AccountingScreenProps {
+  navTarget?: NavTarget | null;
   accounts: ChartAccount[];
   vouchers: VoucherDocument[];
   onAddAccount: (account: ChartAccount) => void;
@@ -43,6 +45,7 @@ export type AccountantTab =
   | 'trial_balance';
 
 export const AccountingScreen: React.FC<AccountingScreenProps> = ({
+  navTarget,
   accounts,
   vouchers,
   onAddAccount,
@@ -55,6 +58,30 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<AccountantTab>('chart_of_accounts');
   const [editingVoucher, setEditingVoucher] = useState<VoucherDocument | null>(null);
+  const [openAddAccount, setOpenAddAccount] = useState<boolean>(false);
+
+  // Sync with navTarget from Sidebar
+  React.useEffect(() => {
+    if (!navTarget || navTarget.module !== 'accounting') return;
+
+    if (navTarget.subPage === 'add_account') {
+      setActiveTab('chart_of_accounts');
+      setOpenAddAccount(true);
+    } else if (navTarget.subPage === 'chart_of_accounts') {
+      setActiveTab('chart_of_accounts');
+      setOpenAddAccount(false);
+    } else if (navTarget.subPage === 'create_voucher') {
+      setEditingVoucher(null);
+      setActiveTab('voucher_entry');
+    } else if (navTarget.subPage === 'voucher_register') {
+      setEditingVoucher(null);
+      setActiveTab('vouchers_list');
+    } else if (navTarget.subPage === 'general_ledger') {
+      setActiveTab('ledgers');
+    } else if (navTarget.subPage === 'trial_balance') {
+      setActiveTab('trial_balance');
+    }
+  }, [navTarget]);
 
   const handleEditVoucher = (voucher: VoucherDocument) => {
     setEditingVoucher(voucher);
@@ -207,6 +234,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
         {activeTab === 'chart_of_accounts' && (
           <ChartOfAccountsView
             accounts={accounts}
+            initialOpenAdd={openAddAccount}
             onAddAccount={onAddAccount}
             onUpdateAccount={onUpdateAccount}
           />

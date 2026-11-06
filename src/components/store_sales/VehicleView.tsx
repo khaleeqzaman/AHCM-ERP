@@ -34,6 +34,8 @@ interface VehicleViewProps {
   onAddConsumption: (record: VehicleConsumptionRecord) => void;
   onUpdateConsumption: (record: VehicleConsumptionRecord) => void;
   onDeleteConsumption: (id: string) => void;
+  initialTab?: 'consumption_list' | 'add_consumption' | 'manage_vehicles';
+  initialVehicleFormOpen?: boolean;
 }
 
 export const VehicleView: React.FC<VehicleViewProps> = ({
@@ -46,8 +48,10 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
   onAddConsumption,
   onUpdateConsumption,
   onDeleteConsumption,
+  initialTab = 'consumption_list',
+  initialVehicleFormOpen = false,
 }) => {
-  const [activeTab, setActiveTab] = useState<'consumption_list' | 'add_consumption' | 'manage_vehicles'>('consumption_list');
+  const [activeTab, setActiveTab] = useState<'consumption_list' | 'add_consumption' | 'manage_vehicles'>(initialTab);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [timeFilter, setTimeFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
@@ -62,7 +66,19 @@ export const VehicleView: React.FC<VehicleViewProps> = ({
   const [printModalOpen, setPrintModalOpen] = useState(false);
 
   // Vehicle master form state
-  const [isVehicleFormOpen, setIsVehicleFormOpen] = useState(false);
+  const [isVehicleFormOpen, setIsVehicleFormOpen] = useState(initialVehicleFormOpen);
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  React.useEffect(() => {
+    if (typeof initialVehicleFormOpen === 'boolean') {
+      setIsVehicleFormOpen(initialVehicleFormOpen);
+    }
+  }, [initialVehicleFormOpen]);
   const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null);
   const [vehicleNoInput, setVehicleNoInput] = useState('');
   const [driverNameInput, setDriverNameInput] = useState('');

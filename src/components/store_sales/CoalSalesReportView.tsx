@@ -38,6 +38,7 @@ interface CoalSalesReportViewProps {
   onTogglePartnerActive: (partnerId: string) => void;
   onDeletePartner: (partnerId: string) => void;
   onNavigateToRecordSell: () => void;
+  initialOpenAddPartnerModal?: boolean;
 }
 
 export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
@@ -52,6 +53,7 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
   onTogglePartnerActive,
   onDeletePartner,
   onNavigateToRecordSell,
+  initialOpenAddPartnerModal = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [timeFilter, setTimeFilter] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('all');
@@ -63,7 +65,13 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
   const [dateTo, setDateTo] = useState('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
-  const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(false);
+  const [isAddPartnerModalOpen, setIsAddPartnerModalOpen] = useState(initialOpenAddPartnerModal);
+
+  React.useEffect(() => {
+    if (typeof initialOpenAddPartnerModal === 'boolean') {
+      setIsAddPartnerModalOpen(initialOpenAddPartnerModal);
+    }
+  }, [initialOpenAddPartnerModal]);
   const [newPartnerName, setNewPartnerName] = useState('');
   const [newPartnerCode, setNewPartnerCode] = useState('');
   const [notification, setNotification] = useState<string | null>(null);

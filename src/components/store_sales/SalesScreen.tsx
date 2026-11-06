@@ -18,6 +18,7 @@ import {
   VehicleConsumptionRecord, 
   CompanySettings 
 } from '../../types/storeSales';
+import { NavTarget } from '../../types';
 import { PosView } from './PosView';
 import { RecordCoalSellView } from './RecordCoalSellView';
 import { CoalSalesReportView } from './CoalSalesReportView';
@@ -26,6 +27,7 @@ import { BuyersView } from './BuyersView';
 import { VehicleView } from './VehicleView';
 
 interface SalesScreenProps {
+  navTarget?: NavTarget | null;
   initialSubTab?: SalesSubTab;
   posEntries: PosCoalSellEntry[];
   coalSellRecords: CoalSellRecord[];
@@ -57,6 +59,7 @@ interface SalesScreenProps {
 }
 
 export const SalesScreen: React.FC<SalesScreenProps> = ({
+  navTarget,
   initialSubTab = 'pos',
   posEntries,
   coalSellRecords,
@@ -87,6 +90,61 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
   onDeleteConsumption,
 }) => {
   const [subTab, setSubTab] = useState<SalesSubTab>(initialSubTab);
+  const [posTab, setPosTab] = useState<'sheet' | 'form'>('sheet');
+  const [openPartnerColModal, setOpenPartnerColModal] = useState<boolean>(false);
+  const [openPartnerForm, setOpenPartnerForm] = useState<boolean>(false);
+  const [openBuyerForm, setOpenBuyerForm] = useState<boolean>(false);
+  const [vehicleTab, setVehicleTab] = useState<'consumption_list' | 'add_consumption' | 'manage_vehicles'>('consumption_list');
+  const [openVehicleForm, setOpenVehicleForm] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (!navTarget || navTarget.module !== 'store_sales' || navTarget.section !== 'sale') return;
+
+    if (navTarget.subPage === 'pos_sheet') {
+      setSubTab('pos');
+      setPosTab('sheet');
+    } else if (navTarget.subPage === 'pos_form') {
+      setSubTab('pos');
+      setPosTab('form');
+    } else if (navTarget.subPage === 'record_coal_sell') {
+      setSubTab('record_coal_sell');
+    } else if (navTarget.subPage === 'coal_sales_report_record') {
+      setSubTab('record_coal_sell');
+    } else if (navTarget.subPage === 'coal_sales_report_partner_col') {
+      setSubTab('coal_sales_report');
+      setOpenPartnerColModal(true);
+    } else if (navTarget.subPage === 'add_partner') {
+      setSubTab('partners');
+      setOpenPartnerForm(true);
+    } else if (navTarget.subPage === 'view_partners') {
+      setSubTab('partners');
+      setOpenPartnerForm(false);
+    } else if (navTarget.subPage === 'add_buyer') {
+      setSubTab('buyers');
+      setOpenBuyerForm(true);
+    } else if (navTarget.subPage === 'view_buyers') {
+      setSubTab('buyers');
+      setOpenBuyerForm(false);
+    } else if (navTarget.subPage === 'manage_vehicle') {
+      setSubTab('vehicle');
+      setVehicleTab('manage_vehicles');
+      setOpenVehicleForm(false);
+    } else if (navTarget.subPage === 'add_vehicle') {
+      setSubTab('vehicle');
+      setVehicleTab('manage_vehicles');
+      setOpenVehicleForm(true);
+    } else if (navTarget.subPage === 'view_vehicle') {
+      setSubTab('vehicle');
+      setVehicleTab('manage_vehicles');
+      setOpenVehicleForm(false);
+    } else if (navTarget.subPage === 'add_consumption') {
+      setSubTab('vehicle');
+      setVehicleTab('add_consumption');
+    } else if (navTarget.subPage === 'view_consumption') {
+      setSubTab('vehicle');
+      setVehicleTab('consumption_list');
+    }
+  }, [navTarget]);
 
   return (
     <div className="space-y-6">
@@ -217,6 +275,7 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
             entries={posEntries}
             buyers={buyers}
             companySettings={companySettings}
+            initialTab={posTab}
             onAddEntry={onAddPosEntry}
             onUpdateEntry={onUpdatePosEntry}
             onDeleteEntry={onDeletePosEntry}
@@ -239,6 +298,7 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
             records={coalSellRecords}
             partners={partners}
             companySettings={companySettings}
+            initialOpenAddPartnerModal={openPartnerColModal}
             onAddRecord={onAddCoalSellRecord}
             onUpdateRecord={onUpdateCoalSellRecord}
             onDeleteRecord={onDeleteCoalSellRecord}
@@ -253,6 +313,7 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
         {subTab === 'partners' && (
           <PartnersView
             partners={partners}
+            initialFormOpen={openPartnerForm}
             onAddPartner={onAddPartner}
             onUpdatePartner={onUpdatePartner}
             onDeletePartner={onDeletePartner}
@@ -264,6 +325,7 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
         {subTab === 'buyers' && (
           <BuyersView
             buyers={buyers}
+            initialFormOpen={openBuyerForm}
             onAddBuyer={onAddBuyer}
             onUpdateBuyer={onUpdateBuyer}
             onDeleteBuyer={onDeleteBuyer}
@@ -275,6 +337,8 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
             vehicles={vehicles}
             consumptions={consumptions}
             companySettings={companySettings}
+            initialTab={vehicleTab}
+            initialVehicleFormOpen={openVehicleForm}
             onAddVehicle={onAddVehicle}
             onUpdateVehicle={onUpdateVehicle}
             onDeleteVehicle={onDeleteVehicle}
