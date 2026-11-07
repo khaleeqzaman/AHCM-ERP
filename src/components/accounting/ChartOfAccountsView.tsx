@@ -23,6 +23,9 @@ import {
   FileSpreadsheet,
   FileJson,
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   Eye,
   Info
 } from 'lucide-react';
@@ -441,6 +444,36 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
     });
   }, [accounts, searchTerm, typeFilter, levelFilter, transTypeFilter]);
 
+  // =========================================================
+  // PAGINATION & "SHOW ALL" STATE
+  // =========================================================
+  const [pageSize, setPageSize] = useState<number | 'all'>(25);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Automatically reset to page 1 whenever search, filters, or page size change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, typeFilter, levelFilter, transTypeFilter, pageSize]);
+
+  const totalFilteredCount = filteredAccounts.length;
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(totalFilteredCount / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const displayedAccounts = useMemo(() => {
+    if (pageSize === 'all') return filteredAccounts;
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    return filteredAccounts.slice(startIndex, startIndex + pageSize);
+  }, [filteredAccounts, safeCurrentPage, pageSize]);
+
+  const startIndexDisplay = totalFilteredCount === 0 
+    ? 0 
+    : pageSize === 'all' 
+    ? 1 
+    : (safeCurrentPage - 1) * pageSize + 1;
+  const endIndexDisplay = pageSize === 'all' 
+    ? totalFilteredCount 
+    : Math.min(safeCurrentPage * pageSize, totalFilteredCount);
+
   // Aggregate Metrics
   const totalAssets = accounts
     .filter((a) => a.accountType === 'Asset')
@@ -665,6 +698,38 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
             <option value="T">T - Transaction Detail</option>
           </select>
 
+          {/* Page Size & Show All Selector */}
+          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+            <span className="text-[11px] text-slate-500 font-medium">Rows:</span>
+            <select
+              value={String(pageSize)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setPageSize(val === 'all' ? 'all' : Number(val));
+              }}
+              className="px-2 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-slate-700 font-medium"
+            >
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="all">Show All ({totalFilteredCount})</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setPageSize((prev) => (prev === 'all' ? 25 : 'all'))}
+              className={`px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+                pageSize === 'all'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+              }`}
+              title={pageSize === 'all' ? 'Switch to Paginated View (25 per page)' : 'Show All Accounts on One Page'}
+            >
+              {pageSize === 'all' ? 'Paginate' : 'Show All'}
+            </button>
+          </div>
+
           {(searchTerm || typeFilter !== 'All' || levelFilter !== 'All' || transTypeFilter !== 'All') && (
             <button
               type="button"
@@ -702,7 +767,7 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredAccounts.length === 0 ? (
+              {displayedAccounts.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-slate-500">
                     <p className="font-medium">No accounts found matching the current criteria.</p>
@@ -712,7 +777,7 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredAccounts.map((acc) => {
+                displayedAccounts.map((acc) => {
                   const level = acc.level || (acc.code.length <= 1 ? 1 : acc.code.length <= 2 ? 2 : acc.code.length <= 4 ? 3 : 4);
                   const isGroup = acc.transType === 'G' || level <= 2;
                   const indentPadding = level === 1 ? 'pl-0' : level === 2 ? 'pl-3' : level === 3 ? 'pl-6' : 'pl-9';
@@ -864,18 +929,152 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
           </table>
         </div>
 
-        {/* Table Footer with Summary */}
-        <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-600 gap-2">
-          <span>
-            Showing <strong className="text-slate-900">{filteredAccounts.length}</strong> of{' '}
-            <strong className="text-slate-900">{accounts.length}</strong> total accounts
-          </span>
-          <div className="flex items-center gap-4 text-[11px] font-mono">
-            <span>Assets: <strong>{formatWholeNumber(totalAssets)}</strong></span>
-            <span>Liabilities: <strong>{formatWholeNumber(totalLiabilities)}</strong></span>
-            <span>Equity: <strong>{formatWholeNumber(totalEquity)}</strong></span>
-            <span>Revenue: <strong>{formatWholeNumber(totalRevenue)}</strong></span>
-            <span>Expenses: <strong>{formatWholeNumber(totalExpenses)}</strong></span>
+        {/* Table Footer with Summary & Pagination Controls */}
+        <div className="bg-slate-50 px-4 py-3.5 border-t border-slate-200 space-y-3">
+          {/* Row 1: Pagination Navigation Bar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+            <div className="flex items-center gap-2">
+              <span>
+                Showing <strong className="text-slate-900 font-mono">{startIndexDisplay}–{endIndexDisplay}</strong> of{' '}
+                <strong className="text-slate-900 font-mono">{totalFilteredCount}</strong> filtered accounts
+                {pageSize !== 'all' && (
+                  <span className="text-slate-400 font-mono ml-1">
+                    (Page {safeCurrentPage} of {totalPages})
+                  </span>
+                )}
+              </span>
+              {pageSize === 'all' && (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+                  All Records Shown
+                </span>
+              )}
+            </div>
+
+            {/* Pagination Button Controls */}
+            {pageSize !== 'all' && totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                {/* First Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safeCurrentPage <= 1}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="First Page"
+                >
+                  <ChevronsLeft className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Prev Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Previous Page"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Page Number Buttons with Windowing */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => {
+                    if (totalPages <= 7) return true;
+                    if (p === 1 || p === totalPages) return true;
+                    return Math.abs(p - safeCurrentPage) <= 2;
+                  })
+                  .map((p, idx, arr) => {
+                    const prev = arr[idx - 1];
+                    const showEllipsis = prev && p - prev > 1;
+
+                    return (
+                      <React.Fragment key={p}>
+                        {showEllipsis && (
+                          <span className="px-1 text-slate-400 select-none font-mono">…</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          className={`min-w-7 h-7 px-2 text-xs font-mono font-medium rounded-md border transition-colors cursor-pointer ${
+                            safeCurrentPage === p
+                              ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+
+                {/* Next Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Next Page"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Last Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Last Page"
+                >
+                  <ChevronsRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Quick Switch Button in Footer */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-500">Page size:</span>
+              <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5 text-[11px] font-mono">
+                {[10, 25, 50, 100].map((sz) => (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => setPageSize(sz)}
+                    className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                      pageSize === sz
+                        ? 'bg-emerald-600 text-white font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {sz}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPageSize('all')}
+                  className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                    pageSize === 'all'
+                      ? 'bg-emerald-600 text-white font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Financial Aggregates Strip */}
+          <div className="pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between text-[11px] font-mono text-slate-600 gap-2">
+            <span className="font-sans text-slate-500">
+              System Totals: <strong className="text-slate-900">{accounts.length}</strong> accounts cataloged
+            </span>
+            <div className="flex flex-wrap items-center gap-4">
+              <span>Assets: <strong className="text-slate-900">{formatWholeNumber(totalAssets)}</strong></span>
+              <span>Liabilities: <strong className="text-slate-900">{formatWholeNumber(totalLiabilities)}</strong></span>
+              <span>Equity: <strong className="text-slate-900">{formatWholeNumber(totalEquity)}</strong></span>
+              <span>Revenue: <strong className="text-slate-900">{formatWholeNumber(totalRevenue)}</strong></span>
+              <span>Expenses: <strong className="text-slate-900">{formatWholeNumber(totalExpenses)}</strong></span>
+            </div>
           </div>
         </div>
       </div>

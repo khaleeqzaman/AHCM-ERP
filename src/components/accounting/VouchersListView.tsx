@@ -21,7 +21,8 @@ import {
   ArrowRight,
   Send,
   Building2,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
 import { VoucherDocument, VoucherType, VoucherStatus } from '../../types/accounting';
 import { formatWholeNumber } from '../../utils/formatters';
@@ -57,6 +58,8 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
   // Modals state
   const [viewVoucher, setViewVoucher] = useState<VoucherDocument | null>(null);
   const [printVoucher, setPrintVoucher] = useState<VoucherDocument | null>(null);
+  const [isPrintRegisterModalOpen, setIsPrintRegisterModalOpen] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
   const [reverseModalVoucher, setReverseModalVoucher] = useState<VoucherDocument | null>(null);
   const [reversalReason, setReversalReason] = useState('');
   const [cancelModalVoucher, setCancelModalVoucher] = useState<VoucherDocument | null>(null);
@@ -210,6 +213,80 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
     setPrintVoucher(v);
   };
 
+  // Export Filtered Voucher Register to CSV
+  const handleExportRegisterCsv = () => {
+    const headers = [
+      'Sr',
+      'Date',
+      'Voucher No',
+      'Type',
+      'Reference No',
+      'Narration',
+      'Total Debit (PKR)',
+      'Total Credit (PKR)',
+      'Status',
+      'Account Lines Summary',
+      'Prepared By',
+      'Approved By',
+      'Posted By'
+    ];
+
+    const rows = filteredVouchers.map((v, index) => {
+      const linesSummary = v.lines
+        .map((l) => `${l.accountCode} ${l.accountName} (Dr: ${l.debit || 0}, Cr: ${l.credit || 0})`)
+        .join('; ');
+
+      return [
+        index + 1,
+        `"${v.date || ''}"`,
+        `"${v.voucherNo || ''}"`,
+        `"${v.voucherType || ''}"`,
+        `"${(v.referenceNo || '').replace(/"/g, '""')}"`,
+        `"${(v.narration || '').replace(/"/g, '""')}"`,
+        v.totalDebit || 0,
+        v.totalCredit || 0,
+        `"${v.status || ''}"`,
+        `"${linesSummary.replace(/"/g, '""')}"`,
+        `"${v.preparedBy || ''}"`,
+        `"${v.approvedBy || ''}"`,
+        `"${v.postedBy || ''}"`
+      ];
+    });
+
+    const totalDebitsSum = filteredVouchers.reduce((sum, v) => sum + (v.totalDebit || 0), 0);
+    const totalCreditsSum = filteredVouchers.reduce((sum, v) => sum + (v.totalCredit || 0), 0);
+
+    rows.push([
+      '"TOTAL"',
+      '""',
+      `"Vouchers: ${filteredVouchers.length}"`,
+      '""',
+      '""',
+      '"GRAND TOTAL"',
+      totalDebitsSum,
+      totalCreditsSum,
+      '""',
+      '""',
+      '""',
+      '""',
+      '""'
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `voucher_register_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setExportSuccess(true);
+    setTimeout(() => setExportSuccess(false), 3000);
+  };
+
   // Metrics for quick summary
   const totalTurnover = vouchers
     .filter((v) => v.status === 'Posted')
@@ -239,14 +316,46 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onNavigateToCreate}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs self-start sm:self-auto cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>New Voucher</span>
-        </button>
+        {/* Action Controls: Export CSV, Print Register, New Voucher */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportRegisterCsv}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer shadow-xs"
+            title="Export filtered Voucher Register to CSV file"
+          >
+            {exportSuccess ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700">Exported</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5 text-slate-500" />
+                <span>Export CSV</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsPrintRegisterModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer shadow-xs"
+            title="Open printable Voucher Register table"
+          >
+            <Printer className="w-3.5 h-3.5 text-slate-500" />
+            <span>Print Register</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onNavigateToCreate}
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Voucher</span>
+          </button>
+        </div>
       </div>
 
       {/* Edit Mode Notice Banner */}
@@ -1206,6 +1315,147 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
               >
                 Yes, Delete Voucher
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL 6: PRINT REGISTER PREVIEW MODAL
+          ========================================================= */}
+      {isPrintRegisterModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-xl border border-slate-200 max-w-5xl w-full p-6 shadow-2xl space-y-4 max-h-[92vh] flex flex-col">
+            {/* Modal Actions Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <Printer className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Print Voucher Register</h3>
+                  <p className="text-xs text-slate-500">Official general journal summary register</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportRegisterCsv}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Download CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-xs"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Document</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPrintRegisterModalOpen(false)}
+                  className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Content Sheet */}
+            <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-6 bg-white space-y-4 text-xs font-sans print:border-0 print:p-0">
+              {/* Document Header */}
+              <div className="text-center pb-3 border-b-2 border-slate-900 space-y-1">
+                <h1 className="text-lg font-bold uppercase tracking-wider text-slate-900">
+                  AHCM Mining & Trading Enterprises
+                </h1>
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-600">
+                  Official Voucher Register & General Journal Log
+                </h2>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  Printed On: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Filter: Type [{typeFilter}] · Status [{statusFilter}] · Total Vouchers: {filteredVouchers.length}
+                </div>
+              </div>
+
+              {/* Printable Register Table */}
+              <table className="w-full text-left border-collapse text-[11px]">
+                <thead>
+                  <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-900">
+                    <th className="py-2 px-2 text-center w-10">Sr.</th>
+                    <th className="py-2 px-2 w-24">Date</th>
+                    <th className="py-2 px-3 font-mono">Voucher No</th>
+                    <th className="py-2 px-2">Type</th>
+                    <th className="py-2 px-2">Reference</th>
+                    <th className="py-2 px-3">Narration & Accounts</th>
+                    <th className="py-2 px-3 text-right">Debit (PKR)</th>
+                    <th className="py-2 px-3 text-right">Credit (PKR)</th>
+                    <th className="py-2 px-2 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {filteredVouchers.map((v, idx) => (
+                    <tr key={v.id}>
+                      <td className="py-1.5 px-2 text-center font-mono text-slate-500">{idx + 1}</td>
+                      <td className="py-1.5 px-2 text-slate-700 whitespace-nowrap">{v.date}</td>
+                      <td className="py-1.5 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">{v.voucherNo}</td>
+                      <td className="py-1.5 px-2 font-semibold text-slate-800">{getTypeCode(v.voucherType)}</td>
+                      <td className="py-1.5 px-2 text-slate-600 font-mono">{v.referenceNo || '—'}</td>
+                      <td className="py-1.5 px-3 text-slate-800">
+                        <div className="font-medium text-slate-900">{v.narration}</div>
+                        <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-md">
+                          {v.lines.map((l) => `${l.accountCode} ${l.accountName}`).join(' · ')}
+                        </div>
+                      </td>
+                      <td className="py-1.5 px-3 text-right font-mono tabular-nums font-semibold text-slate-900 whitespace-nowrap">
+                        {formatWholeNumber(v.totalDebit)}
+                      </td>
+                      <td className="py-1.5 px-3 text-right font-mono tabular-nums font-semibold text-slate-900 whitespace-nowrap">
+                        {formatWholeNumber(v.totalCredit)}
+                      </td>
+                      <td className="py-1.5 px-2 text-center text-[10px] font-semibold text-slate-700 whitespace-nowrap">
+                        {v.status}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-900 font-bold bg-slate-100 text-xs">
+                    <td colSpan={6} className="py-2.5 px-3 text-right uppercase tracking-wider text-slate-900">
+                      Total Register Turnover ({filteredVouchers.length} Vouchers):
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 font-bold whitespace-nowrap">
+                      PKR {formatWholeNumber(filteredVouchers.reduce((s, v) => s + (v.totalDebit || 0), 0))}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 font-bold whitespace-nowrap">
+                      PKR {formatWholeNumber(filteredVouchers.reduce((s, v) => s + (v.totalCredit || 0), 0))}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {/* Sign-off Blocks */}
+              <div className="pt-8 grid grid-cols-4 gap-4 text-center text-[10px] text-slate-600">
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Prepared By</div>
+                  <div className="text-slate-500 mt-0.5">Voucher Accountant</div>
+                </div>
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Checked By</div>
+                  <div className="text-slate-500 mt-0.5">Internal Audit Head</div>
+                </div>
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Verified By</div>
+                  <div className="text-slate-500 mt-0.5">Finance Director</div>
+                </div>
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Approved By</div>
+                  <div className="text-slate-500 mt-0.5">Chief Financial Officer</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Scale, 
   CheckCircle2, 
   AlertCircle, 
   Printer, 
   Download,
-  Calendar
+  Calendar,
+  X,
+  FileSpreadsheet,
+  Check
 } from 'lucide-react';
 import { ChartAccount, VoucherDocument } from '../../types/accounting';
 import { formatWholeNumber } from '../../utils/formatters';
@@ -19,6 +22,9 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
   accounts,
   vouchers,
 }) => {
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
+
   // Compute net balance for each account: opening balance + posted debits/credits
   const trialBalanceRows = accounts.map((acc) => {
     let debits = 0;
@@ -67,6 +73,61 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
   const difference = Math.abs(totalDebits - totalCredits);
   const isBalanced = difference === 0;
 
+  // Export Trial Balance to CSV
+  const handleExportCsv = () => {
+    const headers = [
+      'Account Code',
+      'Account Title',
+      'Account Type',
+      'Normal Balance',
+      'Period Debits (PKR)',
+      'Period Credits (PKR)',
+      'Debit Balance (PKR)',
+      'Credit Balance (PKR)'
+    ];
+
+    const rows = trialBalanceRows.map((r) => [
+      `"${r.code || ''}"`,
+      `"${(r.name || '').replace(/"/g, '""')}"`,
+      `"${r.accountType || ''}"`,
+      `"${r.normalBalance || ''}"`,
+      r.periodDebits,
+      r.periodCredits,
+      r.debitBal,
+      r.creditBal
+    ]);
+
+    // Append Total Row
+    rows.push([
+      '"TOTAL TRIAL BALANCE"',
+      '""',
+      '""',
+      '""',
+      trialBalanceRows.reduce((sum, r) => sum + r.periodDebits, 0),
+      trialBalanceRows.reduce((sum, r) => sum + r.periodCredits, 0),
+      totalDebits,
+      totalCredits
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `trial_balance_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setExportSuccess(true);
+    setTimeout(() => setExportSuccess(false), 3000);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="space-y-6">
       {/* View Header */}
@@ -88,11 +149,41 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Action Controls: Export CSV and Print */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <span className="text-xs font-mono text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             As of Oct 2026
           </span>
+
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer shadow-xs"
+            title="Export Trial Balance to CSV file"
+          >
+            {exportSuccess ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700">Exported</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5 text-slate-500" />
+                <span>Export CSV</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-xs"
+            title="Open printable Trial Balance sheet"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print Sheet</span>
+          </button>
         </div>
       </div>
 
@@ -203,6 +294,132 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* =========================================================
+          PRINT PREVIEW MODAL FOR TRIAL BALANCE TABLE
+          ========================================================= */}
+      {isPrintModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-xl border border-slate-200 max-w-4xl w-full p-6 shadow-xl space-y-4 max-h-[92vh] flex flex-col">
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <Printer className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Print Trial Balance Sheet</h3>
+                  <p className="text-xs text-slate-500">Official statement of ledger accounts equilibrium</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Download CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-xs"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Document</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPrintModalOpen(false)}
+                  className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Preview Container */}
+            <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-6 bg-white space-y-4 text-xs font-sans print:border-0 print:p-0">
+              {/* Document Header */}
+              <div className="text-center pb-3 border-b-2 border-slate-900 space-y-1">
+                <h1 className="text-lg font-bold uppercase tracking-wider text-slate-900">
+                  AHCM Mining & Trading Enterprises
+                </h1>
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-600">
+                  Official Standard Trial Balance Sheet
+                </h2>
+                <div className="text-[10px] text-slate-500 font-mono">
+                  As of Oct 2026 · Printed On: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </div>
+                <div className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold font-mono uppercase tracking-wider mt-1 bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  {isBalanced ? '✓ Balanced (Equilibrium Confirmed)' : '⚠ Discrepancy Found'}
+                </div>
+              </div>
+
+              {/* Printable Table */}
+              <table className="w-full text-left border-collapse text-[11px]">
+                <thead>
+                  <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-900">
+                    <th className="py-2 px-3 font-mono">Account Code</th>
+                    <th className="py-2 px-3">Account Title</th>
+                    <th className="py-2 px-3">Account Type</th>
+                    <th className="py-2 px-3 text-center">Normal</th>
+                    <th className="py-2 px-3 text-right">Debit Balance (PKR)</th>
+                    <th className="py-2 px-3 text-right">Credit Balance (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {trialBalanceRows.map((row) => (
+                    <tr key={row.id}>
+                      <td className="py-1.5 px-3 font-mono font-bold text-slate-800">{row.code}</td>
+                      <td className="py-1.5 px-3 text-slate-900 font-medium">{row.name}</td>
+                      <td className="py-1.5 px-3 text-slate-600">{row.accountType}</td>
+                      <td className="py-1.5 px-3 text-center font-mono">{row.normalBalance}</td>
+                      <td className="py-1.5 px-3 text-right font-mono tabular-nums font-semibold">
+                        {row.debitBal > 0 ? formatWholeNumber(row.debitBal) : '—'}
+                      </td>
+                      <td className="py-1.5 px-3 text-right font-mono tabular-nums font-semibold">
+                        {row.creditBal > 0 ? formatWholeNumber(row.creditBal) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-900 font-bold bg-slate-100 text-xs">
+                    <td colSpan={4} className="py-2.5 px-3 text-right uppercase tracking-wider text-slate-900">
+                      Total Trial Balance:
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 font-bold">
+                      PKR {formatWholeNumber(totalDebits)}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-900 font-bold">
+                      PKR {formatWholeNumber(totalCredits)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              {/* Equilibrium Sign-off Block */}
+              <div className="pt-8 grid grid-cols-3 gap-6 text-center text-[10px] text-slate-600">
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Prepared By</div>
+                  <div className="text-slate-500 mt-0.5">Senior Accountant</div>
+                </div>
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Verified By</div>
+                  <div className="text-slate-500 mt-0.5">Finance Auditor</div>
+                </div>
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Approved By</div>
+                  <div className="text-slate-500 mt-0.5">Chief Financial Officer</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

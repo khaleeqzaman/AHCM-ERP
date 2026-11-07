@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BookOpen, 
   Search, 
@@ -12,7 +12,13 @@ import {
   RotateCcw,
   Building2,
   FileText,
-  X
+  X,
+  Download,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight
 } from 'lucide-react';
 import { 
   ChartAccount, 
@@ -39,6 +45,11 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
+
+  // Pagination & Show All State
+  const [pageSize, setPageSize] = useState<number | 'all'>(25);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   const selectedAccount =
     accounts.find((a) => a.id === selectedAccountId) || accounts[0];
@@ -95,21 +106,51 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
     });
   };
 
-  const allLedgerEntries = compileLedgerEntries();
+  const allLedgerEntries = useMemo(() => {
+    return compileLedgerEntries();
+  }, [selectedAccount, vouchers]);
 
   // Apply search & date range filters
-  const filteredEntries = allLedgerEntries.filter((e) => {
-    const matchesSearch =
-      e.voucherNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.particulars.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.referenceNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.date.includes(searchTerm);
+  const filteredEntries = useMemo(() => {
+    return allLedgerEntries.filter((e) => {
+      const q = searchTerm.toLowerCase();
+      const matchesSearch =
+        e.voucherNo.toLowerCase().includes(q) ||
+        e.particulars.toLowerCase().includes(q) ||
+        e.referenceNo.toLowerCase().includes(q) ||
+        e.date.includes(q);
 
-    const matchesStartDate = !startDate || e.date >= startDate;
-    const matchesEndDate = !endDate || e.date <= endDate;
+      const matchesStartDate = !startDate || e.date >= startDate;
+      const matchesEndDate = !endDate || e.date <= endDate;
 
-    return matchesSearch && matchesStartDate && matchesEndDate;
-  });
+      return matchesSearch && matchesStartDate && matchesEndDate;
+    });
+  }, [allLedgerEntries, searchTerm, startDate, endDate]);
+
+  // Reset to page 1 whenever filters or account change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedAccountId, searchTerm, startDate, endDate, pageSize]);
+
+  // Pagination Calculations
+  const totalFilteredCount = filteredEntries.length;
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(totalFilteredCount / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const displayedEntries = useMemo(() => {
+    if (pageSize === 'all') return filteredEntries;
+    const startIndex = (safeCurrentPage - 1) * pageSize;
+    return filteredEntries.slice(startIndex, startIndex + pageSize);
+  }, [filteredEntries, safeCurrentPage, pageSize]);
+
+  const startIndexDisplay = totalFilteredCount === 0 
+    ? 0 
+    : pageSize === 'all' 
+    ? 1 
+    : (safeCurrentPage - 1) * pageSize + 1;
+  const endIndexDisplay = pageSize === 'all' 
+    ? totalFilteredCount 
+    : Math.min(safeCurrentPage * pageSize, totalFilteredCount);
 
   const totalPeriodDebits = filteredEntries.reduce((sum, e) => sum + e.debit, 0);
   const totalPeriodCredits = filteredEntries.reduce((sum, e) => sum + e.credit, 0);
@@ -130,6 +171,79 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
     if (typeStr.startsWith('BP')) return 'BP';
     if (typeStr.startsWith('BR')) return 'BR';
     return 'JV';
+  };
+
+  // Export General Ledger to CSV
+  const handleExportCsv = () => {
+    if (!selectedAccount) return;
+
+    const headers = [
+      'Sr',
+      'Date',
+      'Voucher No',
+      'Type',
+      'Reference No',
+      'Particulars',
+      'Debit (PKR)',
+      'Credit (PKR)',
+      'Running Balance (PKR)'
+    ];
+
+    const rows = filteredEntries.map((e, idx) => [
+      idx + 1,
+      `"${e.date || ''}"`,
+      `"${e.voucherNo || ''}"`,
+      `"${getTypeCode(e.voucherType)}"`,
+      `"${(e.referenceNo || '').replace(/"/g, '""')}"`,
+      `"${(e.particulars || '').replace(/"/g, '""')}"`,
+      e.debit,
+      e.credit,
+      e.runningBalance
+    ]);
+
+    // Metadata block
+    const meta = [
+      `"AHCM MINING & TRADING ENTERPRISES - GENERAL LEDGER STATEMENT"`,
+      `"Account Head: [${selectedAccount.code}] ${selectedAccount.name}"`,
+      `"Classification: ${selectedAccount.classification} (${selectedAccount.accountType})"`,
+      `"Normal Balance Side: ${selectedAccount.normalBalance}"`,
+      `"Opening Balance: PKR ${selectedAccount.openingBalance}"`,
+      `"Date Range: ${startDate || 'Earliest'} to ${endDate || 'Latest'}"`,
+      `"Exported On: ${new Date().toISOString().slice(0, 10)}"`,
+      `""`
+    ];
+
+    // Summary row
+    rows.push([
+      '"TOTALS"',
+      '""',
+      '""',
+      '""',
+      '""',
+      '"TOTAL ACTIVITY & CLOSING BALANCE"',
+      totalPeriodDebits,
+      totalPeriodCredits,
+      closingBalance
+    ]);
+
+    const csvContent = [
+      ...meta,
+      headers.join(','),
+      ...rows.map((r) => r.join(','))
+    ].join('\r\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `general_ledger_${selectedAccount.code}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setExportSuccess(true);
+    setTimeout(() => setExportSuccess(false), 3000);
   };
 
   return (
@@ -153,22 +267,53 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
           </p>
         </div>
 
-        {/* Account Selector Dropdown */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <span className="text-xs font-medium text-slate-600 whitespace-nowrap">
-            Account Head:
-          </span>
-          <select
-            value={selectedAccountId}
-            onChange={(e) => setSelectedAccountId(e.target.value)}
-            className="px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-semibold text-slate-900 shadow-xs max-w-xs sm:max-w-md truncate"
+        {/* Account Selector & Top Actions */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium text-slate-600 whitespace-nowrap">
+              Account Head:
+            </span>
+            <select
+              value={selectedAccountId}
+              onChange={(e) => setSelectedAccountId(e.target.value)}
+              className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-semibold text-slate-900 shadow-xs max-w-xs sm:max-w-md truncate"
+            >
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  [{acc.code}] {acc.name} — ({acc.classification})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors shadow-xs cursor-pointer"
+            title="Export this account ledger to CSV"
           >
-            {accounts.map((acc) => (
-              <option key={acc.id} value={acc.id}>
-                [{acc.code}] {acc.name} — ({acc.classification})
-              </option>
-            ))}
-          </select>
+            {exportSuccess ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700">Exported</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-3.5 h-3.5 text-slate-500" />
+                <span>Export CSV</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs cursor-pointer"
+            title="Open printable Ledger Statement"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print Statement</span>
+          </button>
         </div>
       </div>
 
@@ -181,11 +326,11 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                 <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200">
                   {selectedAccount.code}
                 </span>
-                <span className="text-xs text-slate-400">·</span>
+                <span className="text-slate-400">·</span>
                 <span className="text-xs font-medium text-slate-600">
                   {selectedAccount.classification}
                 </span>
-                <span className="text-xs text-slate-400">·</span>
+                <span className="text-slate-400">·</span>
                 <span className="text-xs text-slate-500">
                   Group: {selectedAccount.groupName}
                 </span>
@@ -263,6 +408,38 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
             />
           </div>
 
+          {/* Page Size & Show All Selector */}
+          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+            <span className="text-[11px] text-slate-500 font-medium">Rows:</span>
+            <select
+              value={String(pageSize)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setPageSize(val === 'all' ? 'all' : Number(val));
+              }}
+              className="px-2 py-1 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-slate-700 font-medium"
+            >
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="all">Show All ({totalFilteredCount})</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={() => setPageSize((prev) => (prev === 'all' ? 25 : 'all'))}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+                pageSize === 'all'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                  : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+              }`}
+              title={pageSize === 'all' ? 'Switch to Paginated View (25 per page)' : 'Show All Postings on One Page'}
+            >
+              {pageSize === 'all' ? 'Paginate' : 'Show All'}
+            </button>
+          </div>
+
           {(startDate || endDate || searchTerm) && (
             <button
               type="button"
@@ -272,22 +449,15 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
               Reset
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={() => setIsPrintModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors shadow-xs cursor-pointer ml-auto"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Print Ledger</span>
-          </button>
         </div>
       </div>
 
       {/* General Ledger Table */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
         <div className="p-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/70 text-xs font-semibold text-slate-800">
-          <span>General Ledger Postings ({filteredEntries.length} entries)</span>
+          <span>
+            General Ledger Postings ({displayedEntries.length} of {totalFilteredCount} entries)
+          </span>
           <span className="text-slate-500 font-normal">
             Reflecting all Posted double-entry vouchers
           </span>
@@ -310,21 +480,22 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredEntries.length === 0 ? (
+              {displayedEntries.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-12 text-center text-slate-500">
                     No postings found for this account. Create and Post vouchers to see chronological ledger activity.
                   </td>
                 </tr>
               ) : (
-                filteredEntries.map((entry, idx) => {
+                displayedEntries.map((entry, idx) => {
                   const code = getTypeCode(entry.voucherType);
                   const matchingVoucher = vouchers.find((v) => v.id === entry.voucherId);
+                  const serialNo = pageSize === 'all' ? idx + 1 : (safeCurrentPage - 1) * pageSize + idx + 1;
 
                   return (
                     <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="py-2.5 px-3 text-center font-mono text-slate-500">
-                        {idx + 1}
+                        {serialNo}
                       </td>
                       <td className="py-2.5 px-3 font-mono text-slate-700 whitespace-nowrap">
                         {entry.date}
@@ -400,17 +571,166 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
             </tfoot>
           </table>
         </div>
+
+        {/* Table Footer with Summary & Pagination Controls */}
+        <div className="bg-slate-50 px-4 py-3 border-t border-slate-200 space-y-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+            <div className="flex items-center gap-2">
+              <span>
+                Showing <strong className="text-slate-900 font-mono">{startIndexDisplay}–{endIndexDisplay}</strong> of{' '}
+                <strong className="text-slate-900 font-mono">{totalFilteredCount}</strong> ledger postings
+                {pageSize !== 'all' && (
+                  <span className="text-slate-400 font-mono ml-1">
+                    (Page {safeCurrentPage} of {totalPages})
+                  </span>
+                )}
+              </span>
+              {pageSize === 'all' && (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
+                  All Records Shown
+                </span>
+              )}
+            </div>
+
+            {/* Pagination Controls */}
+            {pageSize !== 'all' && totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                {/* First Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safeCurrentPage <= 1}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="First Page"
+                >
+                  <ChevronsLeft className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Prev Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage <= 1}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Previous Page"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Numbered Page Buttons */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => {
+                    if (totalPages <= 7) return true;
+                    if (p === 1 || p === totalPages) return true;
+                    return Math.abs(p - safeCurrentPage) <= 2;
+                  })
+                  .map((p, idx, arr) => {
+                    const prev = arr[idx - 1];
+                    const showEllipsis = prev && p - prev > 1;
+
+                    return (
+                      <React.Fragment key={p}>
+                        {showEllipsis && (
+                          <span className="px-1 text-slate-400 select-none font-mono">…</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          className={`min-w-7 h-7 px-2 text-xs font-mono font-medium rounded-md border transition-colors cursor-pointer ${
+                            safeCurrentPage === p
+                              ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+
+                {/* Next Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Next Page"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Last Page */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  title="Last Page"
+                >
+                  <ChevronsRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Quick Page Size Buttons */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-500">Page size:</span>
+              <div className="inline-flex rounded-md border border-slate-200 bg-white p-0.5 text-[11px] font-mono">
+                {[10, 25, 50, 100].map((sz) => (
+                  <button
+                    key={sz}
+                    type="button"
+                    onClick={() => setPageSize(sz)}
+                    className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                      pageSize === sz
+                        ? 'bg-emerald-600 text-white font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {sz}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPageSize('all')}
+                  className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                    pageSize === 'all'
+                      ? 'bg-emerald-600 text-white font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* PRINTABLE GENERAL LEDGER STATEMENT MODAL */}
       {isPrintModalOpen && selectedAccount && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 text-left space-y-5 max-h-[95vh] overflow-y-auto">
+          <div className="bg-white rounded-xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 text-left space-y-5 max-h-[95vh] overflow-y-auto flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 print:hidden">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Print Ledger Statement
-              </span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <Printer className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Print General Ledger Statement</h3>
+                  <p className="text-xs text-slate-500">Official statement for account [{selectedAccount.code}] {selectedAccount.name}</p>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Download CSV</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
@@ -430,27 +750,27 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
             </div>
 
             {/* Document Content */}
-            <div className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900">
-              <div className="text-center pb-3 border-b border-slate-800">
-                <h2 className="text-base font-extrabold uppercase tracking-wider">
-                  AL-HAMD COAL MINES & METALS
-                </h2>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mt-0.5">
+            <div className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900 print:border-0 print:p-0">
+              <div className="text-center pb-3 border-b-2 border-slate-800">
+                <h1 className="text-base font-extrabold uppercase tracking-wider">
+                  AHCM MINING & TRADING ENTERPRISES
+                </h1>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 mt-0.5">
                   General Ledger Account Statement
-                </h3>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Generated as of {new Date().toISOString().split('T')[0]} · Financial Year 2026
-                </p>
+                </h2>
+                <div className="text-[11px] text-slate-500 mt-1 font-mono">
+                  Printed as of {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Financial Year 2026
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3 rounded border border-slate-200">
+              <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3.5 rounded-lg border border-slate-200">
                 <div>
                   <div className="font-bold text-sm text-slate-900">{selectedAccount.name}</div>
                   <div className="font-mono text-emerald-800 font-bold mt-0.5">
                     Account Code: {selectedAccount.code}
                   </div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
-                    {selectedAccount.classification} ({selectedAccount.accountType})
+                    {selectedAccount.classification} ({selectedAccount.accountType}) · Normal Balance: {selectedAccount.normalBalance} Side
                   </div>
                 </div>
                 <div className="text-right space-y-1">
@@ -459,8 +779,12 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                     <span className="font-mono font-bold">PKR {formatWholeNumber(selectedAccount.openingBalance)}</span>
                   </div>
                   <div>
+                    <span className="text-slate-500">Period Debits / Credits: </span>
+                    <span className="font-mono font-bold">+{formatWholeNumber(totalPeriodDebits)} / -{formatWholeNumber(totalPeriodCredits)}</span>
+                  </div>
+                  <div>
                     <span className="text-slate-500">Closing Balance: </span>
-                    <span className="font-mono font-bold text-emerald-800">PKR {formatWholeNumber(closingBalance)}</span>
+                    <span className="font-mono font-bold text-emerald-800 text-sm">PKR {formatWholeNumber(closingBalance)}</span>
                   </div>
                 </div>
               </div>
@@ -499,22 +823,38 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-slate-100 border-t border-slate-800 font-bold text-[11px]">
+                    <tr className="bg-slate-100 border-t-2 border-slate-800 font-bold text-[11px]">
                       <td colSpan={4} className="py-1.5 px-2 text-right uppercase">
-                        Totals:
+                        Totals ({filteredEntries.length} Postings):
                       </td>
                       <td className="py-1.5 px-2 text-right font-mono">
-                        {formatWholeNumber(totalPeriodDebits)}
+                        PKR {formatWholeNumber(totalPeriodDebits)}
                       </td>
                       <td className="py-1.5 px-2 text-right font-mono">
-                        {formatWholeNumber(totalPeriodCredits)}
+                        PKR {formatWholeNumber(totalPeriodCredits)}
                       </td>
-                      <td className="py-1.5 px-2 text-right font-mono text-emerald-800">
-                        {formatWholeNumber(closingBalance)}
+                      <td className="py-1.5 px-2 text-right font-mono text-emerald-800 font-bold">
+                        PKR {formatWholeNumber(closingBalance)}
                       </td>
                     </tr>
                   </tfoot>
                 </table>
+              </div>
+
+              {/* Signatures Block */}
+              <div className="pt-8 grid grid-cols-3 gap-6 text-center text-[10px] text-slate-600">
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Prepared By</div>
+                  <div className="text-slate-500 mt-0.5">Senior Ledger Accountant</div>
+                </div>
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Verified By</div>
+                  <div className="text-slate-500 mt-0.5">Internal Audit Head</div>
+                </div>
+                <div className="border-t border-slate-300 pt-2">
+                  <div className="font-semibold text-slate-800">Approved By</div>
+                  <div className="text-slate-500 mt-0.5">Chief Financial Officer</div>
+                </div>
               </div>
             </div>
           </div>
