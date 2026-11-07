@@ -30,7 +30,10 @@ interface AccountingScreenProps {
   vouchers: VoucherDocument[];
   onAddAccount: (account: ChartAccount) => void;
   onUpdateAccount: (account: ChartAccount) => void;
+  onDeleteAccount?: (id: string) => void;
+  onImportAccounts?: (importedAccounts: ChartAccount[], overrideAll: boolean) => void;
   onSaveVoucher: (voucher: VoucherDocument) => void;
+  onDeleteVoucher?: (id: string) => void;
   onApproveVoucher: (id: string) => void;
   onPostVoucher: (id: string) => void;
   onCancelVoucher: (id: string, reason: string) => void;
@@ -50,7 +53,10 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
   vouchers,
   onAddAccount,
   onUpdateAccount,
+  onDeleteAccount,
+  onImportAccounts,
   onSaveVoucher,
+  onDeleteVoucher,
   onApproveVoucher,
   onPostVoucher,
   onCancelVoucher,
@@ -59,6 +65,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
   const [activeTab, setActiveTab] = useState<AccountantTab>('chart_of_accounts');
   const [editingVoucher, setEditingVoucher] = useState<VoucherDocument | null>(null);
   const [openAddAccount, setOpenAddAccount] = useState<boolean>(false);
+  const [isEditBannerActive, setIsEditBannerActive] = useState<boolean>(false);
 
   // Sync with navTarget from Sidebar
   React.useEffect(() => {
@@ -67,29 +74,41 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
     if (navTarget.subPage === 'add_account') {
       setActiveTab('chart_of_accounts');
       setOpenAddAccount(true);
+      setIsEditBannerActive(false);
     } else if (navTarget.subPage === 'chart_of_accounts') {
       setActiveTab('chart_of_accounts');
       setOpenAddAccount(false);
+      setIsEditBannerActive(false);
     } else if (navTarget.subPage === 'create_voucher') {
       setEditingVoucher(null);
       setActiveTab('voucher_entry');
+      setIsEditBannerActive(false);
+    } else if (navTarget.subPage === 'edit_voucher') {
+      setEditingVoucher(null);
+      setActiveTab('vouchers_list');
+      setIsEditBannerActive(true);
     } else if (navTarget.subPage === 'voucher_register') {
       setEditingVoucher(null);
       setActiveTab('vouchers_list');
+      setIsEditBannerActive(false);
     } else if (navTarget.subPage === 'general_ledger') {
       setActiveTab('ledgers');
+      setIsEditBannerActive(false);
     } else if (navTarget.subPage === 'trial_balance') {
       setActiveTab('trial_balance');
+      setIsEditBannerActive(false);
     }
   }, [navTarget]);
 
   const handleEditVoucher = (voucher: VoucherDocument) => {
     setEditingVoucher(voucher);
+    setIsEditBannerActive(false);
     setActiveTab('voucher_entry');
   };
 
   const handleOpenNewVoucher = () => {
     setEditingVoucher(null);
+    setIsEditBannerActive(false);
     setActiveTab('voucher_entry');
   };
 
@@ -234,9 +253,12 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
         {activeTab === 'chart_of_accounts' && (
           <ChartOfAccountsView
             accounts={accounts}
+            vouchers={vouchers}
             initialOpenAdd={openAddAccount}
             onAddAccount={onAddAccount}
             onUpdateAccount={onUpdateAccount}
+            onDeleteAccount={onDeleteAccount}
+            onImportAccounts={onImportAccounts}
           />
         )}
 
@@ -260,11 +282,13 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
           <VouchersListView
             vouchers={vouchers}
             onEditVoucher={handleEditVoucher}
+            onDeleteVoucher={onDeleteVoucher}
             onApproveVoucher={onApproveVoucher}
             onPostVoucher={onPostVoucher}
             onCancelVoucher={onCancelVoucher}
             onReverseVoucher={onReverseVoucher}
             onNavigateToCreate={handleOpenNewVoucher}
+            isEditModeBanner={isEditBannerActive}
           />
         )}
 

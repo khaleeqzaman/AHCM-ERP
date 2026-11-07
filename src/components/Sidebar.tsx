@@ -25,7 +25,8 @@ import {
   FolderTree,
   FileCheck2,
   FileText,
-  FileCheck
+  FileCheck,
+  Edit3
 } from 'lucide-react';
 import { NavModule, NavTarget } from '../types';
 import { User, UserRole } from '../types/user';
@@ -1197,6 +1198,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         >
                           <Plus className="w-3 h-3 text-emerald-600 shrink-0" />
                           <span>Create Voucher</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleOperationClick('accounting', 'accounts', 'edit_voucher')}
+                          className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                            isOpActive('accounting', 'accounts', 'edit_voucher')
+                              ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                          }`}
+                        >
+                          <Edit3 className="w-3 h-3 text-blue-600 shrink-0" />
+                          <span>Edit Voucher</span>
                         </button>
                         <button
                           type="button"

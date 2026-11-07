@@ -351,6 +351,7 @@ const mapPurchaseToRow = (p: PurchaseDocument) => ({
 const mapChartAccountFromRow = (r: any): ChartAccount => ({
   id: r.id,
   code: r.code,
+  accountNo: r.account_no || r.code,
   typeDigit: Number(r.type_digit || 1),
   classDigit: Number(r.class_digit || 1),
   groupCode: r.group_code || '',
@@ -364,22 +365,27 @@ const mapChartAccountFromRow = (r: any): ChartAccount => ({
   currentBalance: Number(r.current_balance || 0),
   description: r.description || undefined,
   isActive: r.is_active ?? true,
+  level: r.level ? Number(r.level) : undefined,
+  transType: r.trans_type || undefined,
+  parentAccountNo: r.parent_account_no || undefined,
+  openingBalanceType: r.opening_balance_type || (r.normal_balance === 'Credit' ? 'CR' : 'DR'),
+  monthly: r.monthly || undefined,
 });
 
 const mapChartAccountToRow = (a: ChartAccount) => ({
   id: a.id,
-  code: a.code,
-  type_digit: a.typeDigit,
-  class_digit: a.classDigit,
+  code: a.code || a.accountNo || '',
+  type_digit: a.typeDigit || (a.accountType === 'Asset' ? 1 : a.accountType === 'Liability' ? 2 : a.accountType === 'Equity' ? 3 : a.accountType === 'Revenue' ? 4 : 5),
+  class_digit: a.classDigit || 1,
   group_code: a.groupCode || '',
   sub_code: a.subCode || '',
   name: a.name,
   account_type: a.accountType,
   classification: a.classification || '',
   group_name: a.groupName || '',
-  normal_balance: a.normalBalance || 'Debit',
+  normal_balance: a.normalBalance || (a.openingBalanceType === 'CR' ? 'Credit' : 'Debit'),
   opening_balance: a.openingBalance || 0,
-  current_balance: a.currentBalance || 0,
+  current_balance: a.currentBalance || a.openingBalance || 0,
   description: a.description || null,
   is_active: a.isActive ?? true,
 });
@@ -1224,6 +1230,46 @@ export async function apiDeleteChartAccount(accountId: string): Promise<boolean>
   } catch (err: any) {
     console.error('Unhandled exception in apiDeleteChartAccount:', err);
     return false;
+  }
+}
+
+export async function apiBulkSaveChartAccounts(
+  accountsList: ChartAccount[], 
+  overrideAll = false
+): Promise<ChartAccount[] | null> {
+  try {
+    if (!isSupabaseConfigured()) {
+      return accountsList;
+    }
+
+    if (overrideAll) {
+      await diagnosticSupabaseOperation<any>(
+        'apiClearChartAccountsBeforeImport',
+        SUPABASE_TABLES.CHART_ACCOUNTS,
+        'DELETE',
+        { overrideAll: true },
+        () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).delete().neq('id', '___non_existent_safety_id___')
+      );
+    }
+
+    // Upsert in batches of 40
+    const rows = accountsList.map(mapChartAccountToRow);
+    const batchSize = 40;
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      await diagnosticSupabaseOperation<any>(
+        `apiBulkSaveChartAccounts_batch_${Math.floor(i / batchSize)}`,
+        SUPABASE_TABLES.CHART_ACCOUNTS,
+        'UPSERT',
+        { count: batch.length },
+        () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).upsert(batch)
+      );
+    }
+
+    return accountsList;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiBulkSaveChartAccounts:', err);
+    return accountsList;
   }
 }
 

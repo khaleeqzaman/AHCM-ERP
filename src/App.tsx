@@ -80,7 +80,10 @@ import {
   apiSavePurchase,
   apiDeletePurchase,
   apiSaveChartAccount,
+  apiDeleteChartAccount,
+  apiBulkSaveChartAccounts,
   apiSaveVoucher,
+  apiDeleteVoucher,
   apiSaveCashBookEntry,
   apiDeleteCashBookEntry,
   apiSaveCreditBookEntry,
@@ -721,7 +724,60 @@ export default function App() {
     apiSaveChartAccount(account);
   };
 
+  const handleDeleteAccount = (id: string) => {
+    setAccounts((prev) => {
+      const next = prev.filter((a) => a.id !== id);
+      saveCache('accounts', next);
+      return next;
+    });
+    apiDeleteChartAccount(id);
+  };
+
+  const handleImportAccounts = (importedAccounts: ChartAccount[], overrideAll: boolean) => {
+    setAccounts((prev) => {
+      let next: ChartAccount[];
+      if (overrideAll) {
+        next = importedAccounts;
+      } else {
+        const map = new Map<string, ChartAccount>();
+        prev.forEach((a) => map.set(a.code || a.id, a));
+        importedAccounts.forEach((a) => map.set(a.code || a.id, a));
+        next = Array.from(map.values());
+      }
+      saveCache('accounts', next);
+      return next;
+    });
+    apiBulkSaveChartAccounts(importedAccounts, overrideAll);
+  };
+
   const handleSaveVoucher = (voucher: VoucherDocument) => {
+    const existing = vouchers.find((v) => v.id === voucher.id);
+
+    // If existing voucher was already posted, revert its prior balance impact first
+    if (existing && existing.status === 'Posted') {
+      existing.lines.forEach((line) => {
+        setAccounts((prevAccounts) => {
+          const next = prevAccounts.map((acc) => {
+            if (acc.id === line.accountId) {
+              const delta =
+                acc.normalBalance === 'Debit'
+                  ? line.debit - line.credit
+                  : line.credit - line.debit;
+              const updatedAcc = {
+                ...acc,
+                currentBalance: Math.round(acc.currentBalance - delta),
+              };
+              apiSaveChartAccount(updatedAcc);
+              return updatedAcc;
+            }
+            return acc;
+          });
+          saveCache('accounts', next);
+          return next;
+        });
+      });
+    }
+
     setVouchers((prev) => {
       const exists = prev.some((v) => v.id === voucher.id);
       const next = exists ? prev.map((v) => (v.id === voucher.id ? voucher : v)) : [voucher, ...prev];
@@ -754,6 +810,43 @@ export default function App() {
         });
       });
     }
+  };
+
+  const handleDeleteVoucher = (voucherId: string) => {
+    const target = vouchers.find((v) => v.id === voucherId);
+    if (!target) return;
+
+    // If deleting a Posted voucher, revert the account balances
+    if (target.status === 'Posted') {
+      target.lines.forEach((line) => {
+        setAccounts((prevAccounts) => {
+          const next = prevAccounts.map((acc) => {
+            if (acc.id === line.accountId) {
+              const delta =
+                acc.normalBalance === 'Debit'
+                  ? line.debit - line.credit
+                  : line.credit - line.debit;
+              const updatedAcc = {
+                ...acc,
+                currentBalance: Math.round(acc.currentBalance - delta),
+              };
+              apiSaveChartAccount(updatedAcc);
+              return updatedAcc;
+            }
+            return acc;
+          });
+          saveCache('accounts', next);
+          return next;
+        });
+      });
+    }
+
+    setVouchers((prev) => {
+      const next = prev.filter((v) => v.id !== voucherId);
+      saveCache('vouchers', next);
+      return next;
+    });
+    apiDeleteVoucher(voucherId);
   };
 
   const handleApproveVoucher = (voucherId: string) => {
@@ -1655,7 +1748,10 @@ export default function App() {
               vouchers={vouchers}
               onAddAccount={handleAddAccount}
               onUpdateAccount={handleUpdateAccount}
+              onDeleteAccount={handleDeleteAccount}
+              onImportAccounts={handleImportAccounts}
               onSaveVoucher={handleSaveVoucher}
+              onDeleteVoucher={handleDeleteVoucher}
               onApproveVoucher={handleApproveVoucher}
               onPostVoucher={handlePostVoucher}
               onCancelVoucher={handleCancelVoucher}

@@ -13,7 +13,8 @@ export type VoucherStatus = 'Draft' | 'Approved' | 'Posted' | 'Reversed' | 'Canc
 
 export interface ChartAccount {
   id: string;
-  code: string; // T-C-GG-SSS
+  code: string; // T-C-GG-SSS or accountNo (e.g., "11", "1101")
+  accountNo?: string; // Standard account number alias
   typeDigit: number; // T: 1=Asset, 2=Liability, 3=Equity, 4=Revenue, 5=Expense
   classDigit: number; // C: e.g. 1=Current, 2=Non-Current
   groupCode: string; // GG: e.g. 01, 02
@@ -27,6 +28,16 @@ export interface ChartAccount {
   currentBalance: number;
   description?: string;
   isActive: boolean;
+  level?: number; // 1, 2, 3, 4 hierarchy level
+  transType?: 'G' | 'T' | string; // 'G' = General/Group, 'T' = Transaction Detail
+  parentAccountNo?: string; // e.g. "1", "11"
+  openingBalanceType?: 'DR' | 'CR';
+  monthly?: {
+    [month: string]: {
+      credit: number;
+      debit: number;
+    };
+  };
 }
 
 export interface VoucherLine {
