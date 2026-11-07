@@ -1,4 +1,5 @@
 export type StoreSalesMainTab = 
+  | 'coal_management'
   | 'sales' 
   | 'stock_report' 
   | 'store_summary' 
@@ -6,13 +7,30 @@ export type StoreSalesMainTab =
   | 'partners' 
   | 'buyers';
 
-export type SalesSubTab = 
+export type CoalManagementSubTab = 
+  | 'coal_production'
   | 'pos' 
   | 'record_coal_sell' 
   | 'coal_sales_report' 
   | 'partners' 
   | 'buyers' 
   | 'vehicle';
+
+export type SalesSubTab = CoalManagementSubTab;
+
+// Coal Production & Daily Stock
+export interface CoalProductionRecord {
+  id: string;
+  srNo?: number;
+  date: string; // DD-MM-YYYY
+  partnerId: string;
+  partnerName: string;
+  quantityTons: number; // Mined / Produced coal added to stock (in metric tons)
+  pitheadLocation?: string;
+  vehicleNo?: string;
+  remarks?: string;
+  createdAt?: string;
+}
 
 // Company Settings
 export interface CompanySettings {

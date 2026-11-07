@@ -7,7 +7,8 @@ import type {
   StockItem, 
   StockEntry, 
   VehicleRecord, 
-  VehicleConsumptionRecord 
+  VehicleConsumptionRecord,
+  CoalProductionRecord 
 } from '../types/storeSales.ts';
 
 export const initialCompanySettings: CompanySettings = {
@@ -25,6 +26,8 @@ export const initialPartners: PartnerRecord[] = [];
 export const initialPosEntries: PosCoalSellEntry[] = [];
 
 export const initialCoalSellRecords: CoalSellRecord[] = [];
+
+export const initialCoalProductionRecords: CoalProductionRecord[] = [];
 
 export const initialStockItems: StockItem[] = [];
 

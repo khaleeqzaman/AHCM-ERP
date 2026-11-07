@@ -156,6 +156,7 @@ export const SUPABASE_TABLES = {
   BANK_ACCOUNTS: 'bank_accounts',
   POS_COAL_SALES: 'pos_coal_sales',
   COAL_SELL_RECORDS: 'coal_sell_records',
+  COAL_PRODUCTION_RECORDS: 'coal_production_records',
   BUYERS: 'buyers',
   PARTNERS: 'partners',
   STOCK_ITEMS: 'stock_items',

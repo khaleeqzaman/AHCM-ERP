@@ -15,12 +15,14 @@ import { formatWholeNumber } from '../../utils/formatters';
 
 interface RecordCoalSellViewProps {
   partners: PartnerRecord[];
+  currentCoalStock?: number;
   onSaveCoalSell: (record: CoalSellRecord) => void;
   onCancel: () => void;
 }
 
 export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
   partners,
+  currentCoalStock = 0,
   onSaveCoalSell,
   onCancel,
 }) => {
@@ -115,6 +117,26 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
       {/* Form Card */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Live Coal Stock Impact Banner */}
+          <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <div>
+              <span className="text-[11px] font-semibold text-blue-900 block">
+                Current Coal Stock Available:
+              </span>
+              <span className="font-mono text-base font-bold text-blue-950">
+                {formatWholeNumber(currentCoalStock)} MT
+              </span>
+            </div>
+            <div className="sm:text-right">
+              <span className="text-[11px] font-semibold text-blue-900 block">
+                Stock Deduction on Save:
+              </span>
+              <span className="font-mono text-xs font-bold text-rose-700">
+                -{formatWholeNumber(Number(quantityTons) || 0)} MT → Remaining: {formatWholeNumber(Math.max(0, currentCoalStock - (Number(quantityTons) || 0)))} MT
+              </span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Date */}
             <div>

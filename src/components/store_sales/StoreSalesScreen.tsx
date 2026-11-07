@@ -17,6 +17,7 @@ import {
   SalesSubTab, 
   PosCoalSellEntry, 
   CoalSellRecord, 
+  CoalProductionRecord,
   PartnerRecord, 
   BuyerRecord, 
   StockItem, 
@@ -26,6 +27,7 @@ import {
   CompanySettings 
 } from '../../types/storeSales';
 import { NavTarget } from '../../types';
+import { formatWholeNumber } from '../../utils/formatters';
 import { SalesScreen } from './SalesScreen';
 import { StockReportView } from './StockReportView';
 import { StoreReportSummaryView } from './StoreReportSummaryView';
@@ -38,6 +40,7 @@ interface StoreSalesScreenProps {
   // Pos & Coal
   posEntries: PosCoalSellEntry[];
   coalSellRecords: CoalSellRecord[];
+  coalProductionRecords?: CoalProductionRecord[];
   // Partners & Buyers
   partners: PartnerRecord[];
   buyers: BuyerRecord[];
@@ -51,6 +54,10 @@ interface StoreSalesScreenProps {
   companySettings: CompanySettings;
 
   // Handlers
+  onAddProduction?: (record: CoalProductionRecord) => void;
+  onUpdateProduction?: (record: CoalProductionRecord) => void;
+  onDeleteProduction?: (id: string) => void;
+
   onAddPosEntry: (entry: PosCoalSellEntry) => void;
   onUpdatePosEntry: (entry: PosCoalSellEntry) => void;
   onDeletePosEntry: (id: string) => void;
@@ -90,6 +97,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   navTarget,
   posEntries,
   coalSellRecords,
+  coalProductionRecords = [],
   partners,
   buyers,
   stockItems,
@@ -97,6 +105,9 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   vehicles,
   consumptions,
   companySettings,
+  onAddProduction,
+  onUpdateProduction,
+  onDeleteProduction,
   onAddPosEntry,
   onUpdatePosEntry,
   onDeletePosEntry,
@@ -125,15 +136,15 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   onDeleteConsumption,
   onSaveCompanySettings,
 }) => {
-  const [mainTab, setMainTab] = useState<StoreSalesMainTab>('sales');
+  const [mainTab, setMainTab] = useState<StoreSalesMainTab>('coal_management');
   const [stockTab, setStockTab] = useState<'view_stock' | 'add_stock' | 'add_item' | 'view_items'>('view_stock');
 
   // React to navTarget from Sidebar
   React.useEffect(() => {
     if (!navTarget || navTarget.module !== 'store_sales') return;
 
-    if (navTarget.section === 'sale') {
-      setMainTab('sales');
+    if (navTarget.section === 'coal_management' || navTarget.section === 'sale') {
+      setMainTab('coal_management');
     } else if (navTarget.section === 'stock_report') {
       if (navTarget.subPage === 'store_summary') {
         setMainTab('store_summary');
@@ -149,8 +160,10 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   }, [navTarget]);
 
   // Overall KPI stats for isolated store & sales module
-  const totalPosValue = posEntries.reduce((sum, e) => sum + (Number(e.totalValue) || 0), 0);
+  const totalProducedTons = coalProductionRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
   const totalCoalTons = coalSellRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
+  const currentCoalStock = Math.max(0, totalProducedTons - totalCoalTons);
+  const totalPosValue = posEntries.reduce((sum, e) => sum + (Number(e.totalValue) || 0), 0);
   const totalStockItemsCount = stockItems.length;
   const activeVehiclesCount = vehicles.filter((v) => v.status === 'Active').length;
 
@@ -176,26 +189,33 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             </p>
           </div>
 
-          {/* Quick Metrics (Zero $ symbols) */}
+          {/* Quick Metrics */}
           <div className="flex items-center gap-3 text-xs font-medium text-slate-600 flex-wrap">
-            <div className="p-2.5 rounded-lg bg-blue-50/70 border border-blue-200">
+            <div className="p-2.5 rounded-lg bg-emerald-50/90 border border-emerald-300">
+              <span className="text-emerald-800 block text-[11px] font-bold uppercase tracking-wider">Live Coal Stock</span>
+              <span className="text-sm font-bold font-mono tabular-nums text-emerald-950">
+                {formatWholeNumber(currentCoalStock)} MT
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 block text-[11px] font-semibold">Total Produced</span>
+              <span className="text-sm font-bold font-mono tabular-nums text-emerald-700">
+                {formatWholeNumber(totalProducedTons)} MT
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+              <span className="text-slate-500 block text-[11px] font-semibold">Total Dispatched / Sold</span>
+              <span className="text-sm font-bold font-mono tabular-nums text-blue-700">
+                {formatWholeNumber(totalCoalTons)} MT
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-lg bg-blue-50/70 border border-blue-200 hidden sm:block">
               <span className="text-blue-700 block text-[11px] font-semibold">POS Gross Sales</span>
               <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
-                {totalPosValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200">
-              <span className="text-emerald-700 block text-[11px] font-semibold">Dispatched Coal (Tons)</span>
-              <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
-                {totalCoalTons.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200 hidden sm:block">
-              <span className="text-amber-700 block text-[11px] font-semibold">Store Catalog</span>
-              <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
-                {totalStockItemsCount} Items
+                PKR {totalPosValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </span>
             </div>
 
@@ -209,7 +229,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
         </div>
 
         {/* Main Module screen Buttons:
-            Sales, Stock Report, Store Report Summary, Company setting, Partners, Buyers
+            Coal Management, Stock Report, Store Report Summary, Company setting, Partners, Buyers
         */}
         <div className="pt-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -218,19 +238,24 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             </span>
 
             <div className="flex items-center flex-wrap gap-2">
-              {/* 1. Sales */}
+              {/* 1. Coal Management (Special Section) */}
               <button
                 type="button"
-                id="btn-store-sales-sales"
-                onClick={() => setMainTab('sales')}
+                id="btn-store-sales-coal-mgmt"
+                onClick={() => setMainTab('coal_management')}
                 className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer ${
-                  mainTab === 'sales'
-                    ? 'bg-blue-600 text-white ring-2 ring-blue-600/30'
+                  mainTab === 'coal_management' || mainTab === 'sales'
+                    ? 'bg-emerald-600 text-white ring-2 ring-emerald-600/30'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
                 }`}
               >
-                <ShoppingCart className="w-3.5 h-3.5" />
-                <span>Sales</span>
+                <Boxes className="w-3.5 h-3.5" />
+                <span>Coal Management</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                  mainTab === 'coal_management' || mainTab === 'sales' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {formatWholeNumber(currentCoalStock)} MT
+                </span>
               </button>
 
               {/* 2. Stock Report */}
@@ -314,9 +339,10 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
 
       {/* Main Section Content */}
       <div>
-        {mainTab === 'sales' && (
+        {(mainTab === 'coal_management' || mainTab === 'sales') && (
           <SalesScreen
             navTarget={navTarget}
+            productionRecords={coalProductionRecords}
             posEntries={posEntries}
             coalSellRecords={coalSellRecords}
             partners={partners}
@@ -324,6 +350,9 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             vehicles={vehicles}
             consumptions={consumptions}
             companySettings={companySettings}
+            onAddProduction={onAddProduction}
+            onUpdateProduction={onUpdateProduction}
+            onDeleteProduction={onDeleteProduction}
             onAddPosEntry={onAddPosEntry}
             onUpdatePosEntry={onUpdatePosEntry}
             onDeletePosEntry={onDeletePosEntry}

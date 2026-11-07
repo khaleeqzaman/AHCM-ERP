@@ -16,6 +16,7 @@ import type {
   PartnerRecord,
   PosCoalSellEntry,
   CoalSellRecord,
+  CoalProductionRecord,
   StockItem,
   StockEntry,
   VehicleRecord,
@@ -39,6 +40,7 @@ import {
   initialPartners,
   initialPosEntries,
   initialCoalSellRecords,
+  initialCoalProductionRecords,
   initialStockItems,
   initialStockEntries,
   initialVehicles,
@@ -60,6 +62,7 @@ export interface BootstrapData {
   partners: PartnerRecord[];
   posEntries: PosCoalSellEntry[];
   coalSellRecords: CoalSellRecord[];
+  coalProductionRecords: CoalProductionRecord[];
   stockItems: StockItem[];
   stockEntries: StockEntry[];
   vehicles: VehicleRecord[];
@@ -582,6 +585,31 @@ const mapCoalRecordToRow = (c: CoalSellRecord) => ({
   remarks: c.remarks || '',
 });
 
+const mapCoalProductionFromRow = (r: any): CoalProductionRecord => ({
+  id: r.id,
+  srNo: r.sr_no ? Number(r.sr_no) : undefined,
+  date: r.date,
+  partnerId: r.partner_id || '',
+  partnerName: r.partner_name,
+  quantityTons: Number(r.quantity_tons || 0),
+  pitheadLocation: r.pithead_location || '',
+  vehicleNo: r.vehicle_no || '',
+  remarks: r.remarks || '',
+  createdAt: r.created_at || undefined,
+});
+
+const mapCoalProductionToRow = (c: CoalProductionRecord) => ({
+  id: c.id,
+  sr_no: c.srNo || 1,
+  date: c.date,
+  partner_id: c.partnerId || '',
+  partner_name: c.partnerName,
+  quantity_tons: c.quantityTons || 0,
+  pithead_location: c.pitheadLocation || '',
+  vehicle_no: c.vehicleNo || '',
+  remarks: c.remarks || '',
+});
+
 const mapBuyerFromRow = (r: any): BuyerRecord => ({
   id: r.id,
   buyerNTN: r.buyer_ntn || '',
@@ -930,6 +958,7 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
         partners: initialPartners,
         posEntries: initialPosEntries,
         coalSellRecords: initialCoalSellRecords,
+        coalProductionRecords: initialCoalProductionRecords,
         stockItems: initialStockItems,
         stockEntries: initialStockEntries,
         vehicles: initialVehicles,
@@ -954,6 +983,7 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       partnersRes,
       posRes,
       coalRes,
+      coalProductionRes,
       stockItemsRes,
       stockEntriesRes,
       vehiclesRes,
@@ -1001,6 +1031,9 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       diagnosticSupabaseOperation<any[]>('fetchBootstrapCoal', SUPABASE_TABLES.COAL_SELL_RECORDS, 'SELECT', {}, () =>
         supabase.from(SUPABASE_TABLES.COAL_SELL_RECORDS).select('*')
       ),
+      diagnosticSupabaseOperation<any[]>('fetchBootstrapCoalProduction', SUPABASE_TABLES.COAL_PRODUCTION_RECORDS, 'SELECT', {}, () =>
+        supabase.from(SUPABASE_TABLES.COAL_PRODUCTION_RECORDS).select('*')
+      ),
       diagnosticSupabaseOperation<any[]>('fetchBootstrapStockItems', SUPABASE_TABLES.STOCK_ITEMS, 'SELECT', {}, () =>
         supabase.from(SUPABASE_TABLES.STOCK_ITEMS).select('*')
       ),
@@ -1029,6 +1062,7 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
     const partners = partnersRes ? partnersRes.map(mapPartnerFromRow) : initialPartners;
     const posEntries = posRes ? posRes.map(mapPosSaleFromRow) : initialPosEntries;
     const coalSellRecords = coalRes ? coalRes.map(mapCoalRecordFromRow) : initialCoalSellRecords;
+    const coalProductionRecords = coalProductionRes ? coalProductionRes.map(mapCoalProductionFromRow) : initialCoalProductionRecords;
     const stockItems = stockItemsRes ? stockItemsRes.map(mapStockItemFromRow) : initialStockItems;
     const stockEntries = stockEntriesRes ? stockEntriesRes.map(mapStockEntryFromRow) : initialStockEntries;
     const vehicles = vehiclesRes ? vehiclesRes.map(mapVehicleFromRow) : initialVehicles;
@@ -1052,6 +1086,7 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       partners,
       posEntries,
       coalSellRecords,
+      coalProductionRecords,
       stockItems,
       stockEntries,
       vehicles,
@@ -1646,6 +1681,45 @@ export async function apiDeleteCoalSellRecord(id: string): Promise<boolean> {
     return res !== null;
   } catch (err: any) {
     console.error('Unhandled exception in apiDeleteCoalSellRecord:', err);
+    return false;
+  }
+}
+
+export async function apiSaveCoalProduction(record: CoalProductionRecord): Promise<CoalProductionRecord | null> {
+  try {
+    const row = mapCoalProductionToRow(record);
+    if (!isSupabaseConfigured()) {
+      return record;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiSaveCoalProduction',
+      SUPABASE_TABLES.COAL_PRODUCTION_RECORDS,
+      'UPSERT',
+      row,
+      () => supabase.from(SUPABASE_TABLES.COAL_PRODUCTION_RECORDS).upsert(row)
+    );
+    return res !== null ? record : record;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiSaveCoalProduction:', err);
+    return record;
+  }
+}
+
+export async function apiDeleteCoalProduction(id: string): Promise<boolean> {
+  try {
+    if (!isSupabaseConfigured()) {
+      return true;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiDeleteCoalProduction',
+      SUPABASE_TABLES.COAL_PRODUCTION_RECORDS,
+      'DELETE',
+      { id },
+      () => supabase.from(SUPABASE_TABLES.COAL_PRODUCTION_RECORDS).delete().eq('id', id)
+    );
+    return res !== null;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiDeleteCoalProduction:', err);
     return false;
   }
 }

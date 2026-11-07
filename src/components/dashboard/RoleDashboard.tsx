@@ -29,13 +29,23 @@ import {
   Layers,
   Wrench,
   BarChart2,
-  CreditCard
+  CreditCard,
+  Pickaxe
 } from 'lucide-react';
 import { User } from '../../types/user';
 import { NavModule, DemandDocument, PurchaseDocument } from '../../types';
 import { ChartAccount, VoucherDocument } from '../../types/accounting';
 import { CashBookEntry, CreditBookEntry, BankRecord, BankAccountRecord } from '../../types/treasury';
-import { PosCoalSellEntry, StockItem, StockEntry, VehicleRecord, VehicleConsumptionRecord } from '../../types/storeSales';
+import { 
+  PosCoalSellEntry, 
+  StockItem, 
+  StockEntry, 
+  VehicleRecord, 
+  VehicleConsumptionRecord,
+  CoalSellRecord,
+  CoalProductionRecord,
+  PartnerRecord
+} from '../../types/storeSales';
 import { formatWholeNumber } from '../../utils/formatters';
 
 interface RoleDashboardProps {
@@ -49,6 +59,9 @@ interface RoleDashboardProps {
   banks: BankRecord[];
   bankAccounts: BankAccountRecord[];
   posEntries: PosCoalSellEntry[];
+  coalSellRecords?: CoalSellRecord[];
+  coalProductionRecords?: CoalProductionRecord[];
+  partners?: PartnerRecord[];
   stockItems: StockItem[];
   stockEntries: StockEntry[];
   vehicles: VehicleRecord[];
@@ -68,6 +81,9 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
   banks,
   bankAccounts,
   posEntries,
+  coalSellRecords = [],
+  coalProductionRecords = [],
+  partners = [],
   stockItems,
   stockEntries,
   vehicles,
@@ -100,10 +116,19 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
   // Accounts
   const totalTurnover = vouchers.reduce((sum, v) => sum + v.totalDebit, 0);
 
-  // Store & Sales
+  // Store & Coal Operations
   const totalPosRevenue = posEntries.reduce((sum, p) => sum + (p.totalValue || 0), 0);
-  const totalCoalTonsSold = posEntries.reduce((sum, p) => sum + (p.quantity || 0), 0);
   const totalFuelLitres = consumptions.reduce((sum, c) => sum + (c.diesel || 0), 0);
+
+  // Authoritative Coal Production, Live Stock, and Sold Statistics
+  const totalCoalProduced = coalProductionRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
+  const totalCoalSoldFromSales = coalSellRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
+  const totalCoalSoldFromPos = posEntries.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
+  // Authoritative total sold: prefer explicit coal sell records if present, or POS
+  const totalCoalSold = totalCoalSoldFromSales > 0 ? totalCoalSoldFromSales : totalCoalSoldFromPos;
+  // Authoritative live available coal stock = Produced - Sold
+  const currentCoalStock = Math.max(0, totalCoalProduced - totalCoalSold);
+  const totalCoalTonsSold = totalCoalSold;
 
   // Admin Dashboard Executive Section State & Aggregations
   const [adminSectionTab, setAdminSectionTab] = useState<'both' | 'vehicle' | 'stock'>('both');
@@ -515,6 +540,144 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
             <span>The Admin Approval Queue is all clear! No documents pending review.</span>
           </div>
         )}
+
+        {/* Executive Coal Mining, Production & Stock Control Center */}
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0">
+                <Pickaxe className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>Coal Production & Stock Control (Executive Telemetry)</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold border border-amber-200">
+                    Live Mining Sync
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Daily production extraction from partners, authoritative pithead inventory balance, and commercial sales dispatches.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('store_sales')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer self-start sm:self-auto"
+            >
+              <span>Manage Coal Operations</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* 3 Core KPIs Requested by User */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* KPI 1: How much coal is produced */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div className="flex items-center justify-between text-slate-600 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Total Coal Produced
+                </span>
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
+                  Inflow (+)
+                </span>
+              </div>
+              <div className="text-3xl font-bold font-mono text-slate-900 tracking-tight">
+                {formatWholeNumber(totalCoalProduced)} <span className="text-base font-normal text-slate-500">MT</span>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-2 flex items-center justify-between pt-2 border-t border-slate-200">
+                <span>{coalProductionRecords.length} Daily production logs</span>
+                <span className="font-medium text-slate-700">Pithead Inward</span>
+              </div>
+            </div>
+
+            {/* KPI 2: How much is the coal stock (Authoritative Available Stock) */}
+            <div className={`p-4 rounded-xl border flex flex-col justify-between ${
+              currentCoalStock > 0
+                ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                : 'bg-rose-50/70 border-rose-300 text-rose-950'
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                  Current Coal Stock
+                </span>
+                <span className={`text-[11px] font-mono px-2 py-0.5 rounded font-semibold border ${
+                  currentCoalStock > 0
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-rose-100 text-rose-800 border-rose-300'
+                }`}>
+                  {currentCoalStock > 0 ? 'Active Stock Available' : 'Zero Reserve'}
+                </span>
+              </div>
+              <div className="text-3xl font-bold font-mono text-emerald-900 tracking-tight">
+                {formatWholeNumber(currentCoalStock)} <span className="text-base font-normal text-emerald-700">MT</span>
+              </div>
+              <div className="text-[11px] text-emerald-800 mt-2 pt-2 border-t border-emerald-200/60 font-mono">
+                Stock = {formatWholeNumber(totalCoalProduced)} Produced - {formatWholeNumber(totalCoalSold)} Sold
+              </div>
+            </div>
+
+            {/* KPI 3: How much coal is sold */}
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div className="flex items-center justify-between text-slate-600 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Total Coal Sold
+                </span>
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-medium">
+                  Outflow (-)
+                </span>
+              </div>
+              <div className="text-3xl font-bold font-mono text-slate-900 tracking-tight">
+                {formatWholeNumber(totalCoalSold)} <span className="text-base font-normal text-slate-500">MT</span>
+              </div>
+              <div className="text-[11px] text-slate-500 mt-2 flex items-center justify-between pt-2 border-t border-slate-200">
+                <span>{coalSellRecords.length || posEntries.length} Commercial dispatches</span>
+                <span className="font-medium text-emerald-700 font-mono">PKR {formatWholeNumber(totalPosRevenue)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Partner Production Breakdown Strip */}
+          {coalProductionRecords.length > 0 ? (
+            <div className="pt-2">
+              <div className="text-xs font-semibold text-slate-700 mb-2 flex items-center justify-between">
+                <span>Partner Production Contribution Summary</span>
+                <span className="text-[11px] text-slate-500">
+                  {new Set(coalProductionRecords.map(r => r.partnerName)).size} Active Mining Partners
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                {Array.from(
+                  coalProductionRecords.reduce((acc, r) => {
+                    acc.set(r.partnerName, (acc.get(r.partnerName) || 0) + (Number(r.quantityTons) || 0));
+                    return acc;
+                  }, new Map<string, number>())
+                ).slice(0, 6).map(([pName, pTons]) => {
+                  const pct = totalCoalProduced > 0 ? ((pTons / totalCoalProduced) * 100).toFixed(1) : '0';
+                  return (
+                    <div key={pName} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+                      <div className="font-semibold text-slate-800 truncate" title={pName}>{pName}</div>
+                      <div className="font-mono font-bold text-slate-900 mt-0.5">{formatWholeNumber(pTons)} MT</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">{pct}% of total</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center justify-between">
+              <span>No coal production records logged yet. Use the Coal Management section to log daily production by partner.</span>
+              <button
+                type="button"
+                onClick={() => onNavigate('store_sales')}
+                className="font-semibold text-blue-600 hover:text-blue-800 cursor-pointer underline text-[11px]"
+              >
+                Add First Production Log →
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Department Overview Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1481,31 +1644,57 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
         </div>
       </div>
 
-      {/* Store Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Store & Coal Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium">POS Coal Sales</span>
-            <Boxes className="w-4 h-4 text-cyan-600" />
+            <span className="text-xs font-medium">Live Coal Stock</span>
+            <Pickaxe className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-bold font-mono text-cyan-700">
-            PKR {totalPosRevenue.toLocaleString()}
+          <div className="text-2xl font-bold font-mono text-emerald-800">
+            {formatWholeNumber(currentCoalStock)} MT
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
-            {totalCoalTonsSold.toFixed(1)} MT Dispatched
+            Available on Ground
           </div>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
           <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium">Stock Inventory Items</span>
+            <span className="text-xs font-medium">Total Produced</span>
             <Building2 className="w-4 h-4 text-blue-600" />
+          </div>
+          <div className="text-2xl font-bold font-mono text-blue-700">
+            {formatWholeNumber(totalCoalProduced)} MT
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1">
+            {coalProductionRecords.length} Daily Mining Logs
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-medium">Total Coal Sold</span>
+            <Boxes className="w-4 h-4 text-cyan-600" />
+          </div>
+          <div className="text-2xl font-bold font-mono text-cyan-700">
+            {formatWholeNumber(totalCoalSold)} MT
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1">
+            PKR {formatWholeNumber(totalPosRevenue)} revenue
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-slate-500 mb-2">
+            <span className="text-xs font-medium">Stock Inventory</span>
+            <Boxes className="w-4 h-4 text-slate-600" />
           </div>
           <div className="text-2xl font-bold font-mono text-slate-900">
             {stockItems.length} Products
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
-            {stockEntries.length} Inward receipts recorded
+            {stockEntries.length} Inward receipts
           </div>
         </div>
 
@@ -1518,20 +1707,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
             {vehicles.length} Vehicles
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
-            {totalFuelLitres.toLocaleString()} Litres fuel logged
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 mb-2">
-            <span className="text-xs font-medium">Dispatches Today</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          </div>
-          <div className="text-2xl font-bold font-mono text-emerald-700">
-            {posEntries.length} Invoices
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1">
-            Weighbridge slips issued
+            {totalFuelLitres.toLocaleString()} L logged
           </div>
         </div>
       </div>

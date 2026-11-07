@@ -26,7 +26,8 @@ import {
   FileCheck2,
   FileText,
   FileCheck,
-  Edit3
+  Edit3,
+  Pickaxe
 } from 'lucide-react';
 import { NavModule, NavTarget } from '../types';
 import { User, UserRole } from '../types/user';
@@ -79,6 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     'purchase-demand': true,
     'purchase-purchase': true,
     'store-sale': true,
+    'store-coal-production': true,
     'store-sale-pos': true,
     'store-sale-coal-report': true,
     'store-sale-partners': true,
@@ -129,7 +131,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isOpActive = (module: NavModule, section?: string, subPage?: string): boolean => {
     if (currentModule !== module) return false;
     if (!activeNavTarget || activeNavTarget.module !== module) return false;
-    if (section && activeNavTarget.section !== section) return false;
+    if (section) {
+      const isCoalSectionMatch =
+        module === 'store_sales' &&
+        (section === 'coal_management' || section === 'sale') &&
+        (activeNavTarget.section === 'coal_management' || activeNavTarget.section === 'sale');
+      if (!isCoalSectionMatch && activeNavTarget.section !== section) {
+        return false;
+      }
+    }
     if (subPage && activeNavTarget.subPage !== subPage) return false;
     return true;
   };
@@ -758,7 +768,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ------------------------------------------------------------- */}
                     {item.id === 'store_sales' && (
                       <div className="space-y-2">
-                        {/* 3.1 Sale */}
+                        {/* 3.1 Coal Management (Daily Production / Stock, POS, Record Coal Sell, Reports, Partners, Buyers, Vehicles) */}
                         <div className="space-y-0.5">
                           <button
                             type="button"
@@ -766,8 +776,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             className="w-full flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded cursor-pointer"
                           >
                             <span className="flex items-center gap-1.5 truncate">
-                              <Receipt className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                              <span className="truncate">Sale</span>
+                              <Pickaxe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                              <span className="truncate">Coal Management</span>
                             </span>
                             {expandedSubGroups['store-sale'] ? (
                               <ChevronDown className="w-3 h-3 text-slate-400" />
@@ -778,6 +788,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                           {expandedSubGroups['store-sale'] && (
                             <div className="pl-3 space-y-1.5 border-l border-slate-200 ml-2 mt-1">
+                              {/* 3.1.0 Daily Coal Production / Stock */}
+                              <div className="space-y-0.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => toggleSubGroup('store-coal-production', e)}
+                                  className="w-full flex items-center justify-between px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-900 rounded cursor-pointer"
+                                >
+                                  <span className="truncate font-semibold text-emerald-800">Daily Production / Stock</span>
+                                  {expandedSubGroups['store-coal-production'] ? (
+                                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                                  ) : (
+                                    <ChevronRight className="w-3 h-3 text-slate-400" />
+                                  )}
+                                </button>
+                                {expandedSubGroups['store-coal-production'] && (
+                                  <div className="pl-3 space-y-0.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOperationClick('store_sales', 'coal_management', 'add_coal_production')}
+                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                        isOpActive('store_sales', 'coal_management', 'add_coal_production')
+                                          ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
+                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <Plus className="w-3 h-3 text-emerald-600 shrink-0" />
+                                      <span>Add Daily Production</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOperationClick('store_sales', 'coal_management', 'view_coal_production')}
+                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                        isOpActive('store_sales', 'coal_management', 'view_coal_production')
+                                          ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
+                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <Table className="w-3 h-3 text-slate-400 shrink-0" />
+                                      <span>Production Register</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
                               {/* 3.1.1 POS (POS Sheet & Register, New Coal Sells) */}
                               <div className="space-y-0.5">
                                 <button

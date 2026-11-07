@@ -41,6 +41,7 @@ import {
   PartnerRecord, 
   PosCoalSellEntry, 
   CoalSellRecord, 
+  CoalProductionRecord,
   StockItem, 
   StockEntry, 
   VehicleRecord, 
@@ -60,6 +61,7 @@ import {
   initialPartners, 
   initialPosEntries, 
   initialCoalSellRecords, 
+  initialCoalProductionRecords,
   initialStockItems, 
   initialStockEntries, 
   initialVehicles, 
@@ -101,6 +103,8 @@ import {
   apiDeletePosCoalSale,
   apiSaveCoalSellRecord,
   apiDeleteCoalSellRecord,
+  apiSaveCoalProduction,
+  apiDeleteCoalProduction,
   apiSaveStockItem,
   apiDeleteStockItem,
   apiSaveStockEntry,
@@ -340,6 +344,7 @@ export default function App() {
   const [partners, setPartners] = useState<PartnerRecord[]>(() => loadCache('partners', []));
   const [posEntries, setPosEntries] = useState<PosCoalSellEntry[]>(() => loadCache('pos_entries', []));
   const [coalSellRecords, setCoalSellRecords] = useState<CoalSellRecord[]>(() => loadCache('coal_records', []));
+  const [coalProductionRecords, setCoalProductionRecords] = useState<CoalProductionRecord[]>(() => loadCache('coal_production_records', initialCoalProductionRecords));
   const [stockItems, setStockItems] = useState<StockItem[]>(() => loadCache('stock_items', []));
   const [stockEntries, setStockEntries] = useState<StockEntry[]>(() => loadCache('stock_entries', []));
   const [vehicles, setVehicles] = useState<VehicleRecord[]>(() => loadCache('vehicles', []));
@@ -430,6 +435,10 @@ export default function App() {
       if (data.coalSellRecords !== undefined) {
         setCoalSellRecords(data.coalSellRecords);
         saveCache('coal_records', data.coalSellRecords);
+      }
+      if (data.coalProductionRecords !== undefined) {
+        setCoalProductionRecords(data.coalProductionRecords);
+        saveCache('coal_production_records', data.coalProductionRecords);
       }
       if (data.stockItems !== undefined) {
         setStockItems(data.stockItems);
@@ -1295,6 +1304,38 @@ export default function App() {
     apiDeleteCoalSellRecord(id);
   };
 
+  const handleAddCoalProduction = (newRecord: Omit<CoalProductionRecord, 'id' | 'createdAt'>) => {
+    const record: CoalProductionRecord = {
+      ...newRecord,
+      id: `cpr-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setCoalProductionRecords((prev) => {
+      const next = [record, ...prev];
+      saveCache('coal_production_records', next);
+      return next;
+    });
+    apiSaveCoalProduction(record);
+  };
+
+  const handleUpdateCoalProduction = (record: CoalProductionRecord) => {
+    setCoalProductionRecords((prev) => {
+      const next = prev.map((r) => (r.id === record.id ? record : r));
+      saveCache('coal_production_records', next);
+      return next;
+    });
+    apiSaveCoalProduction(record);
+  };
+
+  const handleDeleteCoalProduction = (id: string) => {
+    setCoalProductionRecords((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      saveCache('coal_production_records', next);
+      return next;
+    });
+    apiDeleteCoalProduction(id);
+  };
+
   const handleAddPartner = (partner: PartnerRecord) => {
     setPartners((prev) => {
       const next = [...prev, partner];
@@ -1682,6 +1723,9 @@ export default function App() {
               banks={banks}
               bankAccounts={bankAccounts}
               posEntries={posEntries}
+              coalSellRecords={coalSellRecords}
+              coalProductionRecords={coalProductionRecords}
+              partners={partners}
               stockItems={stockItems}
               stockEntries={stockEntries}
               vehicles={vehicles}
@@ -1791,6 +1835,7 @@ export default function App() {
               navTarget={activeNavTarget}
               posEntries={posEntries}
               coalSellRecords={coalSellRecords}
+              coalProductionRecords={coalProductionRecords}
               partners={partners}
               buyers={buyers}
               stockItems={stockItems}
@@ -1798,6 +1843,9 @@ export default function App() {
               vehicles={vehicles}
               consumptions={vehicleConsumptions}
               companySettings={companySettings}
+              onAddProduction={handleAddCoalProduction}
+              onUpdateProduction={handleUpdateCoalProduction}
+              onDeleteProduction={handleDeleteCoalProduction}
               onAddPosEntry={handleAddPosEntry}
               onUpdatePosEntry={handleUpdatePosEntry}
               onDeletePosEntry={handleDeletePosEntry}
