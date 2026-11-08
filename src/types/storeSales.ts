@@ -9,9 +9,11 @@ export type StoreSalesMainTab =
 
 export type CoalManagementSubTab = 
   | 'coal_production'
-  | 'pos' 
   | 'record_coal_sell' 
+  | 'daily_csr_entries'
+  | 'total_csr'
   | 'coal_sales_report' 
+  | 'daily_csr'
   | 'partners' 
   | 'buyers' 
   | 'vehicle';
@@ -68,6 +70,8 @@ export interface PartnerRecord {
 export interface PosCoalSellEntry {
   id: string;
   srNo: number;
+  partnerId?: string;
+  partnerName?: string;
   buyerId: string;
   buyerNTN: string;
   buyerCNIC: string;
@@ -92,8 +96,32 @@ export interface CoalSellRecord {
   partnerId: string;
   partnerName: string;
   quantityTons: number;
+  buyerId?: string;
+  buyerNTN?: string;
+  buyerCNIC?: string;
+  buyerName?: string;
+  buyerType?: BuyerType;
+  saleOrganization?: string;
+  documentType?: string;
+  documentNumber?: string;
+  documentDate?: string;
+  valueExcludingTax?: number;
+  salesTaxFed?: number;
+  furtherTax?: number;
+  totalTax?: number;
+  totalValue?: number;
   vehicleNo?: string;
   remarks?: string;
+}
+
+// Daily CSR Aggregated Record for each date
+export interface DailyCsrDayRecord {
+  srNo: number;
+  date: string;
+  totalTons: number;
+  entriesCount: number;
+  partnerWiseTons: { [partnerName: string]: number };
+  entries: PosCoalSellEntry[];
 }
 
 // Stock Item definition

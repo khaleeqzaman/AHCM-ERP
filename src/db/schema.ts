@@ -144,6 +144,8 @@ export const bankAccounts = pgTable('bank_accounts', {
 export const posCoalSales = pgTable('pos_coal_sales', {
   id: text('id').primaryKey(),
   srNo: integer('sr_no'),
+  partnerId: text('partner_id'),
+  partnerName: text('partner_name'),
   buyerId: text('buyer_id'),
   buyerNTN: text('buyer_ntn'),
   buyerCNIC: text('buyer_cnic'),
@@ -254,3 +256,18 @@ export const companySettings = pgTable('company_settings', {
   contactNumber: text('contact_number'),
   email: text('email'),
 });
+
+// 19. Store & Sales: Coal Production Records Table
+export const coalProductionRecords = pgTable('coal_production_records', {
+  id: text('id').primaryKey(),
+  srNo: integer('sr_no'),
+  date: text('date').notNull(),
+  partnerId: text('partner_id'),
+  partnerName: text('partner_name').notNull(),
+  quantityTons: doublePrecision('quantity_tons').default(0),
+  pitheadLocation: text('pithead_location'),
+  vehicleNo: text('vehicle_no'),
+  remarks: text('remarks'),
+  createdAt: text('created_at'),
+});
+

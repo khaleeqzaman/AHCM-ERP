@@ -27,7 +27,8 @@ import {
   FileText,
   FileCheck,
   Edit3,
-  Pickaxe
+  Pickaxe,
+  BarChart3
 } from 'lucide-react';
 import { NavModule, NavTarget } from '../types';
 import { User, UserRole } from '../types/user';
@@ -832,51 +833,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 )}
                               </div>
 
-                              {/* 3.1.1 POS (POS Sheet & Register, New Coal Sells) */}
-                              <div className="space-y-0.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => toggleSubGroup('store-sale-pos', e)}
-                                  className="w-full flex items-center justify-between px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-900 rounded cursor-pointer"
-                                >
-                                  <span className="truncate">POS</span>
-                                  {expandedSubGroups['store-sale-pos'] ? (
-                                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                                  ) : (
-                                    <ChevronRight className="w-3 h-3 text-slate-400" />
-                                  )}
-                                </button>
-                                {expandedSubGroups['store-sale-pos'] && (
-                                  <div className="pl-3 space-y-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'pos_sheet')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'pos_sheet')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Table className="w-3 h-3 text-slate-400 shrink-0" />
-                                      <span>POS Sheet & Register</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'pos_form')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'pos_form')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Plus className="w-3 h-3 text-blue-600 shrink-0" />
-                                      <span>New Coal Sells</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* 3.1.2 Record Coal Sell */}
+                              {/* 3.1.1 New Coal Sell (POS Entry Form) */}
                               <button
                                 type="button"
                                 onClick={() => handleOperationClick('store_sales', 'sale', 'record_coal_sell')}
@@ -887,17 +844,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 }`}
                               >
                                 <FileCheck2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>Record Coal Sell</span>
+                                <span>New Coal Sell (POS Form)</span>
                               </button>
 
-                              {/* 3.1.3 Coal Sell Report (Record Coal Sell, Add Partners Column) */}
+                              {/* 3.1.2 Daily CSR Entries */}
+                              <button
+                                type="button"
+                                onClick={() => handleOperationClick('store_sales', 'sale', 'daily_csr_entries')}
+                                className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                  isOpActive('store_sales', 'sale', 'daily_csr_entries')
+                                    ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                }`}
+                              >
+                                <Table className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>Daily CSR Entries</span>
+                              </button>
+
+                              {/* 3.1.3 Total CSR (sales report) */}
                               <div className="space-y-0.5">
                                 <button
                                   type="button"
                                   onClick={(e) => toggleSubGroup('store-sale-coal-report', e)}
                                   className="w-full flex items-center justify-between px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-900 rounded cursor-pointer"
                                 >
-                                  <span className="truncate">Coal Sell Report</span>
+                                  <span className="truncate">Total CSR (sales report)</span>
                                   {expandedSubGroups['store-sale-coal-report'] ? (
                                     <ChevronDown className="w-3 h-3 text-slate-400" />
                                   ) : (
@@ -906,6 +877,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 </button>
                                 {expandedSubGroups['store-sale-coal-report'] && (
                                   <div className="pl-3 space-y-0.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOperationClick('store_sales', 'sale', 'total_csr')}
+                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                        isOpActive('store_sales', 'sale', 'total_csr') || isOpActive('store_sales', 'sale', 'coal_sales_report')
+                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
+                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                      }`}
+                                    >
+                                      <BarChart3 className="w-3 h-3 text-blue-600 shrink-0" />
+                                      <span>Sales Report Matrix</span>
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => handleOperationClick('store_sales', 'sale', 'coal_sales_report_record')}

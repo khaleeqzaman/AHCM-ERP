@@ -11,6 +11,7 @@ import type {
   PartnerRecord, 
   PosCoalSellEntry, 
   CoalSellRecord, 
+  CoalProductionRecord,
   StockItem, 
   StockEntry, 
   VehicleRecord, 
@@ -642,6 +643,8 @@ export async function dbGetPosCoalSales(): Promise<PosCoalSellEntry[]> {
     return rows.map((r) => ({
       id: r.id,
       srNo: r.srNo || 1,
+      partnerId: r.partnerId || '',
+      partnerName: r.partnerName || '',
       buyerId: r.buyerId || '',
       buyerNTN: r.buyerNTN || '',
       buyerCNIC: r.buyerCNIC || '',
@@ -671,6 +674,8 @@ export async function dbSavePosCoalSale(entry: PosCoalSellEntry): Promise<PosCoa
       .values({
         id: entry.id,
         srNo: entry.srNo,
+        partnerId: entry.partnerId,
+        partnerName: entry.partnerName,
         buyerId: entry.buyerId,
         buyerNTN: entry.buyerNTN,
         buyerCNIC: entry.buyerCNIC,
@@ -691,6 +696,8 @@ export async function dbSavePosCoalSale(entry: PosCoalSellEntry): Promise<PosCoa
         target: schema.posCoalSales.id,
         set: {
           srNo: entry.srNo,
+          partnerId: entry.partnerId,
+          partnerName: entry.partnerName,
           buyerName: entry.buyerName,
           quantity: entry.quantity,
           valueExcludingTax: entry.valueExcludingTax,
@@ -1189,6 +1196,73 @@ export async function dbDeleteCoalSellRecord(id: string): Promise<void> {
   } catch (error) {
     console.error('Failed to delete coal sell record:', error);
     throw new Error('Failed to delete coal sell record', { cause: error });
+  }
+}
+
+// ----------------- COAL PRODUCTION RECORDS -----------------
+export async function dbGetCoalProductionRecords(): Promise<CoalProductionRecord[]> {
+  try {
+    const rows = await db.select().from(schema.coalProductionRecords);
+    return rows.map((r) => ({
+      id: r.id,
+      srNo: r.srNo || 1,
+      date: r.date,
+      partnerId: r.partnerId || '',
+      partnerName: r.partnerName,
+      quantityTons: r.quantityTons || 0,
+      pitheadLocation: r.pitheadLocation || '',
+      vehicleNo: r.vehicleNo || '',
+      remarks: r.remarks || '',
+      createdAt: r.createdAt || undefined,
+    }));
+  } catch (error) {
+    console.error('Failed to get coal production records:', error);
+    throw new Error('Failed to fetch coal production records', { cause: error });
+  }
+}
+
+export async function dbSaveCoalProductionRecord(cpr: CoalProductionRecord): Promise<CoalProductionRecord> {
+  try {
+    await db
+      .insert(schema.coalProductionRecords)
+      .values({
+        id: cpr.id,
+        srNo: cpr.srNo || 1,
+        date: cpr.date,
+        partnerId: cpr.partnerId || '',
+        partnerName: cpr.partnerName,
+        quantityTons: cpr.quantityTons || 0,
+        pitheadLocation: cpr.pitheadLocation || '',
+        vehicleNo: cpr.vehicleNo || '',
+        remarks: cpr.remarks || '',
+        createdAt: cpr.createdAt || new Date().toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: schema.coalProductionRecords.id,
+        set: {
+          srNo: cpr.srNo || 1,
+          date: cpr.date,
+          partnerId: cpr.partnerId || '',
+          partnerName: cpr.partnerName,
+          quantityTons: cpr.quantityTons || 0,
+          pitheadLocation: cpr.pitheadLocation || '',
+          vehicleNo: cpr.vehicleNo || '',
+          remarks: cpr.remarks || '',
+        },
+      });
+    return cpr;
+  } catch (error) {
+    console.error('Failed to save coal production record:', error);
+    throw new Error('Failed to save coal production record', { cause: error });
+  }
+}
+
+export async function dbDeleteCoalProductionRecord(id: string): Promise<void> {
+  try {
+    await db.delete(schema.coalProductionRecords).where(eq(schema.coalProductionRecords.id, id));
+  } catch (error) {
+    console.error('Failed to delete coal production record:', error);
+    throw new Error('Failed to delete coal production record', { cause: error });
   }
 }
 

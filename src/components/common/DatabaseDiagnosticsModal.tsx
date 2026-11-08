@@ -54,6 +54,7 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
   const [isTesting, setIsTesting] = useState(false);
   const [anonKeyInput, setAnonKeyInput] = useState(() => getCurrentSupabaseAnonKey());
   const [keySavedMessage, setKeySavedMessage] = useState(false);
+  const [sqlCopied, setSqlCopied] = useState<string | null>(null);
 
   const fetchLiveStatus = async () => {
     try {
@@ -315,11 +316,61 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
           </div>
         </div>
 
+        {/* Quick SQL Setup Helper */}
+        <div className="bg-slate-100 border-b border-slate-200 px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-800">Supabase SQL Schema:</span>
+            <span className="text-[11px] text-slate-500">Need to fix PGRST205 or create coal production table?</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const sql = `-- Create coal_production_records table in Supabase
+CREATE TABLE IF NOT EXISTS public.coal_production_records (
+    id TEXT PRIMARY KEY,
+    sr_no INTEGER,
+    date TEXT NOT NULL,
+    partner_id TEXT,
+    partner_name TEXT NOT NULL,
+    quantity_tons DOUBLE PRECISION DEFAULT 0,
+    pithead_location TEXT,
+    vehicle_no TEXT,
+    remarks TEXT,
+    created_at TEXT DEFAULT now()::text
+);
+CREATE INDEX IF NOT EXISTS idx_coal_prod_date ON public.coal_production_records(date);
+CREATE INDEX IF NOT EXISTS idx_coal_prod_partner ON public.coal_production_records(partner_id);
+GRANT ALL ON TABLE public.coal_production_records TO postgres, anon, authenticated, service_role;
+ALTER TABLE IF EXISTS public.coal_production_records DISABLE ROW LEVEL SECURITY;
+NOTIFY pgrst, 'reload schema';`;
+                navigator.clipboard.writeText(sql);
+                setSqlCopied('coal');
+                setTimeout(() => setSqlCopied(null), 3000);
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md cursor-pointer transition-colors"
+            >
+              <Copy className="w-3 h-3" />
+              <span>{sqlCopied === 'coal' ? 'Copied SQL to Clipboard!' : 'Copy Coal Table SQL'}</span>
+            </button>
+            <a
+              href="https://supabase.com/dashboard"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-md transition-colors"
+              title="Open Supabase Dashboard in new tab"
+            >
+              <ExternalLink className="w-3 h-3" />
+              <span>Supabase Dashboard</span>
+            </a>
+          </div>
+        </div>
+
         {/* Supabase Explanation Notice if errors present */}
         {errorCount > 0 && (
           <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-[11px] text-amber-800 flex items-center justify-between gap-2">
             <span className="font-sans">
-              <strong>Notice:</strong> If you see <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">Invalid API key</code>, paste your Supabase Anon Key in the box above or verify your Vercel project environment variables. Click <strong>Clear</strong> to purge stale errors.
+              <strong>Notice:</strong> If you see <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">PGRST205</code> (missing table), click <strong>Copy Coal Table SQL</strong> above and run it in Supabase SQL Editor. Click <strong>Purge Stale Errors</strong> after running.
             </span>
             <button
               type="button"

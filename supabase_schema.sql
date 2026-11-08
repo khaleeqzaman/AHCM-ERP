@@ -180,6 +180,8 @@ CREATE INDEX IF NOT EXISTS idx_bank_accounts_bank_id ON public.bank_accounts(ban
 CREATE TABLE IF NOT EXISTS public.pos_coal_sales (
     id TEXT PRIMARY KEY,
     sr_no INTEGER,
+    partner_id TEXT,
+    partner_name TEXT,
     buyer_id TEXT,
     buyer_ntn TEXT,
     buyer_cnic TEXT,
@@ -213,6 +215,23 @@ CREATE TABLE IF NOT EXISTS public.coal_sell_records (
 
 CREATE INDEX IF NOT EXISTS idx_coal_sell_date ON public.coal_sell_records(date);
 CREATE INDEX IF NOT EXISTS idx_coal_sell_partner ON public.coal_sell_records(partner_id);
+
+-- 11b. Store & Sales: Coal Production Records Table
+CREATE TABLE IF NOT EXISTS public.coal_production_records (
+    id TEXT PRIMARY KEY,
+    sr_no INTEGER,
+    date TEXT NOT NULL,
+    partner_id TEXT,
+    partner_name TEXT NOT NULL,
+    quantity_tons DOUBLE PRECISION DEFAULT 0,
+    pithead_location TEXT,
+    vehicle_no TEXT,
+    remarks TEXT,
+    created_at TEXT DEFAULT now()::text
+);
+
+CREATE INDEX IF NOT EXISTS idx_coal_prod_date ON public.coal_production_records(date);
+CREATE INDEX IF NOT EXISTS idx_coal_prod_partner ON public.coal_production_records(partner_id);
 
 -- 12. Store & Sales: Buyers Table
 CREATE TABLE IF NOT EXISTS public.buyers (
@@ -367,4 +386,8 @@ ALTER TABLE IF EXISTS public.stock_entries DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.vehicles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.vehicle_consumptions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.company_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.coal_production_records DISABLE ROW LEVEL SECURITY;
+
+-- Reload Supabase PostgREST schema cache immediately
+NOTIFY pgrst, 'reload schema';
 

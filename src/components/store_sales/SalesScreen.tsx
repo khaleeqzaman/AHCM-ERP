@@ -23,7 +23,7 @@ import {
 } from '../../types/storeSales';
 import { NavTarget } from '../../types';
 import { CoalProductionView } from './CoalProductionView';
-import { PosView } from './PosView';
+import { DailyCsrEntriesView } from './DailyCsrEntriesView';
 import { RecordCoalSellView } from './RecordCoalSellView';
 import { CoalSalesReportView } from './CoalSalesReportView';
 import { PartnersView } from './PartnersView';
@@ -103,7 +103,6 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
   onDeleteConsumption,
 }) => {
   const [subTab, setSubTab] = useState<SalesSubTab>(initialSubTab);
-  const [posTab, setPosTab] = useState<'sheet' | 'form'>('sheet');
   const [openPartnerColModal, setOpenPartnerColModal] = useState<boolean>(false);
   const [openPartnerForm, setOpenPartnerForm] = useState<boolean>(false);
   const [openBuyerForm, setOpenBuyerForm] = useState<boolean>(false);
@@ -121,18 +120,14 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
     if (navTarget.section === 'coal_management' || navTarget.section === 'sale') {
       if (navTarget.subPage === 'coal_production' || navTarget.subPage === 'add_coal_production' || navTarget.subPage === 'view_coal_production') {
         setSubTab('coal_production');
-      } else if (navTarget.subPage === 'pos_sheet') {
-        setSubTab('pos');
-        setPosTab('sheet');
-      } else if (navTarget.subPage === 'pos_form') {
-        setSubTab('pos');
-        setPosTab('form');
-      } else if (navTarget.subPage === 'record_coal_sell') {
+      } else if (navTarget.subPage === 'daily_csr_entries' || navTarget.subPage === 'pos_sheet') {
+        setSubTab('daily_csr_entries');
+      } else if (navTarget.subPage === 'record_coal_sell' || navTarget.subPage === 'pos_form' || navTarget.subPage === 'coal_sales_report_record') {
         setSubTab('record_coal_sell');
-      } else if (navTarget.subPage === 'coal_sales_report_record') {
-        setSubTab('record_coal_sell');
+      } else if (navTarget.subPage === 'total_csr' || navTarget.subPage === 'coal_sales_report') {
+        setSubTab('total_csr');
       } else if (navTarget.subPage === 'coal_sales_report_partner_col') {
-        setSubTab('coal_sales_report');
+        setSubTab('total_csr');
         setOpenPartnerColModal(true);
       } else if (navTarget.subPage === 'add_partner') {
         setSubTab('partners');
@@ -197,26 +192,7 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
               </span>
             </button>
 
-            {/* 2. POS */}
-            <button
-              type="button"
-              onClick={() => setSubTab('pos')}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                subTab === 'pos'
-                  ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-600/30'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-              }`}
-            >
-              <Receipt className="w-3.5 h-3.5" />
-              <span>POS</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                subTab === 'pos' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'
-              }`}>
-                {posEntries.length}
-              </span>
-            </button>
-
-            {/* 3. Record Coal Sell */}
+            {/* 2. New Coal Sell POS Entry Form */}
             <button
               type="button"
               onClick={() => setSubTab('record_coal_sell')}
@@ -227,25 +203,44 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
               }`}
             >
               <FileCheck2 className="w-3.5 h-3.5" />
-              <span>Record Coal Sell</span>
+              <span>New Coal Sell (POS Form)</span>
             </button>
 
-            {/* 4. Coal Sales Report */}
+            {/* 3. Daily CSR Entries (Itemized dispatches) */}
             <button
               type="button"
-              onClick={() => setSubTab('coal_sales_report')}
+              onClick={() => setSubTab('daily_csr_entries')}
               className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                subTab === 'coal_sales_report'
+                subTab === 'daily_csr_entries'
+                  ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-600/30'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
+              }`}
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              <span>Daily CSR Entries</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                subTab === 'daily_csr_entries' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {posEntries.length}
+              </span>
+            </button>
+
+            {/* 4. Total CSR (sales report) */}
+            <button
+              type="button"
+              onClick={() => setSubTab('total_csr')}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                subTab === 'total_csr' || subTab === 'coal_sales_report' || subTab === 'daily_csr'
                   ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-600/30'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              <span>Coal Sales Report</span>
+              <span>Total CSR (sales report)</span>
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                subTab === 'coal_sales_report' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'
+                subTab === 'total_csr' || subTab === 'coal_sales_report' || subTab === 'daily_csr' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'
               }`}>
-                {coalSellRecords.length}
+                {coalSellRecords.length || posEntries.length}
               </span>
             </button>
 
@@ -324,31 +319,39 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
           />
         )}
 
-        {subTab === 'pos' && (
-          <PosView
+        {subTab === 'daily_csr_entries' && (
+          <DailyCsrEntriesView
             entries={posEntries}
+            partners={partners}
             buyers={buyers}
-            companySettings={companySettings}
-            initialTab={posTab}
-            onAddEntry={onAddPosEntry}
+            currentCoalStock={currentCoalStock}
             onUpdateEntry={onUpdatePosEntry}
             onDeleteEntry={onDeletePosEntry}
+            onNavigateToNewSale={() => setSubTab('record_coal_sell')}
+            onNavigateToProduction={() => setSubTab('coal_production')}
           />
         )}
 
         {subTab === 'record_coal_sell' && (
           <RecordCoalSellView
             partners={partners}
+            buyers={buyers}
+            posEntries={posEntries}
+            coalSellRecords={coalSellRecords}
             currentCoalStock={currentCoalStock}
             onSaveCoalSell={(rec) => {
               onAddCoalSellRecord(rec);
-              setSubTab('coal_production');
             }}
+            onSavePosSale={(entry) => {
+              onAddPosEntry(entry);
+            }}
+            onDeletePosEntry={onDeletePosEntry}
             onCancel={() => setSubTab('coal_production')}
+            onNavigateToProduction={() => setSubTab('coal_production')}
           />
         )}
 
-        {subTab === 'coal_sales_report' && (
+        {(subTab === 'total_csr' || subTab === 'coal_sales_report' || subTab === 'daily_csr') && (
           <CoalSalesReportView
             records={coalSellRecords}
             partners={partners}

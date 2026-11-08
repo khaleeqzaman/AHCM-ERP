@@ -39,6 +39,8 @@ import {
   dbSavePosCoalSale,
   dbGetCoalSellRecords,
   dbSaveCoalSellRecord,
+  dbGetCoalProductionRecords,
+  dbSaveCoalProductionRecord,
 } from './queries.ts';
 import {
   baselineDemands,
@@ -143,6 +145,19 @@ const TABLE_CREATION_STATEMENTS = [
     "remarks" text
   );`,
 
+  `CREATE TABLE IF NOT EXISTS "coal_production_records" (
+    "id" text PRIMARY KEY NOT NULL,
+    "sr_no" integer,
+    "date" text NOT NULL,
+    "partner_id" text,
+    "partner_name" text NOT NULL,
+    "quantity_tons" double precision DEFAULT 0,
+    "pithead_location" text,
+    "vehicle_no" text,
+    "remarks" text,
+    "created_at" text
+  );`,
+
   `CREATE TABLE IF NOT EXISTS "company_settings" (
     "id" text PRIMARY KEY NOT NULL,
     "company_name" text NOT NULL,
@@ -186,6 +201,8 @@ const TABLE_CREATION_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "pos_coal_sales" (
     "id" text PRIMARY KEY NOT NULL,
     "sr_no" integer,
+    "partner_id" text,
+    "partner_name" text,
     "buyer_id" text,
     "buyer_ntn" text,
     "buyer_cnic" text,
@@ -304,6 +321,8 @@ const COLUMN_MIGRATION_STATEMENTS = [
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "cancelled_by" text;`,
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "cancelled_at" text;`,
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "cancel_reason" text;`,
+  `ALTER TABLE "pos_coal_sales" ADD COLUMN IF NOT EXISTS "partner_id" text;`,
+  `ALTER TABLE "pos_coal_sales" ADD COLUMN IF NOT EXISTS "partner_name" text;`,
 ];
 
 /**

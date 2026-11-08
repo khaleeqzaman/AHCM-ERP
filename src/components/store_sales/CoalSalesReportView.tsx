@@ -250,7 +250,7 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
     const headerLines = [
       `"${companySettings.companyName}"`,
       `"${companySettings.address}"`,
-      `"COAL SALES REPORT - ${timeFilter === 'monthly' ? monthName.toUpperCase() : 'CONSOLIDATED'}"`,
+      `"TOTAL CSR (SALES REPORT) - ${timeFilter === 'monthly' ? monthName.toUpperCase() : 'CONSOLIDATED'}"`,
       `"Generated: ${new Date().toLocaleDateString()}"`,
       '',
     ];
@@ -281,11 +281,11 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Coal_Sales_Report_${Date.now()}.csv`);
+    link.setAttribute('download', `Total_CSR_Report_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showNotice('Coal Sales Report exported to CSV.');
+    showNotice('Total CSR (sales report) exported to CSV.');
   };
 
   return (
@@ -302,10 +302,10 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-emerald-600" />
-            Coal Sales Report (Date-Wise Partner Matrix)
+            Total CSR (sales report)
           </h2>
           <p className="text-sm text-slate-600 mt-0.5">
-            Dynamic partner column matrix showing date-wise dispatched coal tonnage. Add or remove partner columns, filter daily/weekly/monthly, and export with company header.
+            Consolidated partner column matrix showing date-wise dispatched coal tonnage. Add or remove partner columns, filter daily/weekly/monthly, and export with company header.
           </p>
         </div>
 
@@ -732,7 +732,7 @@ export const CoalSalesReportView: React.FC<CoalSalesReportViewProps> = ({
               </div>
               <div className="pt-2">
                 <span className="text-xs font-extrabold text-slate-900 tracking-wider uppercase bg-slate-100 px-4 py-1.5 rounded inline-block">
-                  MONTHLY COAL SALES REPORT — {selectedMonth}
+                  MONTHLY TOTAL CSR (SALES REPORT) — {selectedMonth}
                 </span>
               </div>
             </div>

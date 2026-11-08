@@ -181,9 +181,13 @@ async function diagnosticSupabaseOperation<T>(
     if (error) {
       const errorMsg = error.message || error.details || JSON.stringify(error);
       const is401 = status === 401 || String(errorMsg).toLowerCase().includes('api key');
+      const isMissingTable =
+        error.code === 'PGRST205' ||
+        String(errorMsg).toLowerCase().includes('could not find the table') ||
+        String(errorMsg).toLowerCase().includes('schema cache');
 
       console.warn(
-        `%c[SUPABASE ${is401 ? 'KEY NOTICE' : 'ERROR'} %c${status || 500}%c] %c${operation} ${tableName} (${durationMs}ms)`,
+        `%c[SUPABASE ${is401 ? 'KEY NOTICE' : isMissingTable ? 'TABLE MISSING NOTICE' : 'ERROR'} %c${status || 500}%c] %c${operation} ${tableName} (${durationMs}ms)`,
         'color: #d97706; font-weight: bold;',
         'color: #b45309; font-weight: 800;',
         'color: #d97706; font-weight: bold;',
@@ -201,6 +205,8 @@ async function diagnosticSupabaseOperation<T>(
         status: status || 500,
         error: is401
           ? `Invalid Supabase API Key. Configure NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel or Database Diagnostics.`
+          : isMissingTable
+          ? `Table '${tableName}' not found in Supabase schema cache (PGRST205). Run migration 'src/db/migrations/create_coal_production_records.sql' in Supabase SQL Editor. Fallback to local offline storage active.`
           : `Supabase Error (${error.code || 'ERR'}): ${errorMsg}`,
         durationMs,
         success: false,
@@ -528,6 +534,8 @@ const mapBankAccountToRow = (a: BankAccountRecord) => ({
 const mapPosSaleFromRow = (r: any): PosCoalSellEntry => ({
   id: r.id,
   srNo: Number(r.sr_no || 1),
+  partnerId: r.partner_id || '',
+  partnerName: r.partner_name || '',
   buyerId: r.buyer_id || '',
   buyerNTN: r.buyer_ntn || '',
   buyerCNIC: r.buyer_cnic || '',
@@ -548,6 +556,8 @@ const mapPosSaleFromRow = (r: any): PosCoalSellEntry => ({
 const mapPosSaleToRow = (s: PosCoalSellEntry) => ({
   id: s.id,
   sr_no: s.srNo || 1,
+  partner_id: s.partnerId || '',
+  partner_name: s.partnerName || '',
   buyer_id: s.buyerId || '',
   buyer_ntn: s.buyerNTN || '',
   buyer_cnic: s.buyerCNIC || '',
@@ -1048,25 +1058,37 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       ),
     ]);
 
-    const users = usersRes && usersRes.length > 0 ? usersRes.map(mapUserFromRow) : initialUsers;
-    const demands = demandsRes ? demandsRes.map(mapDemandFromRow) : initialDemands;
-    const purchases = purchasesRes ? purchasesRes.map(mapPurchaseFromRow) : initialPurchases;
-    const accounts = accountsRes && accountsRes.length > 0 ? accountsRes.map(mapChartAccountFromRow) : initialChartOfAccounts;
-    const vouchers = vouchersRes ? vouchersRes.map(mapVoucherFromRow) : initialVouchers;
-    const cashBookEntries = cashBookRes ? cashBookRes.map(mapCashBookEntryFromRow) : initialCashBookEntries;
-    const creditBookEntries = creditBookRes ? creditBookRes.map(mapCreditBookEntryFromRow) : initialCreditBookEntries;
-    const banks = banksRes ? banksRes.map(mapBankFromRow) : initialBanks;
-    const bankAccounts = bankAccountsRes ? bankAccountsRes.map(mapBankAccountFromRow) : initialBankAccounts;
-    const companySettings = settingsRes && settingsRes.length > 0 ? mapCompanySettingsFromRow(settingsRes[0]) : initialCompanySettings;
-    const buyers = buyersRes ? buyersRes.map(mapBuyerFromRow) : initialBuyers;
-    const partners = partnersRes ? partnersRes.map(mapPartnerFromRow) : initialPartners;
-    const posEntries = posRes ? posRes.map(mapPosSaleFromRow) : initialPosEntries;
-    const coalSellRecords = coalRes ? coalRes.map(mapCoalRecordFromRow) : initialCoalSellRecords;
-    const coalProductionRecords = coalProductionRes ? coalProductionRes.map(mapCoalProductionFromRow) : initialCoalProductionRecords;
-    const stockItems = stockItemsRes ? stockItemsRes.map(mapStockItemFromRow) : initialStockItems;
-    const stockEntries = stockEntriesRes ? stockEntriesRes.map(mapStockEntryFromRow) : initialStockEntries;
-    const vehicles = vehiclesRes ? vehiclesRes.map(mapVehicleFromRow) : initialVehicles;
-    const vehicleConsumptions = consumptionsRes ? consumptionsRes.map(mapVehicleConsumptionFromRow) : initialVehicleConsumptions;
+    const loadFallback = <T>(key: string, initial: T): T => {
+      try {
+        const raw = localStorage.getItem(`ahcm_erp_${key}`);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed as unknown as T;
+          if (parsed && typeof parsed === 'object') return parsed as unknown as T;
+        }
+      } catch {}
+      return initial;
+    };
+
+    const users = usersRes && usersRes.length > 0 ? usersRes.map(mapUserFromRow) : loadFallback('users', initialUsers);
+    const demands = demandsRes ? demandsRes.map(mapDemandFromRow) : loadFallback('demands', initialDemands);
+    const purchases = purchasesRes ? purchasesRes.map(mapPurchaseFromRow) : loadFallback('purchases', initialPurchases);
+    const accounts = accountsRes && accountsRes.length > 0 ? accountsRes.map(mapChartAccountFromRow) : loadFallback('accounts', initialChartOfAccounts);
+    const vouchers = vouchersRes ? vouchersRes.map(mapVoucherFromRow) : loadFallback('vouchers', initialVouchers);
+    const cashBookEntries = cashBookRes ? cashBookRes.map(mapCashBookEntryFromRow) : loadFallback('cash_book', initialCashBookEntries);
+    const creditBookEntries = creditBookRes ? creditBookRes.map(mapCreditBookEntryFromRow) : loadFallback('credit_book', initialCreditBookEntries);
+    const banks = banksRes ? banksRes.map(mapBankFromRow) : loadFallback('banks', initialBanks);
+    const bankAccounts = bankAccountsRes ? bankAccountsRes.map(mapBankAccountFromRow) : loadFallback('bank_accounts', initialBankAccounts);
+    const companySettings = settingsRes && settingsRes.length > 0 ? mapCompanySettingsFromRow(settingsRes[0]) : loadFallback('company_settings', initialCompanySettings);
+    const buyers = buyersRes ? buyersRes.map(mapBuyerFromRow) : loadFallback('buyers', initialBuyers);
+    const partners = partnersRes ? partnersRes.map(mapPartnerFromRow) : loadFallback('partners', initialPartners);
+    const posEntries = posRes ? posRes.map(mapPosSaleFromRow) : loadFallback('pos_entries', initialPosEntries);
+    const coalSellRecords = coalRes ? coalRes.map(mapCoalRecordFromRow) : loadFallback('coal_records', initialCoalSellRecords);
+    const coalProductionRecords = coalProductionRes ? coalProductionRes.map(mapCoalProductionFromRow) : loadFallback('coal_production_records', initialCoalProductionRecords);
+    const stockItems = stockItemsRes ? stockItemsRes.map(mapStockItemFromRow) : loadFallback('stock_items', initialStockItems);
+    const stockEntries = stockEntriesRes ? stockEntriesRes.map(mapStockEntryFromRow) : loadFallback('stock_entries', initialStockEntries);
+    const vehicles = vehiclesRes ? vehiclesRes.map(mapVehicleFromRow) : loadFallback('vehicles', initialVehicles);
+    const vehicleConsumptions = consumptionsRes ? consumptionsRes.map(mapVehicleConsumptionFromRow) : loadFallback('consumptions', initialVehicleConsumptions);
 
     const vehicleConsumptionSummary = computeVehicleConsumptionSummary(vehicles, vehicleConsumptions);
     const itemWiseStockSummary = computeItemWiseStockSummary(stockItems, stockEntries);
@@ -1687,6 +1709,14 @@ export async function apiDeleteCoalSellRecord(id: string): Promise<boolean> {
 
 export async function apiSaveCoalProduction(record: CoalProductionRecord): Promise<CoalProductionRecord | null> {
   try {
+    try {
+      const raw = localStorage.getItem('ahcm_erp_coal_production_records');
+      const prev: CoalProductionRecord[] = raw ? JSON.parse(raw) : [];
+      const idx = prev.findIndex((r) => r.id === record.id);
+      const next = idx >= 0 ? prev.map((r) => (r.id === record.id ? record : r)) : [record, ...prev];
+      localStorage.setItem('ahcm_erp_coal_production_records', JSON.stringify(next));
+    } catch {}
+
     const row = mapCoalProductionToRow(record);
     if (!isSupabaseConfigured()) {
       return record;
@@ -1707,6 +1737,15 @@ export async function apiSaveCoalProduction(record: CoalProductionRecord): Promi
 
 export async function apiDeleteCoalProduction(id: string): Promise<boolean> {
   try {
+    try {
+      const raw = localStorage.getItem('ahcm_erp_coal_production_records');
+      if (raw) {
+        const prev: CoalProductionRecord[] = JSON.parse(raw);
+        const next = prev.filter((r) => r.id !== id);
+        localStorage.setItem('ahcm_erp_coal_production_records', JSON.stringify(next));
+      }
+    } catch {}
+
     if (!isSupabaseConfigured()) {
       return true;
     }
