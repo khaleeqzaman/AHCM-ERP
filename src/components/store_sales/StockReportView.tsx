@@ -411,17 +411,17 @@ export const StockReportView: React.FC<StockReportViewProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-amber-600">
-              Store & Sales
+              General Store & Consumables
             </span>
             <span className="text-slate-300">/</span>
-            <span className="text-xs text-slate-500">Inventory & Consumables</span>
+            <span className="text-xs text-slate-500">Warehouse Inventory (Parts, Fuel & Filters)</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1 flex items-center gap-2">
             <Package className="w-5 h-5 text-amber-600" />
-            Stock Report & Inventory Management
+            General Store Item Stock Report
           </h2>
           <p className="text-sm text-slate-600 mt-0.5">
-            Track opening stock, purchases, mine consumption, vehicle dispatches, and computed store balances.
+            Track opening stock, purchases, mine consumption, vehicle dispatches, and computed store balances. <strong className="text-slate-700 font-semibold">(Completely separate from Pithead Coal Production & Stock).</strong>
           </p>
         </div>
 

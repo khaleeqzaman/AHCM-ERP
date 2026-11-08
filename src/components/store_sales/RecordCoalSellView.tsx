@@ -24,7 +24,8 @@ import {
   CreditCard,
   ShieldCheck,
   Truck,
-  AlertTriangle
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 import { 
   PartnerRecord, 
@@ -145,6 +146,8 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
     }
   };
 
+  const [formError, setFormError] = useState<string | null>(null);
+
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3500);
@@ -153,34 +156,35 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
   // Form Submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
 
     if (currentCoalStock <= 0) {
-      alert('Cannot record coal sell: The system currently has 0 MT coal produced/in stock. Please record daily coal production first.');
+      setFormError('Cannot record coal sell: The pithead coal stock is currently 0 Tons. Please record daily coal production first.');
       return;
     }
 
     if (!partnerId) {
-      alert('Please select a partner name from the dropdown list');
+      setFormError('Please select a partner name from the dropdown list.');
       return;
     }
     const partner = partners.find((p) => p.id === partnerId);
     if (!partner) {
-      alert('Selected partner not found');
+      setFormError('Selected partner not found.');
       return;
     }
 
     if (!buyerName.trim()) {
-      alert('Please enter Buyer Name');
+      setFormError('Please enter Buyer Name.');
       return;
     }
 
     if (!numQuantity || numQuantity <= 0) {
-      alert('Please enter a valid coal quantity in tons');
+      setFormError('Please enter a valid coal quantity in tons.');
       return;
     }
 
     if (numQuantity > currentCoalStock) {
-      alert(`Cannot enter more quantity (${numQuantity} MT) than the coal produced/in stock (${formatWholeNumber(currentCoalStock)} MT). Please enter a quantity up to ${formatWholeNumber(currentCoalStock)} MT.`);
+      setFormError(`Cannot enter more quantity (${numQuantity} Tons) than the coal produced/in stock (${formatWholeNumber(currentCoalStock)} Tons). Please enter a quantity up to ${formatWholeNumber(currentCoalStock)} Tons.`);
       return;
     }
 
@@ -482,7 +486,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
               <Scale className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>Live Available Coal Stock:</span>
               <span className="font-mono font-bold text-sm text-emerald-950">
-                {formatWholeNumber(currentCoalStock)} MT
+                {formatWholeNumber(currentCoalStock)} Tons
               </span>
             </div>
           </div>
@@ -542,6 +546,23 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* In-app Form Error Banner */}
+            {formError && (
+              <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 text-xs flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span className="font-semibold">{formError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormError(null)}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Live Stock Impact & Zero Stock Alert Banner */}
             {isZeroStock ? (
               <div className="p-4 rounded-xl border-2 border-rose-300 bg-rose-50 text-rose-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
@@ -551,13 +572,13 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                   </div>
                   <div>
                     <h4 className="text-sm font-extrabold text-rose-950 flex items-center gap-2">
-                      <span>Zero Coal Stock Available (0 MT)</span>
+                      <span>Zero Coal Stock Available (0 Tons)</span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-200 text-rose-900 uppercase tracking-wide">
                         Dispatch Locked
                       </span>
                     </h4>
                     <p className="text-xs text-rose-800 mt-1 leading-relaxed">
-                      You can only record coal sells and dispatch invoices when the system has coal produced/in stock. Currently there is <strong>0 MT</strong> recorded in stock. Please record daily coal production first.
+                      You can only record coal sells and dispatch invoices when the system has coal produced/in stock. Currently there is <strong>0 Tons</strong> recorded in stock. Please record daily coal production first.
                     </p>
                   </div>
                 </div>
@@ -582,11 +603,11 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                   <Scale className={`w-4 h-4 shrink-0 ${isStockExceeded ? 'text-rose-600' : 'text-blue-600'}`} />
                   <span>
                     <strong>Stock Impact:</strong> Quantity entered is{' '}
-                    <span className="font-mono font-bold">{formatWholeNumber(numQuantity)} MT</span>{' '}
-                    of <span className="font-mono font-bold text-slate-900">{formatWholeNumber(currentCoalStock)} MT</span> available.
+                    <span className="font-mono font-bold">{formatWholeNumber(numQuantity)} Tons</span>{' '}
+                    of <span className="font-mono font-bold text-slate-900">{formatWholeNumber(currentCoalStock)} Tons</span> available.
                     {isStockExceeded && (
                       <span className="text-rose-700 font-bold ml-1.5 inline-block">
-                        ❌ Exceeds available stock! You cannot enter more than {formatWholeNumber(currentCoalStock)} MT.
+                        ❌ Exceeds available stock! You cannot enter more than {formatWholeNumber(currentCoalStock)} Tons.
                       </span>
                     )}
                   </span>
@@ -594,7 +615,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                 <div className="sm:text-right font-mono text-xs font-semibold">
                   Remaining Stock After Save:{' '}
                   <span className={`font-bold ${isStockExceeded ? 'text-rose-700' : 'text-emerald-700'}`}>
-                    {isStockExceeded ? 'Deficit' : `${formatWholeNumber(remainingStockAfterSale)} MT`}
+                    {isStockExceeded ? 'Deficit' : `${formatWholeNumber(remainingStockAfterSale)} Tons`}
                   </span>
                 </div>
               </div>
@@ -806,7 +827,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                       className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 transition-colors cursor-pointer"
                       title="Set quantity to maximum available stock"
                     >
-                      Fill Max: {formatWholeNumber(currentCoalStock)} MT
+                      Fill Max: {formatWholeNumber(currentCoalStock)} Tons
                     </button>
                   )}
                 </div>
@@ -819,7 +840,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                   required
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
-                  placeholder={isZeroStock ? 'No stock available (0 MT)' : `Max ${formatWholeNumber(currentCoalStock)} MT`}
+                  placeholder={isZeroStock ? 'No stock available (0 Tons)' : `Max ${formatWholeNumber(currentCoalStock)} Tons`}
                   className={`w-full text-sm font-mono font-bold px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                     isZeroStock
                       ? 'bg-slate-100 text-slate-400 border-slate-300 cursor-not-allowed'
@@ -830,17 +851,17 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                 />
                 {isZeroStock ? (
                   <span className="text-[11px] font-semibold text-rose-600 mt-1 block">
-                    ⚠️ Cannot enter quantity: System currently has 0 MT coal in stock.
+                    ⚠️ Cannot enter quantity: System currently has 0 Tons coal in stock.
                   </span>
                 ) : isStockExceeded ? (
                   <span className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                    <span>Cannot enter more quantity than the coal produced/in stock ({formatWholeNumber(currentCoalStock)} MT)!</span>
+                    <span>Cannot enter more quantity than the coal produced/in stock ({formatWholeNumber(currentCoalStock)} Tons)!</span>
                   </span>
                 ) : (
                   <div className="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
-                    <span>Weight in Metric Tons (MT)</span>
-                    <span className="font-mono font-semibold text-slate-700">Max: {formatWholeNumber(currentCoalStock)} MT</span>
+                    <span>Weight in Tons</span>
+                    <span className="font-mono font-semibold text-slate-700">Max: {formatWholeNumber(currentCoalStock)} Tons</span>
                   </div>
                 )}
               </div>
@@ -947,7 +968,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-5 border-t border-slate-100">
               <div className="text-xs text-slate-500">
-                💡 Submitting this POS form immediately logs the dispatch under the partner and deducts {formatWholeNumber(numQuantity)} MT from available stock.
+                💡 Submitting this POS form immediately logs the dispatch under the partner and deducts {formatWholeNumber(numQuantity)} Tons from available stock.
               </div>
 
               <div className="flex items-center gap-2">
@@ -977,18 +998,18 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                   }`}
                   title={
                     isZeroStock
-                      ? 'Cannot record sale: System has 0 MT coal produced/in stock'
+                      ? 'Cannot record sale: System has 0 Tons coal produced/in stock'
                       : isStockExceeded
-                      ? `Quantity (${numQuantity} MT) exceeds available stock (${currentCoalStock} MT)`
+                      ? `Quantity (${numQuantity} Tons) exceeds available stock (${currentCoalStock} Tons)`
                       : 'Record coal sell'
                   }
                 >
                   <Save className="w-4 h-4" />
                   <span>
                     {isZeroStock
-                      ? 'No Coal in Stock (0 MT)'
+                      ? 'No Coal in Stock (0 Tons)'
                       : isStockExceeded
-                      ? `Exceeds Stock (${formatWholeNumber(currentCoalStock)} MT Max)`
+                      ? `Exceeds Stock (${formatWholeNumber(currentCoalStock)} Tons Max)`
                       : 'Save & Record Coal Sell'}
                   </span>
                 </button>
@@ -1093,9 +1114,9 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
             {/* Quick Summary KPIs */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-100 text-xs">
               <div className="p-2.5 rounded-lg bg-blue-50/70 border border-blue-200">
-                <span className="text-[11px] text-blue-700 font-semibold block">Total Dispatched (MT)</span>
+                <span className="text-[11px] text-blue-700 font-semibold block">Total Dispatched (Tons)</span>
                 <span className="text-base font-bold font-mono text-blue-950">
-                  {formatWholeNumber(grandTotalTons)} MT
+                  {formatWholeNumber(grandTotalTons)} Tons
                 </span>
               </div>
 
@@ -1215,7 +1236,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                             {/* Column 3: Total (Tons) */}
                             <td className="px-4 py-3 text-right font-mono font-bold text-emerald-950 bg-emerald-50/30 whitespace-nowrap">
                               <span className="inline-flex items-center px-2 py-0.5 rounded font-mono font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-200">
-                                {formatWholeNumber(row.totalTons)} MT
+                                {formatWholeNumber(row.totalTons)} Tons
                               </span>
                             </td>
 
@@ -1262,7 +1283,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                                       <span className="text-slate-400 font-mono">({row.entries.length} Invoices recorded)</span>
                                     </div>
                                     <span className="font-mono font-bold text-emerald-800">
-                                      Day Total: {formatWholeNumber(row.totalTons)} MT
+                                      Day Total: {formatWholeNumber(row.totalTons)} Tons
                                     </span>
                                   </div>
 
@@ -1299,7 +1320,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
                                               {entry.saleOrganization || 'Balochistan'}
                                             </td>
                                             <td className="py-2 px-2.5 text-right font-mono font-bold text-emerald-800">
-                                              {formatWholeNumber(entry.quantity)} MT
+                                              {formatWholeNumber(entry.quantity)} Tons
                                             </td>
                                             <td className="py-2 px-2.5 text-right font-mono text-slate-600">
                                               {formatWholeNumber(entry.totalTax || 0)}
@@ -1345,7 +1366,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
 
                       {/* Grand Total (Tons) */}
                       <td className="px-4 py-3 text-right font-mono font-extrabold text-emerald-950 bg-emerald-100/70">
-                        {formatWholeNumber(grandTotalTons)} MT
+                        {formatWholeNumber(grandTotalTons)} Tons
                       </td>
 
                       {/* Grand Total Entries */}
@@ -1382,7 +1403,7 @@ export const RecordCoalSellView: React.FC<RecordCoalSellViewProps> = ({
 
             <div className="p-4 bg-slate-50 rounded-lg text-xs space-y-2 font-mono">
               <div className="font-bold text-sm text-slate-900">DAILY COAL SALES REPORT (DAILY CSR)</div>
-              <div className="text-slate-600">Total Days: {dailyCsrRows.length} | Grand Total Sold: {formatWholeNumber(grandTotalTons)} MT</div>
+              <div className="text-slate-600">Total Days: {dailyCsrRows.length} | Grand Total Sold: {formatWholeNumber(grandTotalTons)} Tons</div>
               <div className="text-slate-600">Total Invoices Logged: {grandTotalEntries}</div>
             </div>
 

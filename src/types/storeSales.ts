@@ -27,7 +27,7 @@ export interface CoalProductionRecord {
   date: string; // DD-MM-YYYY
   partnerId: string;
   partnerName: string;
-  quantityTons: number; // Mined / Produced coal added to stock (in metric tons)
+  quantityTons: number; // Mined / Produced coal added to stock (in tons)
   pitheadLocation?: string;
   vehicleNo?: string;
   remarks?: string;
@@ -41,6 +41,7 @@ export interface CompanySettings {
   ntnNumber: string;
   contactNumber: string;
   email: string;
+  openingCoalStock?: number; // Initial pithead reserve in tons (independent of store items)
 }
 
 // Buyer

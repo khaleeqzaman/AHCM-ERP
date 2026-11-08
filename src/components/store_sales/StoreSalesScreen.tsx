@@ -91,6 +91,7 @@ interface StoreSalesScreenProps {
   onDeleteConsumption: (id: string) => void;
 
   onSaveCompanySettings: (settings: CompanySettings) => void;
+  onClearLegacyCoalSales?: () => void;
 }
 
 export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
@@ -135,6 +136,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   onUpdateConsumption,
   onDeleteConsumption,
   onSaveCompanySettings,
+  onClearLegacyCoalSales,
 }) => {
   const [mainTab, setMainTab] = useState<StoreSalesMainTab>('coal_management');
   const [stockTab, setStockTab] = useState<'view_stock' | 'add_stock' | 'add_item' | 'view_items'>('view_stock');
@@ -159,10 +161,13 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
     }
   }, [navTarget]);
 
-  // Overall KPI stats for isolated store & sales module
+  const openingCoalStock = (typeof companySettings?.openingCoalStock === 'number' && companySettings.openingCoalStock > 0)
+    ? companySettings.openingCoalStock
+    : 100;
   const totalProducedTons = coalProductionRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
   const totalCoalTons = coalSellRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
-  const currentCoalStock = Math.max(0, totalProducedTons - totalCoalTons);
+  const totalCoalStockGross = totalProducedTons + openingCoalStock;
+  const currentCoalStock = Math.max(0, totalCoalStockGross - totalCoalTons);
   const totalPosValue = posEntries.reduce((sum, e) => sum + (Number(e.totalValue) || 0), 0);
   const totalStockItemsCount = stockItems.length;
   const activeVehiclesCount = vehicles.filter((v) => v.status === 'Active').length;
@@ -194,21 +199,24 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             <div className="p-2.5 rounded-lg bg-emerald-50/90 border border-emerald-300">
               <span className="text-emerald-800 block text-[11px] font-bold uppercase tracking-wider">Live Coal Stock</span>
               <span className="text-sm font-bold font-mono tabular-nums text-emerald-950">
-                {formatWholeNumber(currentCoalStock)} MT
+                {formatWholeNumber(totalCoalStockGross)} Tons
+              </span>
+              <span className="text-[10px] text-emerald-700 block font-mono">
+                Stock + Opening ({formatWholeNumber(totalProducedTons)} + {formatWholeNumber(openingCoalStock)})
               </span>
             </div>
 
             <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-slate-500 block text-[11px] font-semibold">Total Produced</span>
               <span className="text-sm font-bold font-mono tabular-nums text-emerald-700">
-                {formatWholeNumber(totalProducedTons)} MT
+                {formatWholeNumber(totalProducedTons)} Tons
               </span>
             </div>
 
             <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
               <span className="text-slate-500 block text-[11px] font-semibold">Total Dispatched / Sold</span>
               <span className="text-sm font-bold font-mono tabular-nums text-blue-700">
-                {formatWholeNumber(totalCoalTons)} MT
+                {formatWholeNumber(totalCoalTons)} Tons
               </span>
             </div>
 
@@ -254,7 +262,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
                   mainTab === 'coal_management' || mainTab === 'sales' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
                 }`}>
-                  {formatWholeNumber(currentCoalStock)} MT
+                  {formatWholeNumber(totalCoalStockGross)} Tons
                 </span>
               </button>
 
@@ -373,6 +381,8 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             onAddConsumption={onAddConsumption}
             onUpdateConsumption={onUpdateConsumption}
             onDeleteConsumption={onDeleteConsumption}
+            onClearLegacyCoalSales={onClearLegacyCoalSales}
+            onUpdateCompanySettings={onSaveCompanySettings}
           />
         )}
 

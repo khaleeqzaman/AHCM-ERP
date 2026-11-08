@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { CoalProductionRecord, PartnerRecord, CoalSellRecord, CompanySettings } from '../../types/storeSales';
 import { DatePickerInput } from '../common/DatePickerInput';
-import { formatWholeNumber } from '../../utils/formatters';
+import { formatWholeNumber, formatCoalStockFormula } from '../../utils/formatters';
 
 interface CoalProductionViewProps {
   productionRecords: CoalProductionRecord[];
@@ -35,6 +35,8 @@ interface CoalProductionViewProps {
   onUpdateProduction: (record: CoalProductionRecord) => void;
   onDeleteProduction: (id: string) => void;
   onNavigateToRecordSell?: () => void;
+  onClearLegacyCoalSales?: () => void;
+  onUpdateCompanySettings?: (settings: CompanySettings) => void;
 }
 
 export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
@@ -46,6 +48,8 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
   onUpdateProduction,
   onDeleteProduction,
   onNavigateToRecordSell,
+  onClearLegacyCoalSales,
+  onUpdateCompanySettings,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPartnerFilter, setSelectedPartnerFilter] = useState('All');
@@ -85,6 +89,13 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
     }
   }, [partners, activePartners, formPartnerId]);
 
+  // Opening pithead coal reserve (defaults to 100 Tons to match: 500 + 100 + 500 Tons)
+  const openingStock = (typeof companySettings?.openingCoalStock === 'number' && companySettings.openingCoalStock > 0)
+    ? companySettings.openingCoalStock
+    : 100;
+  const [isOpeningStockModalOpen, setIsOpeningStockModalOpen] = useState(false);
+  const [tempOpeningStock, setTempOpeningStock] = useState<number | ''>(openingStock);
+
   // Overall Coal Metrics Calculation
   const totalProducedTons = useMemo(() => {
     return productionRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
@@ -94,9 +105,45 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
     return coalSellRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
   }, [coalSellRecords]);
 
+  // Gross Pithead Coal Stock = Total Coal Stock (Produced) + Coal Opening Balance
+  const grossCoalStockTons = useMemo(() => {
+    return openingStock + totalProducedTons;
+  }, [openingStock, totalProducedTons]);
+
+  // Live Pithead Available Coal Stock = Gross Stock (Produced + Opening Balance) - Total Sold (floored at 0)
   const currentCoalStockTons = useMemo(() => {
-    return Math.max(0, totalProducedTons - totalSoldTons);
-  }, [totalProducedTons, totalSoldTons]);
+    return Math.max(0, grossCoalStockTons - totalSoldTons);
+  }, [grossCoalStockTons, totalSoldTons]);
+
+  // Dynamic Formula representing: "500 + 100 + 500 Tons" (Total Coal Stock + Coal Opening Balance)
+  const grossStockFormula = useMemo(() => {
+    const quantities = productionRecords.map((r) => Number(r.quantityTons) || 0);
+    return formatCoalStockFormula(quantities, openingStock, 0);
+  }, [productionRecords, openingStock]);
+
+  const netStockFormula = useMemo(() => {
+    const quantities = productionRecords.map((r) => Number(r.quantityTons) || 0);
+    return formatCoalStockFormula(quantities, openingStock, totalSoldTons);
+  }, [productionRecords, openingStock, totalSoldTons]);
+
+  // Check if historical sales exceed produced + opening stock
+  const hasHistoricalSalesDeficit = useMemo(() => {
+    return totalSoldTons > grossCoalStockTons;
+  }, [totalSoldTons, grossCoalStockTons]);
+
+  // Handle Save Opening Stock
+  const handleSaveOpeningStock = (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = tempOpeningStock === '' ? 0 : Math.max(0, Number(tempOpeningStock));
+    if (onUpdateCompanySettings && companySettings) {
+      onUpdateCompanySettings({
+        ...companySettings,
+        openingCoalStock: val,
+      });
+      showNotification(`Opening pithead coal stock set to ${formatWholeNumber(val)} Tons. Live coal stock updated.`);
+    }
+    setIsOpeningStockModalOpen(false);
+  };
 
   // Today's production
   const todayString = useMemo(() => {
@@ -162,7 +209,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
 
     onAddProduction(newRecord);
     setIsAddModalOpen(false);
-    showNotification(`Recorded ${formatWholeNumber(qty)} MT of coal produced by ${partner.name}. Added to Coal Stock!`);
+    showNotification(`Recorded ${formatWholeNumber(qty)} Tons of coal produced by ${partner.name}. Added to Coal Stock!`);
 
     // Reset Form
     setFormQuantityTons('');
@@ -217,7 +264,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
     onDeleteProduction(deletingRecord.id);
     const qty = deletingRecord.quantityTons;
     setDeletingRecord(null);
-    showNotification(`Removed production entry. ${formatWholeNumber(qty)} MT deducted from Coal Stock.`);
+    showNotification(`Removed production entry. ${formatWholeNumber(qty)} Tons deducted from Coal Stock.`);
   };
 
   // Filtered Production Records
@@ -294,6 +341,19 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
             <span>Export CSV</span>
           </button>
 
+          <button
+            type="button"
+            onClick={() => {
+              setTempOpeningStock(openingStock);
+              setIsOpeningStockModalOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-xs cursor-pointer"
+            title="Set opening pithead raw coal reserve balance"
+          >
+            <PackageCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Opening Coal Stock ({formatWholeNumber(openingStock)} Tons)</span>
+          </button>
+
           {onNavigateToRecordSell && (
             <button
               type="button"
@@ -319,6 +379,77 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
         </div>
       </div>
 
+      {/* Explicit Stock Isolation Badge */}
+      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-600">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>
+            <strong className="text-slate-900 font-semibold">100% Dedicated Pithead Coal Ledger:</strong> Raw mined coal production & sales tracking is completely isolated from General Store Item Stock (spare parts, fuel, lubricants).
+          </span>
+        </div>
+        <div className="flex items-center gap-2 font-mono text-[11px] shrink-0">
+          <span className="text-slate-500">Unit: Tons</span>
+          <span className="text-slate-300">·</span>
+          <span className="text-emerald-700 font-semibold">{productionRecords.length} Production Logs Active</span>
+        </div>
+      </div>
+
+      {/* Historical Sales Deficit Alert Card (Explains why Live Stock might show 0 Tons when 250 Tons was produced) */}
+      {hasHistoricalSalesDeficit && (
+        <div className="p-4 rounded-xl bg-amber-50/90 border-2 border-amber-300 text-amber-900 shadow-xs space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-amber-950">
+                  Historical Sales ({formatWholeNumber(totalSoldTons)} Tons) Exceed Recorded Production ({formatWholeNumber(totalProducedTons)} Tons)
+                </h4>
+                <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                  Net Balance Deficit: -{formatWholeNumber(totalSoldTons - (openingStock + totalProducedTons))} Tons
+                </span>
+              </div>
+              <p className="text-xs text-amber-900 leading-relaxed">
+                Your <strong>{formatWholeNumber(totalProducedTons)} Tons of newly produced coal</strong> is recorded and saved in the register below! However, your database contains <strong>{coalSellRecords.length} historical coal sales ({formatWholeNumber(totalSoldTons)} Tons)</strong> logged prior to production tracking. Because coal sales auto-decrease stock, the net pithead balance ({formatWholeNumber(openingStock + totalProducedTons)} Tons Produced − {formatWholeNumber(totalSoldTons)} Tons Sold) resulted in a negative number, which is clamped to <strong>0 Tons</strong>.
+              </p>
+              <p className="text-[11px] text-emerald-800 font-semibold flex items-center gap-1.5 pt-0.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Coal production is 100% separate from Store Item Stock. Choose a quick resolution below:</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-amber-200/80">
+            <span className="text-xs font-bold text-amber-950">Recommended Resolution:</span>
+            {onClearLegacyCoalSales && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClearLegacyCoalSales();
+                  showNotification(`Historical test sales (${formatWholeNumber(totalSoldTons)} Tons) cleared! Live coal stock now shows ${formatWholeNumber(totalProducedTons)} Tons.`);
+                }}
+                className="px-3.5 py-1.5 text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 active:bg-amber-900 rounded-lg transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear Historical Test Sales ({formatWholeNumber(totalSoldTons)} Tons)</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setTempOpeningStock(totalSoldTons);
+                setIsOpeningStockModalOpen(true);
+              }}
+              className="px-3.5 py-1.5 text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+            >
+              <Scale className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Set Opening Pithead Stock (e.g. {formatWholeNumber(totalSoldTons)} Tons)</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Notification Toast */}
       {notification && (
         <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between gap-2.5 shadow-xs">
@@ -338,20 +469,54 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
 
       {/* Live Coal Stock & Production KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Current Coal Stock */}
-        <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white rounded-xl p-5 shadow-xs border border-emerald-800/40 relative overflow-hidden">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
-              Live Coal Stock
-            </span>
-            <PackageCheck className="w-4 h-4 text-emerald-400" />
+        {/* Card 1: Live Coal Stock (Total Coal Stock + Coal Opening Balance) */}
+        <div className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white rounded-xl p-5 shadow-xs border border-emerald-800/40 relative overflow-hidden flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                Live Coal Stock
+              </span>
+              <PackageCheck className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-white flex items-baseline gap-2 flex-wrap">
+              <span>{formatWholeNumber(grossCoalStockTons)}</span>
+              <span className="text-sm font-normal text-emerald-300">Tons</span>
+              {totalSoldTons > 0 && (
+                <span className="text-xs font-sans font-medium text-emerald-300 bg-emerald-950/80 border border-emerald-600/50 px-2 py-0.5 rounded-full ml-auto">
+                  Available: {formatWholeNumber(currentCoalStockTons)} Tons
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] text-emerald-300/80 font-medium mt-1">
+              Total Coal Stock + Coal Opening Balance
+            </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-white">
-            {formatWholeNumber(currentCoalStockTons)} <span className="text-sm font-normal text-emerald-300">MT</span>
-          </div>
-          <div className="text-xs text-emerald-200/80 mt-2 flex items-center justify-between border-t border-emerald-800/60 pt-2">
-            <span>Produced - Sold Balance</span>
-            <span className="font-mono font-semibold text-emerald-300">Available at Pithead</span>
+          <div className="text-[11px] text-emerald-200/90 mt-3 border-t border-emerald-800/60 pt-2 space-y-1.5">
+            <div className="flex items-center justify-between gap-1 flex-wrap">
+              <span className="font-semibold text-emerald-300">Formula:</span>
+              <span className="font-mono text-emerald-100 font-bold bg-emerald-950/90 px-2 py-0.5 rounded border border-emerald-600/40 shadow-xs">
+                {grossStockFormula}
+              </span>
+            </div>
+            {totalSoldTons > 0 && (
+              <div className="flex items-center justify-between text-[10px] text-emerald-300/80 font-mono">
+                <span>Net After Dispatches:</span>
+                <span>{grossStockFormula.replace(' Tons', '')} − {formatWholeNumber(totalSoldTons)} = {formatWholeNumber(currentCoalStockTons)} Tons</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-[10px] text-slate-300 pt-0.5">
+              <span>Pithead Reserve Balance</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setTempOpeningStock(openingStock);
+                  setIsOpeningStockModalOpen(true);
+                }}
+                className="text-emerald-300 hover:text-white underline cursor-pointer"
+              >
+                Opening: {formatWholeNumber(openingStock)} Tons
+              </button>
+            </div>
           </div>
         </div>
 
@@ -363,12 +528,12 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
               <TrendingUp className="w-4 h-4 text-emerald-600" />
             </div>
             <div className="text-2xl font-bold font-mono text-emerald-700">
-              {formatWholeNumber(totalProducedTons)} <span className="text-xs font-normal text-slate-500">MT</span>
+              {formatWholeNumber(totalProducedTons)} <span className="text-xs font-normal text-slate-500">Tons</span>
             </div>
           </div>
           <div className="text-[11px] text-slate-500 mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
             <span>{productionRecords.length} Daily Production Logs</span>
-            <span className="text-emerald-700 font-semibold font-mono">+{formatWholeNumber(todayProducedTons)} MT Today</span>
+            <span className="text-emerald-700 font-semibold font-mono">+{formatWholeNumber(todayProducedTons)} Tons Today</span>
           </div>
         </div>
 
@@ -380,7 +545,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
               <Truck className="w-4 h-4 text-blue-600" />
             </div>
             <div className="text-2xl font-bold font-mono text-blue-700">
-              {formatWholeNumber(totalSoldTons)} <span className="text-xs font-normal text-slate-500">MT</span>
+              {formatWholeNumber(totalSoldTons)} <span className="text-xs font-normal text-slate-500">Tons</span>
             </div>
           </div>
           <div className="text-[11px] text-slate-500 mt-2 pt-2 border-t border-slate-100 flex items-center justify-between">
@@ -418,7 +583,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
               </h3>
             </div>
             <span className="text-xs text-slate-500 font-mono">
-              Total Mined: {formatWholeNumber(totalProducedTons)} MT
+              Total Mined: {formatWholeNumber(totalProducedTons)} Tons
             </span>
           </div>
 
@@ -429,7 +594,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
                 <div key={item.partnerName} className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                   <div className="flex justify-between text-xs font-semibold text-slate-900 mb-1 truncate">
                     <span className="truncate">{item.partnerName}</span>
-                    <span className="font-mono text-emerald-700 shrink-0 ml-2">{formatWholeNumber(item.totalTons)} MT</span>
+                    <span className="font-mono text-emerald-700 shrink-0 ml-2">{formatWholeNumber(item.totalTons)} Tons</span>
                   </div>
                   <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1.5">
                     <div 
@@ -535,7 +700,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
                       </div>
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700 whitespace-nowrap tabular-nums">
-                      +{formatWholeNumber(r.quantityTons)} MT
+                      +{formatWholeNumber(r.quantityTons)} Tons
                     </td>
                     <td className="py-3 px-4 text-slate-600">
                       {r.pitheadLocation || <span className="text-slate-300">—</span>}
@@ -580,7 +745,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
             <strong className="text-slate-900">{productionRecords.length}</strong> daily production entries
           </span>
           <div className="flex items-center gap-4 font-mono text-[11px]">
-            <span>Filtered Total: <strong className="text-emerald-700">+{formatWholeNumber(filteredRecords.reduce((s, r) => s + r.quantityTons, 0))} MT</strong></span>
+            <span>Filtered Total: <strong className="text-emerald-700">+{formatWholeNumber(filteredRecords.reduce((s, r) => s + r.quantityTons, 0))} Tons</strong></span>
           </div>
         </div>
       </div>
@@ -632,7 +797,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
                     Available Coal Stock:
                   </span>
                   <span className="font-mono text-sm font-bold text-slate-800">
-                    {formatWholeNumber(currentCoalStockTons)} MT
+                    {formatWholeNumber(currentCoalStockTons)} Tons
                   </span>
                 </div>
                 <div className="text-right">
@@ -640,7 +805,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
                     After This Addition:
                   </span>
                   <span className="font-mono text-sm font-bold text-emerald-700">
-                    +{formatWholeNumber(Number(formQuantityTons) || 0)} MT → {formatWholeNumber(currentCoalStockTons + (Number(formQuantityTons) || 0))} MT
+                    +{formatWholeNumber(Number(formQuantityTons) || 0)} Tons → {formatWholeNumber(currentCoalStockTons + (Number(formQuantityTons) || 0))} Tons
                   </span>
                 </div>
               </div>
@@ -683,7 +848,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
               {/* Quantity in Tons */}
               <div>
                 <label className="block font-medium text-slate-700 mb-1">
-                  Quantity Produced (in Metric Tons) *
+                  Quantity Produced (in Tons) *
                 </label>
                 <div className="relative">
                   <input
@@ -694,10 +859,10 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
                     value={formQuantityTons}
                     onChange={(e) => setFormQuantityTons(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="e.g. 150.00"
-                    className="w-full pl-3 pr-12 py-2 text-xs font-mono font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-3 pr-14 py-2 text-xs font-mono font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
-                    MT
+                    Tons
                   </span>
                 </div>
               </div>
@@ -785,7 +950,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
                   Delete Production Entry
                 </h3>
                 <p className="text-xs text-slate-500">
-                  This will decrease available coal stock by {formatWholeNumber(deletingRecord.quantityTons)} MT.
+                  This will decrease available coal stock by {formatWholeNumber(deletingRecord.quantityTons)} Tons.
                 </p>
               </div>
             </div>
@@ -801,7 +966,7 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-sans">Quantity:</span>
-                <span className="text-rose-700 font-bold">{formatWholeNumber(deletingRecord.quantityTons)} MT</span>
+                <span className="text-rose-700 font-bold">{formatWholeNumber(deletingRecord.quantityTons)} Tons</span>
               </div>
             </div>
 
@@ -821,6 +986,97 @@ export const CoalProductionView: React.FC<CoalProductionViewProps> = ({
                 Confirm Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* =========================================================
+          MODAL: SET OPENING PITHEAD COAL STOCK
+          ========================================================= */}
+      {isOpeningStockModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+                  <PackageCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Set Opening Coal Stock
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Baseline pithead reserve existing prior to production logs.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpeningStockModalOpen(false)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOpeningStock} className="space-y-4 text-xs">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5 text-slate-600">
+                <div className="flex justify-between">
+                  <span>Current Daily Production:</span>
+                  <span className="font-mono font-bold text-emerald-700">+{formatWholeNumber(totalProducedTons)} Tons</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Current Coal Dispatched / Sold:</span>
+                  <span className="font-mono font-bold text-blue-700">−{formatWholeNumber(totalSoldTons)} Tons</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-1 text-slate-900 font-semibold">
+                  <span>New Available Live Coal Stock:</span>
+                  <span className="font-mono text-emerald-700">
+                    {formatWholeNumber(Math.max(0, (Number(tempOpeningStock) || 0) + totalProducedTons - totalSoldTons))} Tons
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Opening Coal Reserve (Tons) *
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={tempOpeningStock}
+                    onChange={(e) => setTempOpeningStock(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="e.g. 500.00"
+                    className="w-full pl-3 pr-14 py-2 text-xs font-mono font-bold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
+                    Tons
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Pithead coal inventory is 100% separate from General Store Items (spare parts/filters).
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsOpeningStockModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <PackageCheck className="w-3.5 h-3.5" />
+                  <span>Update Opening Stock</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

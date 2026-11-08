@@ -65,3 +65,54 @@ export function fromDateInputValue(
   }
   return str;
 }
+
+/**
+ * Formats the Coal Stock Formula string (Total Coal Stock + Coal Opening Balance).
+ * Formula structure: e.g. "500 + 100 + 500 Tons"
+ */
+export function formatCoalStockFormula(
+  productionQuantities: number[],
+  openingStock: number,
+  soldQuantity: number = 0
+): string {
+  const parts: string[] = [];
+
+  if (productionQuantities.length === 0) {
+    if (openingStock > 0) {
+      parts.push(formatWholeNumber(openingStock));
+    } else {
+      parts.push('0');
+    }
+  } else if (productionQuantities.length === 1) {
+    parts.push(formatWholeNumber(productionQuantities[0]));
+    if (openingStock > 0) {
+      parts.push(formatWholeNumber(openingStock));
+    }
+  } else if (productionQuantities.length === 2) {
+    // Specifically matches the exact user formula: "500 + 100 + 500 Tons"
+    parts.push(formatWholeNumber(productionQuantities[0]));
+    if (openingStock > 0) {
+      parts.push(formatWholeNumber(openingStock));
+    }
+    parts.push(formatWholeNumber(productionQuantities[1]));
+  } else {
+    // 3 or more entries: insert opening stock between first and subsequent production entries
+    parts.push(formatWholeNumber(productionQuantities[0]));
+    if (openingStock > 0) {
+      parts.push(formatWholeNumber(openingStock));
+    }
+    for (let i = 1; i < Math.min(productionQuantities.length, 3); i++) {
+      parts.push(formatWholeNumber(productionQuantities[i]));
+    }
+    if (productionQuantities.length > 3) {
+      const remaining = productionQuantities.slice(3).reduce((a, b) => a + b, 0);
+      parts.push(`+${formatWholeNumber(remaining)}`);
+    }
+  }
+
+  let formula = parts.join(' + ') + ' Tons';
+  if (soldQuantity > 0) {
+    formula += ` − ${formatWholeNumber(soldQuantity)} Tons`;
+  }
+  return formula;
+}

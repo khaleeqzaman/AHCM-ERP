@@ -191,7 +191,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
     }
 
     if (numQty > maxEditQuantity) {
-      alert(`Cannot enter more quantity (${numQty} MT) than the coal produced/in stock (${formatWholeNumber(maxEditQuantity)} MT). You cannot dispatch more than available stock.`);
+      alert(`Cannot enter more quantity (${numQty} Tons) than the coal produced/in stock (${formatWholeNumber(maxEditQuantity)} Tons). You cannot dispatch more than available stock.`);
       return;
     }
 
@@ -318,7 +318,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
             <div>
               <span className="font-bold text-xs text-amber-900 block">
-                Coal Stock Notice: 0 MT Available in System
+                Coal Stock Notice: 0 Tons Available in System
               </span>
               <span className="text-[11px] text-amber-800">
                 You can only record coal sells and daily CSR entries when there is coal produced/in stock. Please record daily coal production first.
@@ -363,7 +363,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
               <Scale className="w-3.5 h-3.5 text-emerald-600" />
               <span className="text-slate-500 text-[11px]">Stock:</span>
               <span className={`font-bold ${currentCoalStock > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                {formatWholeNumber(currentCoalStock)} MT
+                {formatWholeNumber(currentCoalStock)} Tons
               </span>
             </div>
 
@@ -480,7 +480,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
           <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200">
             <span className="text-[11px] text-emerald-800 font-semibold block">Total Quantity (Tons)</span>
             <span className="text-base font-bold font-mono text-emerald-950">
-              {formatWholeNumber(totalQuantityTons)} MT
+              {formatWholeNumber(totalQuantityTons)} Tons
             </span>
           </div>
 
@@ -694,7 +694,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
 
                       {/* 12. Quantity (Ton) */}
                       <td className="px-3.5 py-2.5 text-right font-mono font-extrabold text-emerald-950 bg-emerald-50/40">
-                        {formatWholeNumber(entry.quantity)} MT
+                        {formatWholeNumber(entry.quantity)} Tons
                       </td>
 
                       {/* 13. Value Excl. Tax */}
@@ -758,7 +758,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
                     Total ({filteredEntries.length} Records)
                   </td>
                   <td className="px-3.5 py-3 text-right font-mono font-extrabold text-emerald-950 bg-emerald-100/70">
-                    {formatWholeNumber(totalQuantityTons)} MT
+                    {formatWholeNumber(totalQuantityTons)} Tons
                   </td>
                   <td className="px-3.5 py-3 text-right font-mono font-bold text-slate-900">
                     {formatWholeNumber(totalValueExcl)}
@@ -899,7 +899,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
                   <div className="flex items-center justify-between mb-1">
                     <label className="block font-bold text-slate-700">Quantity (Ton)</label>
                     <span className="text-[11px] font-mono font-semibold text-slate-500">
-                      Max: {formatWholeNumber((currentCoalStock ?? 0) + (editingEntry?.quantity ?? 0))} MT
+                      Max: {formatWholeNumber((currentCoalStock ?? 0) + (editingEntry?.quantity ?? 0))} Tons
                     </span>
                   </div>
                   <input
@@ -918,7 +918,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
                   />
                   {Number(editQuantity) > ((currentCoalStock ?? 0) + (editingEntry?.quantity ?? 0)) && (
                     <span className="text-[11px] font-bold text-rose-600 mt-1 block">
-                      ⚠️ Cannot exceed available coal stock ({formatWholeNumber((currentCoalStock ?? 0) + (editingEntry?.quantity ?? 0))} MT)!
+                      ⚠️ Cannot exceed available coal stock ({formatWholeNumber((currentCoalStock ?? 0) + (editingEntry?.quantity ?? 0))} Tons)!
                     </span>
                   )}
                 </div>
@@ -1011,7 +1011,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1 font-mono">
               <div>Buyer: <span className="font-semibold text-slate-800">{entryToDelete.buyerName}</span></div>
               <div>Partner: <span className="font-semibold text-slate-800">{entryToDelete.partnerName}</span></div>
-              <div>Quantity: <span className="font-bold text-emerald-800">{entryToDelete.quantity} MT</span></div>
+              <div>Quantity: <span className="font-bold text-emerald-800">{entryToDelete.quantity} Tons</span></div>
               <div>Total: <span className="font-bold text-slate-900">PKR {formatWholeNumber(entryToDelete.totalValue)}</span></div>
             </div>
 
@@ -1054,7 +1054,7 @@ export const DailyCsrEntriesView: React.FC<DailyCsrEntriesViewProps> = ({
 
             <div className="p-4 bg-slate-50 rounded-lg text-xs font-mono space-y-2">
               <div className="font-bold text-sm text-slate-900">DAILY CSR ENTRIES STATEMENT</div>
-              <div>Total Entries: {filteredEntries.length} | Total Quantity: {formatWholeNumber(totalQuantityTons)} MT</div>
+              <div>Total Entries: {filteredEntries.length} | Total Quantity: {formatWholeNumber(totalQuantityTons)} Tons</div>
               <div>Gross Value: PKR {formatWholeNumber(grandTotalValue)}</div>
             </div>
 

@@ -1717,6 +1717,13 @@ export async function apiSaveCoalProduction(record: CoalProductionRecord): Promi
       localStorage.setItem('ahcm_erp_coal_production_records', JSON.stringify(next));
     } catch {}
 
+    // Sync with server API
+    fetch('/api/store-sales/coal-production', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    }).catch(() => {});
+
     const row = mapCoalProductionToRow(record);
     if (!isSupabaseConfigured()) {
       return record;
@@ -1745,6 +1752,11 @@ export async function apiDeleteCoalProduction(id: string): Promise<boolean> {
         localStorage.setItem('ahcm_erp_coal_production_records', JSON.stringify(next));
       }
     } catch {}
+
+    // Sync with server API
+    fetch(`/api/store-sales/coal-production/${id}`, {
+      method: 'DELETE',
+    }).catch(() => {});
 
     if (!isSupabaseConfigured()) {
       return true;

@@ -65,6 +65,8 @@ interface SalesScreenProps {
   onAddConsumption: (record: VehicleConsumptionRecord) => void;
   onUpdateConsumption: (record: VehicleConsumptionRecord) => void;
   onDeleteConsumption: (id: string) => void;
+  onClearLegacyCoalSales?: () => void;
+  onUpdateCompanySettings?: (settings: CompanySettings) => void;
 }
 
 export const SalesScreen: React.FC<SalesScreenProps> = ({
@@ -101,6 +103,8 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
   onAddConsumption,
   onUpdateConsumption,
   onDeleteConsumption,
+  onClearLegacyCoalSales,
+  onUpdateCompanySettings,
 }) => {
   const [subTab, setSubTab] = useState<SalesSubTab>(initialSubTab);
   const [openPartnerColModal, setOpenPartnerColModal] = useState<boolean>(false);
@@ -109,10 +113,13 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
   const [vehicleTab, setVehicleTab] = useState<'consumption_list' | 'add_consumption' | 'manage_vehicles'>('consumption_list');
   const [openVehicleForm, setOpenVehicleForm] = useState<boolean>(false);
 
-  // Live Coal Stock calculation
+  const openingCoalStock = (typeof companySettings?.openingCoalStock === 'number' && companySettings.openingCoalStock > 0)
+    ? companySettings.openingCoalStock
+    : 100;
   const totalProducedTons = productionRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
   const totalSoldTons = coalSellRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
-  const currentCoalStock = Math.max(0, totalProducedTons - totalSoldTons);
+  const totalCoalStockGross = totalProducedTons + openingCoalStock;
+  const currentCoalStock = Math.max(0, totalCoalStockGross - totalSoldTons);
 
   React.useEffect(() => {
     if (!navTarget || navTarget.module !== 'store_sales') return;
@@ -188,7 +195,7 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
                 subTab === 'coal_production' ? 'bg-emerald-700 text-white' : 'bg-emerald-100 text-emerald-800'
               }`}>
-                {formatWholeNumber(currentCoalStock)} MT
+                {formatWholeNumber(totalCoalStockGross)} Tons
               </span>
             </button>
 
@@ -316,6 +323,8 @@ export const SalesScreen: React.FC<SalesScreenProps> = ({
             onUpdateProduction={onUpdateProduction || (() => {})}
             onDeleteProduction={onDeleteProduction || (() => {})}
             onNavigateToRecordSell={() => setSubTab('record_coal_sell')}
+            onClearLegacyCoalSales={onClearLegacyCoalSales}
+            onUpdateCompanySettings={onUpdateCompanySettings}
           />
         )}
 

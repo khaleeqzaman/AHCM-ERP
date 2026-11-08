@@ -135,6 +135,40 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
             </div>
           </div>
 
+          {/* Dedicated Pithead Coal Opening Stock Field */}
+          <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-emerald-900">
+                  Opening Coal Stock (Pithead Balance in Tons)
+                </label>
+                <p className="text-[11px] text-emerald-800">
+                  Initial mined raw coal reserve on hand before tracking daily production logs. <strong className="font-semibold text-emerald-950">100% separate from General Store Item Stock.</strong>
+                </p>
+              </div>
+              <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-md">
+                Pithead Coal Inventory
+              </span>
+            </div>
+            <div className="relative max-w-xs">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.openingCoalStock ?? ''}
+                onChange={(e) => setFormData({ ...formData, openingCoalStock: e.target.value === '' ? 0 : Number(e.target.value) })}
+                placeholder="e.g. 500.00"
+                className="w-full text-xs font-mono font-bold px-3 py-2 border border-emerald-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-slate-900"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
+                Tons
+              </span>
+            </div>
+            <p className="text-[10px] text-emerald-800 font-medium">
+              Formula: Live Coal Stock = Total Coal Stock (Produced) + Coal Opening Balance (e.g. 500 + 100 + 500 Tons)
+            </p>
+          </div>
+
           <div className="flex justify-end pt-3 border-t border-slate-100">
             <button
               type="submit"

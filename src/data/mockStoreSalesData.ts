@@ -17,6 +17,7 @@ export const initialCompanySettings: CompanySettings = {
   ntnNumber: '',
   contactNumber: '',
   email: '',
+  openingCoalStock: 100,
 };
 
 export const initialBuyers: BuyerRecord[] = [];

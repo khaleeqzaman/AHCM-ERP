@@ -1536,6 +1536,13 @@ export default function App() {
     apiSaveCompanySettings(cs);
   };
 
+  const handleClearLegacyCoalSales = () => {
+    setCoalSellRecords([]);
+    setPosEntries([]);
+    saveCache('coal_records', []);
+    saveCache('pos_entries', []);
+  };
+
   const pendingApprovalsCount =
     demands.filter((d) => d.status === 'Submitted for Approval').length +
     purchases.filter((p) => p.status === 'Submitted for Approval').length;
@@ -1730,6 +1737,7 @@ export default function App() {
               stockEntries={stockEntries}
               vehicles={vehicles}
               consumptions={vehicleConsumptions}
+              companySettings={companySettings}
               users={users}
               onNavigate={setCurrentModule}
             />
@@ -1873,6 +1881,7 @@ export default function App() {
               onUpdateConsumption={handleUpdateVehicleConsumption}
               onDeleteConsumption={handleDeleteVehicleConsumption}
               onSaveCompanySettings={handleSaveCompanySettings}
+              onClearLegacyCoalSales={handleClearLegacyCoalSales}
             />
           )}
 

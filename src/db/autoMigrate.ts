@@ -535,23 +535,7 @@ export async function autoMigrateAndSeed(): Promise<{ success: boolean; message:
       }
     }
 
-    // POS Coal Sales
-    const existingPosSales = await dbGetPosCoalSales().catch(() => []);
-    if (existingPosSales.length === 0) {
-      console.log('Seeding baseline POS coal sales...');
-      for (const pos of baselinePosCoalSales) {
-        await dbSavePosCoalSale(pos);
-      }
-    }
-
-    // Coal Sell Records
-    const existingCoalRecords = await dbGetCoalSellRecords().catch(() => []);
-    if (existingCoalRecords.length === 0) {
-      console.log('Seeding baseline coal sell records...');
-      for (const csr of baselineCoalSellRecords) {
-        await dbSaveCoalSellRecord(csr);
-      }
-    }
+    // Note: Coal sales are not seeded without matching coal production to prevent artificial negative stock deficits.
   } catch (seedErr) {
     console.warn('Baseline seed warning:', seedErr);
   }

@@ -38,6 +38,9 @@ import {
   dbGetCoalSellRecords,
   dbSaveCoalSellRecord,
   dbDeleteCoalSellRecord,
+  dbGetCoalProductionRecords,
+  dbSaveCoalProductionRecord,
+  dbDeleteCoalProductionRecord,
   dbGetBuyers,
   dbSaveBuyer,
   dbDeleteBuyer,
@@ -191,6 +194,7 @@ export function createApiApp(): express.Express {
         partners,
         posEntries,
         coalSellRecords,
+        coalProductionRecords,
         stockItems,
         stockEntries,
         vehicles,
@@ -212,6 +216,7 @@ export function createApiApp(): express.Express {
         dbGetPartners().catch(() => []),
         dbGetPosCoalSales().catch(() => []),
         dbGetCoalSellRecords().catch(() => []),
+        dbGetCoalProductionRecords().catch(() => []),
         dbGetStockItems().catch(() => []),
         dbGetStockEntries().catch(() => []),
         dbGetVehicles().catch(() => []),
@@ -235,6 +240,7 @@ export function createApiApp(): express.Express {
         partners: partners || [],
         posEntries: posEntries || [],
         coalSellRecords: coalSellRecords || [],
+        coalProductionRecords: coalProductionRecords || [],
         stockItems: stockItems || [],
         stockEntries: stockEntries || [],
         vehicles: vehicles || [],
@@ -631,6 +637,34 @@ export function createApiApp(): express.Express {
       res.json({ success: true, id: req.params.id });
     } catch (err) {
       handleError(res, err, 'Failed to delete coal sell record');
+    }
+  });
+
+  // Coal Production Records endpoints
+  app.get('/api/store-sales/coal-production', async (_req: Request, res: Response) => {
+    try {
+      const records = await dbGetCoalProductionRecords();
+      res.json(records);
+    } catch (err) {
+      handleError(res, err, 'Failed to fetch coal production records');
+    }
+  });
+
+  app.post('/api/store-sales/coal-production', async (req: Request, res: Response) => {
+    try {
+      const saved = await dbSaveCoalProductionRecord(req.body);
+      res.json(saved);
+    } catch (err) {
+      handleError(res, err, 'Failed to save coal production record');
+    }
+  });
+
+  app.delete('/api/store-sales/coal-production/:id', async (req: Request, res: Response) => {
+    try {
+      await dbDeleteCoalProductionRecord(req.params.id);
+      res.json({ success: true, id: req.params.id });
+    } catch (err) {
+      handleError(res, err, 'Failed to delete coal production record');
     }
   });
 
