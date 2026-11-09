@@ -42,23 +42,7 @@ import {
   dbGetCoalProductionRecords,
   dbSaveCoalProductionRecord,
 } from './queries.ts';
-import {
-  baselineDemands,
-  baselinePurchases,
-  baselineBanks,
-  baselineBankAccounts,
-  baselineCashBookEntries,
-  baselineCreditBookEntries,
-  baselineVouchers,
-  baselinePartners,
-  baselineBuyers,
-  baselineVehicles,
-  baselineVehicleConsumptions,
-  baselineStockItems,
-  baselineStockEntries,
-  baselinePosCoalSales,
-  baselineCoalSellRecords,
-} from './seedData.ts';
+// Baseline operational mock data removed; only app_users, chart of accounts, and company settings are seeded if empty.
 
 const TABLE_CREATION_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "app_users" (
@@ -418,124 +402,50 @@ export async function autoMigrateAndSeed(): Promise<{ success: boolean; message:
       await dbSaveCompanySettings(initialCompanySettings);
     }
 
-    // Demands
-    const existingDemands = await dbGetDemands().catch(() => []);
-    if (existingDemands.length === 0) {
-      console.log('Seeding baseline demands...');
-      for (const d of baselineDemands) {
-        await dbSaveDemand(d);
+    // 3. Purge existing mock data once across the database (preserving app_users and chart_accounts)
+    try {
+      const metaClient = await pool.connect();
+      try {
+        await metaClient.query(`CREATE TABLE IF NOT EXISTS "_app_system_meta" ("key" text PRIMARY KEY NOT NULL, "value" text NOT NULL);`);
+        const checkMeta = await metaClient.query(`SELECT "value" FROM "_app_system_meta" WHERE "key" = 'mock_data_cleared_v2';`);
+        if (checkMeta.rows.length === 0) {
+          console.log('Purging mock data from database operational tables (preserving app_users and chart_accounts)...');
+          const tablesToPurge = [
+            'demands',
+            'purchases',
+            'banks',
+            'bank_accounts',
+            'cash_book_entries',
+            'credit_book_entries',
+            'vouchers',
+            'partners',
+            'buyers',
+            'vehicles',
+            'vehicle_consumptions',
+            'stock_items',
+            'stock_entries',
+            'pos_coal_sales',
+            'coal_sell_records',
+            'coal_production_records',
+          ];
+          for (const tbl of tablesToPurge) {
+            try {
+              await metaClient.query(`TRUNCATE TABLE "${tbl}" CASCADE;`);
+            } catch {
+              try {
+                await metaClient.query(`DELETE FROM "${tbl}";`);
+              } catch {}
+            }
+          }
+          await metaClient.query(`INSERT INTO "_app_system_meta" ("key", "value") VALUES ('mock_data_cleared_v2', 'true') ON CONFLICT ("key") DO UPDATE SET "value" = 'true';`);
+          console.log('Successfully purged all operational mock data from database.');
+        }
+      } finally {
+        metaClient.release();
       }
+    } catch (purgeErr) {
+      console.warn('Database mock purge warning (non-fatal):', purgeErr);
     }
-
-    // Purchases
-    const existingPurchases = await dbGetPurchases().catch(() => []);
-    if (existingPurchases.length === 0) {
-      console.log('Seeding baseline purchases...');
-      for (const p of baselinePurchases) {
-        await dbSavePurchase(p);
-      }
-    }
-
-    // Banks
-    const existingBanks = await dbGetBanks().catch(() => []);
-    if (existingBanks.length === 0) {
-      console.log('Seeding baseline banks...');
-      for (const b of baselineBanks) {
-        await dbSaveBank(b);
-      }
-    }
-
-    // Bank Accounts
-    const existingBankAccounts = await dbGetBankAccounts().catch(() => []);
-    if (existingBankAccounts.length === 0) {
-      console.log('Seeding baseline bank accounts...');
-      for (const ba of baselineBankAccounts) {
-        await dbSaveBankAccount(ba);
-      }
-    }
-
-    // Cash Book Entries
-    const existingCashBook = await dbGetCashBookEntries().catch(() => []);
-    if (existingCashBook.length === 0) {
-      console.log('Seeding baseline cash book entries...');
-      for (const cb of baselineCashBookEntries) {
-        await dbSaveCashBookEntry(cb);
-      }
-    }
-
-    // Credit Book Entries
-    const existingCreditBook = await dbGetCreditBookEntries().catch(() => []);
-    if (existingCreditBook.length === 0) {
-      console.log('Seeding baseline credit book entries...');
-      for (const cr of baselineCreditBookEntries) {
-        await dbSaveCreditBookEntry(cr);
-      }
-    }
-
-    // Vouchers
-    const existingVouchers = await dbGetVouchers().catch(() => []);
-    if (existingVouchers.length === 0) {
-      console.log('Seeding baseline double-entry vouchers...');
-      for (const v of baselineVouchers) {
-        await dbSaveVoucher(v);
-      }
-    }
-
-    // Partners
-    const existingPartners = await dbGetPartners().catch(() => []);
-    if (existingPartners.length === 0) {
-      console.log('Seeding baseline partners...');
-      for (const part of baselinePartners) {
-        await dbSavePartner(part);
-      }
-    }
-
-    // Buyers
-    const existingBuyers = await dbGetBuyers().catch(() => []);
-    if (existingBuyers.length === 0) {
-      console.log('Seeding baseline buyers...');
-      for (const buy of baselineBuyers) {
-        await dbSaveBuyer(buy);
-      }
-    }
-
-    // Vehicles
-    const existingVehicles = await dbGetVehicles().catch(() => []);
-    if (existingVehicles.length === 0) {
-      console.log('Seeding baseline vehicles...');
-      for (const veh of baselineVehicles) {
-        await dbSaveVehicle(veh);
-      }
-    }
-
-    // Vehicle Consumptions
-    const existingConsumptions = await dbGetVehicleConsumptions().catch(() => []);
-    if (existingConsumptions.length === 0) {
-      console.log('Seeding baseline vehicle consumptions...');
-      for (const vc of baselineVehicleConsumptions) {
-        await dbSaveVehicleConsumption(vc);
-      }
-    }
-
-    // Stock Items
-    const existingStockItems = await dbGetStockItems().catch(() => []);
-    if (existingStockItems.length === 0) {
-      console.log('Seeding baseline stock items...');
-      for (const si of baselineStockItems) {
-        await dbSaveStockItem(si);
-      }
-    }
-
-    // Stock Entries
-    const existingStockEntries = await dbGetStockEntries().catch(() => []);
-    if (existingStockEntries.length === 0) {
-      console.log('Seeding baseline stock entries...');
-      for (const se of baselineStockEntries) {
-        await dbSaveStockEntry(se);
-      }
-    }
-
-    // Note: Coal sales are not seeded without matching coal production to prevent artificial negative stock deficits.
   } catch (seedErr) {
     console.warn('Baseline seed warning:', seedErr);
   }

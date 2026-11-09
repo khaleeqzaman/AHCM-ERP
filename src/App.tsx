@@ -125,6 +125,40 @@ import {
   apiDeleteVehicleConsumption,
 } from './api/client';
 
+// One-time client cache purge for operational mock data (guaranteeing users and active sessions are preserved)
+const MOCK_DATA_PURGE_KEY = 'ahcm_erp_mock_purged_v2';
+try {
+  if (typeof window !== 'undefined' && localStorage.getItem(MOCK_DATA_PURGE_KEY) !== 'true') {
+    const mockCacheKeys = [
+      'ahcm_erp_demands',
+      'ahcm_erp_purchases',
+      'ahcm_erp_vouchers',
+      'ahcm_erp_cash_book',
+      'ahcm_erp_credit_book',
+      'ahcm_erp_banks',
+      'ahcm_erp_bank_accounts',
+      'ahcm_erp_buyers',
+      'ahcm_erp_partners',
+      'ahcm_erp_coal_stocks',
+      'ahcm_erp_coal_sells',
+      'ahcm_erp_item_categories',
+      'ahcm_erp_item_units',
+      'ahcm_erp_item_mines',
+      'ahcm_erp_vehicles',
+      'ahcm_erp_store_items',
+      'ahcm_erp_stock_entries',
+      'ahcm_erp_consumptions',
+      'ahcm_erp_stock_items',
+      'ahcm_erp_pos_sales',
+      'ahcm_erp_coal_production',
+    ];
+    for (const key of mockCacheKeys) {
+      localStorage.removeItem(key);
+    }
+    localStorage.setItem(MOCK_DATA_PURGE_KEY, 'true');
+  }
+} catch {}
+
 function loadCache<T>(key: string, defaultValue: T): T {
   try {
     const item = localStorage.getItem(`ahcm_erp_${key}`);
