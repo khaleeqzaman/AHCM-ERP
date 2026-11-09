@@ -47,6 +47,7 @@ interface SidebarProps {
   pendingApprovalsCount?: number;
   currentUser: User;
   onLogout: () => void;
+  onOpenProfile?: () => void;
 }
 
 interface SidebarNavItem {
@@ -70,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingApprovalsCount = 0,
   currentUser,
   onLogout,
+  onOpenProfile,
 }) => {
   // Collapsible slim sidebar state
   const [internalCollapsed, setInternalCollapsed] = useState<boolean>(() => {
@@ -347,25 +349,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Current Active Role Indicator */}
         {isCollapsed ? (
           <div className="py-3 px-2 border-b border-slate-200 flex justify-center bg-slate-50/80">
-            <div
-              className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${roleBadge.color} shadow-xs cursor-default`}
-              title={`${currentUser.name} (@${currentUser.username}) - ${roleBadge.label} (${currentUser.department || 'All'})`}
+            <button
+              type="button"
+              onClick={onOpenProfile}
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${roleBadge.color} shadow-xs hover:scale-105 transition-transform cursor-pointer`}
+              title={`${currentUser.name} (@${currentUser.username}) - Click to change Profile Name or Password`}
+              aria-label="User Profile and Password"
             >
               {currentUser.name ? currentUser.name.substring(0, 2).toUpperCase() : 'U'}
-            </div>
+            </button>
           </div>
         ) : (
-          <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200">
+          <div 
+            onClick={onOpenProfile}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                onOpenProfile?.();
+              }
+            }}
+            title="Click to change your Profile Name and Password"
+            className="px-4 py-3 bg-slate-50/80 hover:bg-blue-50/60 border-b border-slate-200 cursor-pointer transition-colors group"
+          >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                Active Session
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 group-hover:text-blue-600 transition-colors">
+                My Profile & Account ⚙️
               </span>
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-semibold ${roleBadge.color}`}>
                 {roleBadge.label}
               </span>
             </div>
-            <div className="text-xs font-semibold text-slate-900 truncate mt-1">
-              {currentUser.name}
+            <div className="text-xs font-semibold text-slate-900 group-hover:text-blue-700 truncate mt-1 flex items-center justify-between">
+              <span className="truncate">{currentUser.name}</span>
+              <span className="text-[10px] text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">Edit</span>
             </div>
             <div className="text-[11px] text-slate-500 truncate">
               @{currentUser.username} · {currentUser.department}

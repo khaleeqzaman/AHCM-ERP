@@ -28,6 +28,8 @@ import {
 import { initialUsers } from './data/mockUsers';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { UsersScreen } from './components/users/UsersScreen';
+import { UserProfileModal } from './components/common/UserProfileModal';
+import { recordActivity } from './services/activityLogger';
 import { RoleDashboard } from './components/dashboard/RoleDashboard';
 import { ChartAccount, VoucherDocument } from './types/accounting';
 import { 
@@ -300,6 +302,9 @@ export default function App() {
     }
   }, [currentUser, currentModule]);
 
+  // Self Profile & Password Management State (Available in all modules)
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
   // Auth Handlers
   const handleLogin = (user: User) => {
     const now = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' });
@@ -308,11 +313,110 @@ export default function App() {
     setUsers((prev) => prev.map((u) => (u.id === user.id ? updated : u)));
     apiSaveUser(updated);
     setCurrentModule('dashboard');
+
+    recordActivity({
+      userId: user.id,
+      username: user.username,
+      userName: user.name,
+      userRole: user.role,
+      action: 'LOGIN',
+      category: 'AUTH',
+      description: `User ${user.name} (@${user.username}) successfully authenticated with role ${user.role}.`,
+      status: 'SUCCESS',
+    });
   };
 
   const handleLogout = () => {
+    if (currentUser) {
+      recordActivity({
+        userId: currentUser.id,
+        username: currentUser.username,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        action: 'LOGOUT',
+        category: 'AUTH',
+        description: `User ${currentUser.name} signed out of session.`,
+        status: 'SUCCESS',
+      });
+    }
     setCurrentUser(null);
     setCurrentModule('dashboard');
+  };
+
+  // Self-Service Profile Update (Allowed for all users across all modules)
+  const handleUpdateMyProfile = (updatedProfile: { name: string; department?: string; email?: string; phone?: string }) => {
+    if (!currentUser) return;
+    const oldName = currentUser.name;
+    const updatedUser: User = {
+      ...currentUser,
+      name: updatedProfile.name.trim(),
+      department: updatedProfile.department || currentUser.department,
+      email: updatedProfile.email || currentUser.email,
+      phone: updatedProfile.phone || currentUser.phone,
+    };
+
+    handleUpdateUser(updatedUser);
+
+    recordActivity({
+      userId: currentUser.id,
+      username: currentUser.username,
+      userName: updatedUser.name,
+      userRole: currentUser.role,
+      action: 'UPDATE_PROFILE',
+      category: 'PROFILE',
+      description: `User updated profile name from "${oldName}" to "${updatedUser.name}".`,
+      details: {
+        previousName: oldName,
+        newName: updatedUser.name,
+        department: updatedUser.department,
+      },
+      status: 'SUCCESS',
+    });
+  };
+
+  // Self-Service Password Change (Allowed for all users across all modules)
+  const handleChangeMyPassword = (currentPass: string, newPass: string) => {
+    if (!currentUser) {
+      return { success: false, message: 'No active session.' };
+    }
+
+    if (currentUser.password !== currentPass) {
+      recordActivity({
+        userId: currentUser.id,
+        username: currentUser.username,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        action: 'CHANGE_PASSWORD_FAILED',
+        category: 'PROFILE',
+        description: `User @${currentUser.username} attempted to change password with incorrect current password.`,
+        status: 'FAILED',
+      });
+      return { success: false, message: 'Current password does not match your active credentials.' };
+    }
+
+    if (!newPass || newPass.length < 4) {
+      return { success: false, message: 'New password must be at least 4 characters.' };
+    }
+
+    const updatedUser: User = {
+      ...currentUser,
+      password: newPass,
+    };
+
+    handleUpdateUser(updatedUser);
+
+    recordActivity({
+      userId: currentUser.id,
+      username: currentUser.username,
+      userName: currentUser.name,
+      userRole: currentUser.role,
+      action: 'CHANGE_PASSWORD_SUCCESS',
+      category: 'PROFILE',
+      description: `User @${currentUser.username} (${currentUser.name}) successfully changed their account password.`,
+      status: 'SUCCESS',
+    });
+
+    return { success: true, message: 'Password updated successfully.' };
   };
 
   // Admin User Management Handlers
@@ -331,6 +435,20 @@ export default function App() {
       return next;
     });
     apiSaveUser(newUser);
+
+    if (currentUser) {
+      recordActivity({
+        userId: currentUser.id,
+        username: currentUser.username,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        action: 'CREATE_USER',
+        category: 'USER_MANAGEMENT',
+        description: `Admin created new account @${newUser.username} (${newUser.name}) with role "${newUser.role}".`,
+        details: { targetUserId: newUser.id, username: newUser.username, role: newUser.role },
+        status: 'SUCCESS',
+      });
+    }
   };
 
   const handleUpdateUser = (updatedUser: User) => {
@@ -351,6 +469,7 @@ export default function App() {
   };
 
   const handleDeleteUser = (userId: string) => {
+    const target = users.find((u) => u.id === userId);
     setUsers((prev) => {
       const next = prev.filter((u) => u.id !== userId);
       try {
@@ -359,6 +478,20 @@ export default function App() {
       return next;
     });
     apiDeleteUser(userId);
+
+    if (currentUser && target) {
+      recordActivity({
+        userId: currentUser.id,
+        username: currentUser.username,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        action: 'DELETE_USER',
+        category: 'USER_MANAGEMENT',
+        description: `Admin deleted user account @${target.username} (${target.name}).`,
+        details: { targetUserId: userId, username: target.username },
+        status: 'WARNING',
+      });
+    }
   };
 
   const handleResetPassword = (userId: string, newPass: string) => {
@@ -384,6 +517,20 @@ export default function App() {
     }
     if (updatedTarget) {
       apiSaveUser(updatedTarget);
+
+      if (currentUser) {
+        recordActivity({
+          userId: currentUser.id,
+          username: currentUser.username,
+          userName: currentUser.name,
+          userRole: currentUser.role,
+          action: 'RESET_PASSWORD',
+          category: 'USER_MANAGEMENT',
+          description: `Admin reset password for user @${(updatedTarget as User).username} (${(updatedTarget as User).name}).`,
+          details: { targetUserId: userId },
+          status: 'WARNING',
+        });
+      }
     }
   };
 
@@ -1669,6 +1816,7 @@ export default function App() {
         pendingApprovalsCount={pendingApprovalsCount}
         currentUser={currentUser}
         onLogout={handleLogout}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
       />
 
       {/* Main Workspace */}
@@ -1773,32 +1921,50 @@ export default function App() {
 
             <div className="w-px h-5 bg-slate-200 hidden sm:block" />
 
-            {/* User Profile Info */}
-            <div className="flex items-center gap-2.5">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase ${
-                  currentUser.role === 'admin'
-                    ? 'bg-purple-600 text-white'
-                    : currentUser.role === 'purchaser'
-                    ? 'bg-blue-600 text-white'
-                    : currentUser.role === 'cashier'
-                    ? 'bg-amber-600 text-white'
-                    : currentUser.role === 'accountant'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-cyan-600 text-white'
-                }`}
+            {/* User Profile Info - Clickable for Profile Name and Password Change */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                title="Change Profile Name and Password"
+                className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer text-left group"
               >
-                {currentUser.username.slice(0, 2)}
-              </div>
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase shadow-xs group-hover:scale-105 transition-transform ${
+                    currentUser.role === 'admin'
+                      ? 'bg-purple-600 text-white'
+                      : currentUser.role === 'purchaser'
+                      ? 'bg-blue-600 text-white'
+                      : currentUser.role === 'cashier'
+                      ? 'bg-amber-600 text-white'
+                      : currentUser.role === 'accountant'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-cyan-600 text-white'
+                  }`}
+                >
+                  {currentUser.username.slice(0, 2)}
+                </div>
 
-              <div className="hidden lg:block text-left">
-                <div className="text-xs font-bold text-slate-800 leading-tight">
-                  {currentUser.name}
+                <div className="hidden lg:block text-left">
+                  <div className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors leading-tight flex items-center gap-1">
+                    <span>{currentUser.name}</span>
+                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500">✎</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-mono capitalize">
+                    @{currentUser.username} · {currentUser.role.replace('_', ' ')}
+                  </div>
                 </div>
-                <div className="text-[10px] text-slate-500 font-mono capitalize">
-                  @{currentUser.username} · {currentUser.role.replace('_', ' ')}
-                </div>
-              </div>
+              </button>
+
+              {/* Explicit Profile & Password button for clarity */}
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                title="Change profile name or password"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+              >
+                <span>⚙️ Profile</span>
+              </button>
 
               {/* Sign Out Button */}
               <button
@@ -2296,6 +2462,15 @@ export default function App() {
         onClose={() => setIsDiagnosticsOpen(false)}
         onRefreshDatabase={refreshDataFromDatabase}
         isRefreshing={isRefreshingDb}
+      />
+
+      {/* Universal User Profile & Password Change Modal (Available in all modules) */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        onUpdateProfile={handleUpdateMyProfile}
+        onChangePassword={handleChangeMyPassword}
       />
     </div>
   );

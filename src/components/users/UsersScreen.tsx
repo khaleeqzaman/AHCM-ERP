@@ -18,9 +18,11 @@ import {
   SlidersHorizontal,
   Mail,
   Phone,
-  Briefcase
+  Briefcase,
+  Activity
 } from 'lucide-react';
 import { User, UserRole } from '../../types/user';
+import { UserActivityLogsView } from './UserActivityLogsView';
 
 interface UsersScreenProps {
   users: User[];
@@ -29,6 +31,7 @@ interface UsersScreenProps {
   onUpdateUser: (user: User) => void;
   onDeleteUser: (userId: string) => void;
   onResetPassword: (userId: string, newPass: string) => void;
+  initialTab?: 'users' | 'activity_logs';
 }
 
 export const UsersScreen: React.FC<UsersScreenProps> = ({
@@ -38,7 +41,9 @@ export const UsersScreen: React.FC<UsersScreenProps> = ({
   onUpdateUser,
   onDeleteUser,
   onResetPassword,
+  initialTab = 'users',
 }) => {
+  const [activeTab, setActiveTab] = useState<'users' | 'activity_logs'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -222,27 +227,60 @@ export const UsersScreen: React.FC<UsersScreenProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-purple-600">
-                Administration & Access Control
-              </span>
-              <span className="text-slate-300">/</span>
-              <span className="text-xs text-slate-500">User Management</span>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1 flex items-center gap-2.5">
-              <span>Users & Role Security</span>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
-                Admin Exclusive
-              </span>
-            </h1>
-            <p className="text-sm text-slate-600 mt-0.5">
-              Create, edit, and assign strict role-wise module permissions for Admin, Purchaser, Cashier, Accountant, and Store Manager.
-            </p>
-          </div>
+      {/* Module Sub-Navigation Tabs */}
+      <div className="flex border-b border-slate-200 bg-white px-4 pt-2 rounded-xl shadow-xs">
+        <button
+          type="button"
+          onClick={() => setActiveTab('users')}
+          className={`pb-3 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'users'
+              ? 'border-purple-600 text-purple-700 font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>User Accounts & Permissions</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('activity_logs')}
+          className={`pb-3 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+            activeTab === 'activity_logs'
+              ? 'border-purple-600 text-purple-700 font-bold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>User Activity Logs & Audit Trail</span>
+        </button>
+      </div>
+
+      {activeTab === 'activity_logs' ? (
+        <UserActivityLogsView users={users} currentUser={currentUser} />
+      ) : (
+        <>
+          {/* Top Banner */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-purple-600">
+                    Administration & Access Control
+                  </span>
+                  <span className="text-slate-300">/</span>
+                  <span className="text-xs text-slate-500">User Management</span>
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1 flex items-center gap-2.5">
+                  <span>Users & Role Security</span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                    Admin Exclusive
+                  </span>
+                </h1>
+                <p className="text-sm text-slate-600 mt-0.5">
+                  Create, edit, and assign strict role-wise module permissions for Admin, Purchaser, Cashier, Accountant, and Store Manager.
+                </p>
+              </div>
 
           <div className="flex items-center gap-2.5">
             <button
@@ -540,6 +578,8 @@ export const UsersScreen: React.FC<UsersScreenProps> = ({
           </div>
         </div>
       </div>
+    </>
+  )}
 
       {/* CREATE / EDIT USER MODAL */}
       {(isCreateModalOpen || editingUser) && (
