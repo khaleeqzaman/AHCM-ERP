@@ -39,13 +39,20 @@ import {
   CompanySettings, 
   BuyerRecord, 
   PartnerRecord, 
-  PosCoalSellEntry, 
+  StoreItem, 
+  ItemStockEntry, 
+  ItemConsumptionRecord, 
+  CoalStockRecord, 
   CoalSellRecord, 
+  ItemCategory, 
+  ItemUnitType, 
+  MineRecord, 
+  VehicleRecord,
+  PosCoalSellEntry,
+  StockItem,
+  StockEntry,
   CoalProductionRecord,
-  StockItem, 
-  StockEntry, 
-  VehicleRecord, 
-  VehicleConsumptionRecord 
+  VehicleConsumptionRecord
 } from './types/storeSales';
 import { initialDemands, initialPurchases } from './data/mockData';
 import { initialChartOfAccounts, initialVouchers } from './data/mockAccountingData';
@@ -59,13 +66,15 @@ import {
   initialCompanySettings, 
   initialBuyers, 
   initialPartners, 
-  initialPosEntries, 
-  initialCoalSellRecords, 
-  initialCoalProductionRecords,
-  initialStockItems, 
+  initialCoalStocks, 
+  initialCoalSells, 
+  initialStoreItems, 
   initialStockEntries, 
   initialVehicles, 
-  initialVehicleConsumptions 
+  initialItemConsumptions,
+  initialItemCategories,
+  initialItemUnits,
+  initialMines,
 } from './data/mockStoreSalesData';
 import { Sidebar } from './components/Sidebar';
 import { PurchaseScreen } from './components/PurchaseScreen';
@@ -338,17 +347,21 @@ export default function App() {
   const [banks, setBanks] = useState<BankRecord[]>(() => loadCache('banks', []));
   const [bankAccounts, setBankAccounts] = useState<BankAccountRecord[]>(() => loadCache('bank_accounts', []));
 
-  // 100% ISOLATED STORE & SALES DATA STATE
+  // 100% ISOLATED STORE & COAL MANAGEMENT DATA STATE
   const [companySettings, setCompanySettings] = useState<CompanySettings>(() => loadCache('company_settings', initialCompanySettings));
-  const [buyers, setBuyers] = useState<BuyerRecord[]>(() => loadCache('buyers', []));
-  const [partners, setPartners] = useState<PartnerRecord[]>(() => loadCache('partners', []));
-  const [posEntries, setPosEntries] = useState<PosCoalSellEntry[]>(() => loadCache('pos_entries', []));
-  const [coalSellRecords, setCoalSellRecords] = useState<CoalSellRecord[]>(() => loadCache('coal_records', []));
-  const [coalProductionRecords, setCoalProductionRecords] = useState<CoalProductionRecord[]>(() => loadCache('coal_production_records', initialCoalProductionRecords));
-  const [stockItems, setStockItems] = useState<StockItem[]>(() => loadCache('stock_items', []));
-  const [stockEntries, setStockEntries] = useState<StockEntry[]>(() => loadCache('stock_entries', []));
-  const [vehicles, setVehicles] = useState<VehicleRecord[]>(() => loadCache('vehicles', []));
-  const [vehicleConsumptions, setVehicleConsumptions] = useState<VehicleConsumptionRecord[]>(() => loadCache('consumptions', []));
+  const [buyers, setBuyers] = useState<BuyerRecord[]>(() => loadCache('buyers', initialBuyers));
+  const [partners, setPartners] = useState<PartnerRecord[]>(() => loadCache('partners', initialPartners));
+  const [coalStocks, setCoalStocks] = useState<CoalStockRecord[]>(() => loadCache('coal_stocks', initialCoalStocks));
+  const [coalSells, setCoalSells] = useState<CoalSellRecord[]>(() => loadCache('coal_sells', initialCoalSells));
+
+  // Store Management Data State
+  const [categories, setCategories] = useState<ItemCategory[]>(() => loadCache('item_categories', initialItemCategories));
+  const [unitTypes, setUnitTypes] = useState<ItemUnitType[]>(() => loadCache('item_units', initialItemUnits));
+  const [mines, setMines] = useState<MineRecord[]>(() => loadCache('item_mines', initialMines));
+  const [vehicles, setVehicles] = useState<VehicleRecord[]>(() => loadCache('vehicles', initialVehicles));
+  const [storeItems, setStoreItems] = useState<StoreItem[]>(() => loadCache('store_items', initialStoreItems));
+  const [stockEntries, setStockEntries] = useState<ItemStockEntry[]>(() => loadCache('stock_entries', initialStockEntries));
+  const [itemConsumptions, setItemConsumptions] = useState<ItemConsumptionRecord[]>(() => loadCache('consumptions', initialItemConsumptions));
 
   // Database Synchronization & Diagnostics state
   const [isRefreshingDb, setIsRefreshingDb] = useState(false);
@@ -429,20 +442,20 @@ export default function App() {
         saveCache('partners', data.partners);
       }
       if (data.posEntries !== undefined) {
-        setPosEntries(data.posEntries);
-        saveCache('pos_entries', data.posEntries);
+        setCoalSells(data.posEntries as any);
+        saveCache('coal_sells', data.posEntries);
       }
       if (data.coalSellRecords !== undefined) {
-        setCoalSellRecords(data.coalSellRecords);
-        saveCache('coal_records', data.coalSellRecords);
+        setCoalSells(data.coalSellRecords as any);
+        saveCache('coal_sells', data.coalSellRecords);
       }
       if (data.coalProductionRecords !== undefined) {
-        setCoalProductionRecords(data.coalProductionRecords);
-        saveCache('coal_production_records', data.coalProductionRecords);
+        setCoalStocks(data.coalProductionRecords as any);
+        saveCache('coal_stocks', data.coalProductionRecords);
       }
       if (data.stockItems !== undefined) {
-        setStockItems(data.stockItems);
-        saveCache('stock_items', data.stockItems);
+        setStoreItems(data.stockItems as any);
+        saveCache('store_items', data.stockItems);
       }
       if (data.stockEntries !== undefined) {
         setStockEntries(data.stockEntries);
@@ -453,7 +466,7 @@ export default function App() {
         saveCache('vehicles', data.vehicles);
       }
       if (data.vehicleConsumptions !== undefined) {
-        setVehicleConsumptions(data.vehicleConsumptions);
+        setItemConsumptions(data.vehicleConsumptions as any);
         saveCache('consumptions', data.vehicleConsumptions);
       }
     } catch (err) {
@@ -1251,54 +1264,54 @@ export default function App() {
 
   // 100% ISOLATED STORE & SALES HANDLERS
   const handleAddPosEntry = (entry: PosCoalSellEntry) => {
-    setPosEntries((prev) => {
+    setCoalSells((prev) => {
       const next = [entry, ...prev].map((e, idx) => ({ ...e, srNo: idx + 1 }));
-      saveCache('pos_entries', next);
+      saveCache('coal_sells', next);
       return next;
     });
     apiSavePosCoalSale(entry);
   };
 
   const handleUpdatePosEntry = (entry: PosCoalSellEntry) => {
-    setPosEntries((prev) => {
+    setCoalSells((prev) => {
       const next = prev.map((e) => (e.id === entry.id ? entry : e));
-      saveCache('pos_entries', next);
+      saveCache('coal_sells', next);
       return next;
     });
     apiSavePosCoalSale(entry);
   };
 
   const handleDeletePosEntry = (id: string) => {
-    setPosEntries((prev) => {
+    setCoalSells((prev) => {
       const next = prev.filter((e) => e.id !== id).map((e, idx) => ({ ...e, srNo: idx + 1 }));
-      saveCache('pos_entries', next);
+      saveCache('coal_sells', next);
       return next;
     });
     apiDeletePosCoalSale(id);
   };
 
   const handleAddCoalSellRecord = (record: CoalSellRecord) => {
-    setCoalSellRecords((prev) => {
+    setCoalSells((prev) => {
       const next = [record, ...prev];
-      saveCache('coal_records', next);
+      saveCache('coal_sells', next);
       return next;
     });
     apiSaveCoalSellRecord(record);
   };
 
   const handleUpdateCoalSellRecord = (record: CoalSellRecord) => {
-    setCoalSellRecords((prev) => {
+    setCoalSells((prev) => {
       const next = prev.map((r) => (r.id === record.id ? record : r));
-      saveCache('coal_records', next);
+      saveCache('coal_sells', next);
       return next;
     });
     apiSaveCoalSellRecord(record);
   };
 
   const handleDeleteCoalSellRecord = (id: string) => {
-    setCoalSellRecords((prev) => {
+    setCoalSells((prev) => {
       const next = prev.filter((r) => r.id !== id);
-      saveCache('coal_records', next);
+      saveCache('coal_sells', next);
       return next;
     });
     apiDeleteCoalSellRecord(id);
@@ -1310,27 +1323,27 @@ export default function App() {
       id: `cpr-${Date.now()}`,
       createdAt: new Date().toISOString(),
     };
-    setCoalProductionRecords((prev) => {
+    setCoalStocks((prev) => {
       const next = [record, ...prev];
-      saveCache('coal_production_records', next);
+      saveCache('coal_stocks', next);
       return next;
     });
     apiSaveCoalProduction(record);
   };
 
   const handleUpdateCoalProduction = (record: CoalProductionRecord) => {
-    setCoalProductionRecords((prev) => {
+    setCoalStocks((prev) => {
       const next = prev.map((r) => (r.id === record.id ? record : r));
-      saveCache('coal_production_records', next);
+      saveCache('coal_stocks', next);
       return next;
     });
     apiSaveCoalProduction(record);
   };
 
   const handleDeleteCoalProduction = (id: string) => {
-    setCoalProductionRecords((prev) => {
+    setCoalStocks((prev) => {
       const next = prev.filter((r) => r.id !== id);
-      saveCache('coal_production_records', next);
+      saveCache('coal_stocks', next);
       return next;
     });
     apiDeleteCoalProduction(id);
@@ -1423,27 +1436,27 @@ export default function App() {
   };
 
   const handleAddStockItem = (item: StockItem) => {
-    setStockItems((prev) => {
+    setStoreItems((prev) => {
       const next = [...prev, item];
-      saveCache('stock_items', next);
+      saveCache('store_items', next);
       return next;
     });
     apiSaveStockItem(item);
   };
 
   const handleUpdateStockItem = (item: StockItem) => {
-    setStockItems((prev) => {
+    setStoreItems((prev) => {
       const next = prev.map((i) => (i.id === item.id ? item : i));
-      saveCache('stock_items', next);
+      saveCache('store_items', next);
       return next;
     });
     apiSaveStockItem(item);
   };
 
   const handleDeleteStockItem = (id: string) => {
-    setStockItems((prev) => {
+    setStoreItems((prev) => {
       const next = prev.filter((i) => i.id !== id);
-      saveCache('stock_items', next);
+      saveCache('store_items', next);
       return next;
     });
     apiDeleteStockItem(id);
@@ -1503,29 +1516,29 @@ export default function App() {
     apiDeleteVehicle(id);
   };
 
-  const handleAddVehicleConsumption = (record: VehicleConsumptionRecord) => {
-    setVehicleConsumptions((prev) => {
+  const handleAddVehicleConsumption = (record: any) => {
+    setItemConsumptions((prev) => {
       const next = [record, ...prev].map((c, idx) => ({ ...c, srNo: idx + 1 }));
       saveCache('consumptions', next);
-      return next;
+      return next as any;
     });
     apiSaveVehicleConsumption(record);
   };
 
-  const handleUpdateVehicleConsumption = (record: VehicleConsumptionRecord) => {
-    setVehicleConsumptions((prev) => {
+  const handleUpdateVehicleConsumption = (record: any) => {
+    setItemConsumptions((prev) => {
       const next = prev.map((c) => (c.id === record.id ? record : c));
       saveCache('consumptions', next);
-      return next;
+      return next as any;
     });
     apiSaveVehicleConsumption(record);
   };
 
   const handleDeleteVehicleConsumption = (id: string) => {
-    setVehicleConsumptions((prev) => {
+    setItemConsumptions((prev) => {
       const next = prev.filter((c) => c.id !== id).map((c, idx) => ({ ...c, srNo: idx + 1 }));
       saveCache('consumptions', next);
-      return next;
+      return next as any;
     });
     apiDeleteVehicleConsumption(id);
   };
@@ -1537,10 +1550,8 @@ export default function App() {
   };
 
   const handleClearLegacyCoalSales = () => {
-    setCoalSellRecords([]);
-    setPosEntries([]);
-    saveCache('coal_records', []);
-    saveCache('pos_entries', []);
+    setCoalSells([]);
+    saveCache('coal_sells', []);
   };
 
   const pendingApprovalsCount =
@@ -1729,14 +1740,14 @@ export default function App() {
               creditBookEntries={creditBookEntries}
               banks={banks}
               bankAccounts={bankAccounts}
-              posEntries={posEntries}
-              coalSellRecords={coalSellRecords}
-              coalProductionRecords={coalProductionRecords}
+              posEntries={coalSells as any}
+              coalSellRecords={coalSells}
+              coalProductionRecords={coalStocks}
               partners={partners}
-              stockItems={stockItems}
+              stockItems={storeItems}
               stockEntries={stockEntries}
               vehicles={vehicles}
-              consumptions={vehicleConsumptions}
+              consumptions={itemConsumptions}
               companySettings={companySettings}
               users={users}
               onNavigate={setCurrentModule}
@@ -1837,51 +1848,261 @@ export default function App() {
             />
           )}
 
-          {/* 100% ISOLATED STORE & SALES MODULE (Store Manager & Admin) */}
+          {/* 100% ISOLATED STORE & COAL MANAGEMENT MODULE (Store Manager & Admin) */}
           {currentModule === 'store_sales' && (currentUser.role === 'admin' || currentUser.role === 'store_manager') && (
             <StoreSalesScreen
-              navTarget={activeNavTarget}
-              posEntries={posEntries}
-              coalSellRecords={coalSellRecords}
-              coalProductionRecords={coalProductionRecords}
+              categories={categories}
+              unitTypes={unitTypes}
+              mines={mines}
+              vehicles={vehicles}
+              items={storeItems}
+              stockEntries={stockEntries}
+              consumptions={itemConsumptions}
               partners={partners}
               buyers={buyers}
-              stockItems={stockItems}
-              stockEntries={stockEntries}
-              vehicles={vehicles}
-              consumptions={vehicleConsumptions}
+              coalStocks={coalStocks}
+              coalSells={coalSells}
               companySettings={companySettings}
-              onAddProduction={handleAddCoalProduction}
-              onUpdateProduction={handleUpdateCoalProduction}
-              onDeleteProduction={handleDeleteCoalProduction}
-              onAddPosEntry={handleAddPosEntry}
-              onUpdatePosEntry={handleUpdatePosEntry}
-              onDeletePosEntry={handleDeletePosEntry}
-              onAddCoalSellRecord={handleAddCoalSellRecord}
-              onUpdateCoalSellRecord={handleUpdateCoalSellRecord}
-              onDeleteCoalSellRecord={handleDeleteCoalSellRecord}
-              onAddPartner={handleAddPartner}
-              onUpdatePartner={handleUpdatePartner}
-              onDeletePartner={handleDeletePartner}
-              onTogglePartnerActive={handleTogglePartnerActive}
-              onTogglePartnerReportColumn={handleTogglePartnerReportColumn}
-              onAddBuyer={handleAddBuyer}
-              onUpdateBuyer={handleUpdateBuyer}
-              onDeleteBuyer={handleDeleteBuyer}
-              onAddStockItem={handleAddStockItem}
-              onUpdateStockItem={handleUpdateStockItem}
-              onDeleteStockItem={handleDeleteStockItem}
-              onAddStockEntry={handleAddStockEntry}
-              onUpdateStockEntry={handleUpdateStockEntry}
-              onDeleteStockEntry={handleDeleteStockEntry}
-              onAddVehicle={handleAddVehicle}
-              onUpdateVehicle={handleUpdateVehicle}
-              onDeleteVehicle={handleDeleteVehicle}
-              onAddConsumption={handleAddVehicleConsumption}
-              onUpdateConsumption={handleUpdateVehicleConsumption}
-              onDeleteConsumption={handleDeleteVehicleConsumption}
-              onSaveCompanySettings={handleSaveCompanySettings}
-              onClearLegacyCoalSales={handleClearLegacyCoalSales}
+              onAddCategory={(cat) => {
+                const newCat: ItemCategory = { ...cat, id: `cat-${Date.now()}` };
+                setCategories((prev) => {
+                  const next = [...prev, newCat];
+                  saveCache('item_categories', next);
+                  return next;
+                });
+              }}
+              onUpdateCategory={(cat) => {
+                setCategories((prev) => {
+                  const next = prev.map((c) => (c.id === cat.id ? cat : c));
+                  saveCache('item_categories', next);
+                  return next;
+                });
+              }}
+              onDeleteCategory={(id) => {
+                setCategories((prev) => {
+                  const next = prev.filter((c) => c.id !== id);
+                  saveCache('item_categories', next);
+                  return next;
+                });
+              }}
+              onAddUnitType={(unit) => {
+                const newUnit: ItemUnitType = { ...unit, id: `unit-${Date.now()}` };
+                setUnitTypes((prev) => {
+                  const next = [...prev, newUnit];
+                  saveCache('item_units', next);
+                  return next;
+                });
+              }}
+              onUpdateUnitType={(unit) => {
+                setUnitTypes((prev) => {
+                  const next = prev.map((u) => (u.id === unit.id ? unit : u));
+                  saveCache('item_units', next);
+                  return next;
+                });
+              }}
+              onDeleteUnitType={(id) => {
+                setUnitTypes((prev) => {
+                  const next = prev.filter((u) => u.id !== id);
+                  saveCache('item_units', next);
+                  return next;
+                });
+              }}
+              onAddMine={(mine) => {
+                const newMine: MineRecord = { ...mine, id: `mine-${Date.now()}` };
+                setMines((prev) => {
+                  const next = [...prev, newMine];
+                  saveCache('item_mines', next);
+                  return next;
+                });
+              }}
+              onUpdateMine={(mine) => {
+                setMines((prev) => {
+                  const next = prev.map((m) => (m.id === mine.id ? mine : m));
+                  saveCache('item_mines', next);
+                  return next;
+                });
+              }}
+              onDeleteMine={(id) => {
+                setMines((prev) => {
+                  const next = prev.filter((m) => m.id !== id);
+                  saveCache('item_mines', next);
+                  return next;
+                });
+              }}
+              onAddVehicle={(veh) => {
+                const newVeh: VehicleRecord = { ...veh, id: `veh-${Date.now()}` };
+                setVehicles((prev) => {
+                  const next = [...prev, newVeh];
+                  saveCache('vehicles', next);
+                  return next;
+                });
+                apiSaveVehicle(newVeh as any);
+              }}
+              onUpdateVehicle={(veh) => {
+                setVehicles((prev) => {
+                  const next = prev.map((v) => (v.id === veh.id ? veh : v));
+                  saveCache('vehicles', next);
+                  return next;
+                });
+                apiSaveVehicle(veh as any);
+              }}
+              onDeleteVehicle={(id) => {
+                setVehicles((prev) => {
+                  const next = prev.filter((v) => v.id !== id);
+                  saveCache('vehicles', next);
+                  return next;
+                });
+                apiDeleteVehicle(id);
+              }}
+              onAddItem={(item) => {
+                const newItem: StoreItem = { ...item, id: `item-${Date.now()}` };
+                setStoreItems((prev) => {
+                  const next = [...prev, newItem];
+                  saveCache('store_items', next);
+                  return next;
+                });
+                apiSaveStockItem(newItem as any);
+              }}
+              onUpdateItem={(item) => {
+                setStoreItems((prev) => {
+                  const next = prev.map((i) => (i.id === item.id ? item : i));
+                  saveCache('store_items', next);
+                  return next;
+                });
+                apiSaveStockItem(item as any);
+              }}
+              onDeleteItem={(id) => {
+                setStoreItems((prev) => {
+                  const next = prev.filter((i) => i.id !== id);
+                  saveCache('store_items', next);
+                  return next;
+                });
+                apiDeleteStockItem(id);
+              }}
+              onAddStockEntry={(entry) => {
+                const newEntry: ItemStockEntry = { ...entry, id: `stk-${Date.now()}` };
+                setStockEntries((prev) => {
+                  const next = [newEntry, ...prev];
+                  saveCache('stock_entries', next);
+                  return next;
+                });
+                apiSaveStockEntry(newEntry as any);
+              }}
+              onAddConsumption={(record: any) => {
+                const newRec: ItemConsumptionRecord = { ...record, id: record.id || `con-${Date.now()}` };
+                setItemConsumptions((prev) => {
+                  const next = [newRec, ...prev];
+                  saveCache('consumptions', next);
+                  return next;
+                });
+                apiSaveVehicleConsumption(newRec as any);
+              }}
+              onAddCoalStock={(stock: any) => {
+                const newStk: CoalStockRecord = { ...stock, id: stock.id || `cstk-${Date.now()}` };
+                setCoalStocks((prev) => {
+                  const next = [newStk, ...prev];
+                  saveCache('coal_stocks', next);
+                  return next;
+                });
+                apiSaveCoalProduction(newStk as any);
+              }}
+              onUpdateCoalStock={(stock) => {
+                setCoalStocks((prev) => {
+                  const next = prev.map((s) => (s.id === stock.id ? stock : s));
+                  saveCache('coal_stocks', next);
+                  return next;
+                });
+                apiSaveCoalProduction(stock as any);
+              }}
+              onDeleteCoalStock={(id) => {
+                setCoalStocks((prev) => {
+                  const next = prev.filter((s) => s.id !== id);
+                  saveCache('coal_stocks', next);
+                  return next;
+                });
+                apiDeleteCoalProduction(id);
+              }}
+              onAddCoalSell={(sell: any) => {
+                const newSell: CoalSellRecord = { ...sell, id: sell.id || `csell-${Date.now()}` };
+                setCoalSells((prev) => {
+                  const next = [newSell, ...prev];
+                  saveCache('coal_sells', next);
+                  return next;
+                });
+                apiSaveCoalSellRecord(newSell as any);
+              }}
+              onUpdateCoalSell={(sell) => {
+                setCoalSells((prev) => {
+                  const next = prev.map((s) => (s.id === sell.id ? sell : s));
+                  saveCache('coal_sells', next);
+                  return next;
+                });
+                apiSaveCoalSellRecord(sell as any);
+              }}
+              onDeleteCoalSell={(id) => {
+                setCoalSells((prev) => {
+                  const next = prev.filter((s) => s.id !== id);
+                  saveCache('coal_sells', next);
+                  return next;
+                });
+                apiDeleteCoalSellRecord(id);
+              }}
+              onAddPartner={(p) => {
+                const newP: PartnerRecord = { ...p, id: `part-${Date.now()}` };
+                setPartners((prev) => {
+                  const next = [...prev, newP];
+                  saveCache('partners', next);
+                  return next;
+                });
+                apiSavePartner(newP);
+              }}
+              onUpdatePartner={(p) => {
+                setPartners((prev) => {
+                  const next = prev.map((x) => (x.id === p.id ? p : x));
+                  saveCache('partners', next);
+                  return next;
+                });
+                apiSavePartner(p);
+              }}
+              onDeletePartner={(id) => {
+                setPartners((prev) => {
+                  const next = prev.filter((p) => p.id !== id);
+                  saveCache('partners', next);
+                  return next;
+                });
+                apiDeletePartner(id);
+              }}
+              onAddBuyer={(b) => {
+                const newB: BuyerRecord = { ...b, id: `buy-${Date.now()}` };
+                setBuyers((prev) => {
+                  const next = [...prev, newB];
+                  saveCache('buyers', next);
+                  return next;
+                });
+                apiSaveBuyer(newB);
+              }}
+              onUpdateBuyer={(b) => {
+                setBuyers((prev) => {
+                  const next = prev.map((x) => (x.id === b.id ? b : x));
+                  saveCache('buyers', next);
+                  return next;
+                });
+                apiSaveBuyer(b);
+              }}
+              onDeleteBuyer={(id) => {
+                setBuyers((prev) => {
+                  const next = prev.filter((b) => b.id !== id);
+                  saveCache('buyers', next);
+                  return next;
+                });
+                apiDeleteBuyer(id);
+              }}
+              onUpdateCompanySettings={(cs) => {
+                setCompanySettings(cs);
+                saveCache('company_settings', cs);
+                apiSaveCompanySettings(cs);
+              }}
+              navTarget={activeNavTarget}
             />
           )}
 

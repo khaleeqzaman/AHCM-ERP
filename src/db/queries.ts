@@ -8,6 +8,7 @@ import type { CashBookEntry, CreditBookEntry, BankRecord, BankAccountRecord } fr
 import type { 
   CompanySettings, 
   BuyerRecord, 
+  BuyerType,
   PartnerRecord, 
   PosCoalSellEntry, 
   CoalSellRecord, 
@@ -642,6 +643,7 @@ export async function dbGetPosCoalSales(): Promise<PosCoalSellEntry[]> {
     const rows = await db.select().from(schema.posCoalSales);
     return rows.map((r) => ({
       id: r.id,
+      date: r.documentDate,
       srNo: r.srNo || 1,
       partnerId: r.partnerId || '',
       partnerName: r.partnerName || '',
@@ -684,14 +686,14 @@ export async function dbSavePosCoalSale(entry: PosCoalSellEntry): Promise<PosCoa
         saleOrganization: entry.saleOrganization,
         documentType: entry.documentType,
         documentNumber: entry.documentNumber,
-        documentDate: entry.documentDate,
-        quantity: entry.quantity,
+        documentDate: entry.documentDate || entry.date || '',
+        quantity: entry.quantity ?? entry.quantityTons ?? 0,
         valueExcludingTax: entry.valueExcludingTax,
         salesTaxFed: entry.salesTaxFed,
         furtherTax: entry.furtherTax,
         totalTax: entry.totalTax,
         totalValue: entry.totalValue,
-      })
+      } as any)
       .onConflictDoUpdate({
         target: schema.posCoalSales.id,
         set: {
@@ -861,16 +863,16 @@ export async function dbSaveStockItem(it: StockItem): Promise<StockItem> {
         id: it.id,
         itemCode: it.itemCode,
         itemName: it.itemName,
-        category: it.category,
-        unit: it.unit,
-      })
+        category: (it as any).category || (it as any).categoryName || '',
+        unit: (it as any).unit || (it as any).unitSymbol || '',
+      } as any)
       .onConflictDoUpdate({
         target: schema.stockItems.id,
         set: {
           itemCode: it.itemCode,
           itemName: it.itemName,
-          category: it.category,
-          unit: it.unit,
+          category: (it as any).category || (it as any).categoryName || '',
+          unit: (it as any).unit || (it as any).unitSymbol || '',
         },
       });
     return it;
@@ -1060,7 +1062,7 @@ export async function dbSaveVehicleConsumption(vc: VehicleConsumptionRecord): Pr
         cOil: vc.cOil,
         bOil: vc.bOil,
         remarks: vc.remarks,
-      })
+      } as any)
       .onConflictDoUpdate({
         target: schema.vehicleConsumptions.id,
         set: {
@@ -1149,7 +1151,18 @@ export async function dbGetCoalSellRecords(): Promise<CoalSellRecord[]> {
       date: r.date,
       partnerId: r.partnerId || '',
       partnerName: r.partnerName,
+      buyerName: 'Direct Dispatched',
+      buyerType: 'Registered' as BuyerType,
+      saleOrganization: 'Balochistan',
+      documentType: 'Sales Tax Invoice',
+      documentNumber: `DISP-${r.id}`,
+      quantity: r.quantityTons || 0,
       quantityTons: r.quantityTons || 0,
+      valueExcludingTax: 0,
+      salesTaxFed: 0,
+      furtherTax: 0,
+      totalTax: 0,
+      totalValue: 0,
       vehicleNo: r.vehicleNo || '',
       remarks: r.remarks || '',
     }));
@@ -1168,17 +1181,17 @@ export async function dbSaveCoalSellRecord(csr: CoalSellRecord): Promise<CoalSel
         date: csr.date,
         partnerId: csr.partnerId,
         partnerName: csr.partnerName,
-        quantityTons: csr.quantityTons,
+        quantityTons: csr.quantityTons ?? csr.quantity ?? 0,
         vehicleNo: csr.vehicleNo,
         remarks: csr.remarks,
-      })
+      } as any)
       .onConflictDoUpdate({
         target: schema.coalSellRecords.id,
         set: {
           date: csr.date,
           partnerId: csr.partnerId,
           partnerName: csr.partnerName,
-          quantityTons: csr.quantityTons,
+          quantityTons: csr.quantityTons ?? csr.quantity ?? 0,
           vehicleNo: csr.vehicleNo,
           remarks: csr.remarks,
         },
@@ -1209,6 +1222,7 @@ export async function dbGetCoalProductionRecords(): Promise<CoalProductionRecord
       date: r.date,
       partnerId: r.partnerId || '',
       partnerName: r.partnerName,
+      quantity: r.quantityTons || 0,
       quantityTons: r.quantityTons || 0,
       pitheadLocation: r.pitheadLocation || '',
       vehicleNo: r.vehicleNo || '',
@@ -1319,10 +1333,11 @@ export async function dbGetVehicleConsumptionSummary(): Promise<VehicleConsumpti
     });
 
     consumptionsList.forEach((c) => {
-      let target = summaryMap.get(c.vehicleId);
+      const vNo = (c.vehicleNo || '').trim().toUpperCase();
+      let target = summaryMap.get(c.vehicleId || '');
       if (!target) {
         for (const [_, item] of summaryMap.entries()) {
-          if (item.vehicleNo.trim().toUpperCase() === c.vehicleNo.trim().toUpperCase()) {
+          if ((item.vehicleNo || '').trim().toUpperCase() === vNo) {
             target = item;
             break;
           }
@@ -1330,10 +1345,10 @@ export async function dbGetVehicleConsumptionSummary(): Promise<VehicleConsumpti
       }
 
       if (!target) {
-        const vehicleInfo = vehicleMap.get(c.vehicleNo.trim().toUpperCase());
+        const vehicleInfo = vehicleMap.get(vNo);
         target = {
-          vehicleId: c.vehicleId || `v-${c.vehicleNo}`,
-          vehicleNo: c.vehicleNo,
+          vehicleId: c.vehicleId || `v-${c.vehicleNo || 'veh'}`,
+          vehicleNo: c.vehicleNo || 'Unknown',
           vehicleType: vehicleInfo?.vehicleType || 'Fleet Vehicle',
           driverName: vehicleInfo?.driverName || 'Designated Driver',
           status: vehicleInfo?.status || 'Active',
@@ -1348,25 +1363,25 @@ export async function dbGetVehicleConsumptionSummary(): Promise<VehicleConsumpti
           logsCount: 0,
           lastDate: '',
         };
-        summaryMap.set(target.vehicleId, target);
+        summaryMap.set(target.vehicleId || `v-${c.vehicleNo || 'veh'}`, target);
       }
 
-      target.totalDiesel += Number(c.diesel || 0);
-      target.totalMOil += Number(c.mOil || 0);
-      target.totalDOil += Number(c.dOil || 0);
-      target.totalOFltr += Number(c.oFltr || 0);
-      target.totalDFltr += Number(c.dFltr || 0);
-      target.totalKOil += Number(c.kOil || 0);
-      target.totalCOil += Number(c.cOil || 0);
-      target.totalBOil += Number(c.bOil || 0);
-      target.logsCount += 1;
-      if (!target.lastDate || c.date > target.lastDate) {
+      target.totalDiesel = (target.totalDiesel || 0) + Number(c.diesel || 0);
+      target.totalMOil = (target.totalMOil || 0) + Number(c.mOil || 0);
+      target.totalDOil = (target.totalDOil || 0) + Number(c.dOil || 0);
+      target.totalOFltr = (target.totalOFltr || 0) + Number(c.oFltr || 0);
+      target.totalDFltr = (target.totalDFltr || 0) + Number(c.dFltr || 0);
+      target.totalKOil = (target.totalKOil || 0) + Number(c.kOil || 0);
+      target.totalCOil = (target.totalCOil || 0) + Number(c.cOil || 0);
+      target.totalBOil = (target.totalBOil || 0) + Number(c.bOil || 0);
+      target.logsCount = (target.logsCount || 0) + 1;
+      if (!target.lastDate || (c.date && c.date > target.lastDate)) {
         target.lastDate = c.date;
       }
     });
 
     const result = Array.from(summaryMap.values());
-    result.sort((a, b) => b.totalDiesel - a.totalDiesel);
+    result.sort((a, b) => (b.totalDiesel || 0) - (a.totalDiesel || 0));
     return result;
   } catch (error) {
     console.error('Failed to get vehicle consumption summary:', error);
@@ -1407,6 +1422,7 @@ export async function dbGetItemWiseStockSummary(): Promise<ItemWiseStockSummary[
 
     itemsList.forEach((it) => {
       summaryMap.set(it.id, {
+        id: it.id,
         itemId: it.id,
         itemCode: it.itemCode,
         itemName: it.itemName,
@@ -1437,6 +1453,7 @@ export async function dbGetItemWiseStockSummary(): Promise<ItemWiseStockSummary[
       if (!target) {
         const itemInfo = itemsMap.get(entry.itemCode.trim().toUpperCase());
         target = {
+          id: entry.itemId || `it-${entry.itemCode}`,
           itemId: entry.itemId || `it-${entry.itemCode}`,
           itemCode: entry.itemCode,
           itemName: entry.itemName || itemInfo?.itemName || entry.itemCode,
@@ -1451,21 +1468,23 @@ export async function dbGetItemWiseStockSummary(): Promise<ItemWiseStockSummary[
           lastDate: '',
           stockStatus: 'In Stock',
         };
-        summaryMap.set(target.itemId, target);
+        summaryMap.set(target.itemId || `it-${entry.itemCode}`, target);
       }
 
-      target.totalOpeningStock += Number(entry.stockQty || 0);
-      target.totalPurchaseQty += Number(entry.purchaseQty || 0);
-      target.totalMineQty += Number(entry.mineQty || 0);
-      target.totalVehiclesQty += Number(entry.vehiclesQty || 0);
-      target.entriesCount += 1;
-      if (!target.lastDate || entry.date > target.lastDate) {
-        target.lastDate = entry.date;
+      if (target) {
+        target.totalOpeningStock = (target.totalOpeningStock || 0) + Number(entry.stockQty || 0);
+        target.totalPurchaseQty = (target.totalPurchaseQty || 0) + Number(entry.purchaseQty || 0);
+        target.totalMineQty = (target.totalMineQty || 0) + Number(entry.mineQty || 0);
+        target.totalVehiclesQty = (target.totalVehiclesQty || 0) + Number(entry.vehiclesQty || 0);
+        target.entriesCount = (target.entriesCount || 0) + 1;
+        if (!target.lastDate || (entry.date && entry.date > target.lastDate)) {
+          target.lastDate = entry.date;
+        }
       }
     });
 
     const result = Array.from(summaryMap.values()).map((s) => {
-      const net = (s.totalOpeningStock + s.totalPurchaseQty) - (s.totalMineQty + s.totalVehiclesQty);
+      const net = ((s.totalOpeningStock || 0) + (s.totalPurchaseQty || 0)) - ((s.totalMineQty || 0) + (s.totalVehiclesQty || 0));
       let status: 'In Stock' | 'Low Stock' | 'Critical' = 'In Stock';
       if (net <= 5) {
         status = 'Critical';
@@ -1479,8 +1498,8 @@ export async function dbGetItemWiseStockSummary(): Promise<ItemWiseStockSummary[
       };
     });
 
-    const priority = { Critical: 0, 'Low Stock': 1, 'In Stock': 2 };
-    result.sort((a, b) => priority[a.stockStatus] - priority[b.stockStatus] || a.currentBalance - b.currentBalance);
+    const priority: Record<string, number> = { Critical: 0, 'Low Stock': 1, 'In Stock': 2 };
+    result.sort((a, b) => (priority[a.stockStatus] ?? 3) - (priority[b.stockStatus] ?? 3) || a.currentBalance - b.currentBalance);
     return result;
   } catch (error) {
     console.error('Failed to get item-wise stock summary:', error);

@@ -1,440 +1,501 @@
 import React, { useState } from 'react';
-import { 
-  Boxes, 
-  ShoppingCart, 
-  Package, 
-  FileSpreadsheet, 
-  Settings as SettingsIcon, 
-  Handshake, 
-  Users, 
-  Truck,
-  Building2,
-  TrendingUp,
-  Receipt
-} from 'lucide-react';
-import { 
-  StoreSalesMainTab,
-  SalesSubTab, 
-  PosCoalSellEntry, 
-  CoalSellRecord, 
-  CoalProductionRecord,
-  PartnerRecord, 
-  BuyerRecord, 
-  StockItem, 
-  StockEntry, 
-  VehicleRecord, 
-  VehicleConsumptionRecord, 
-  CompanySettings 
-} from '../../types/storeSales';
-import { NavTarget } from '../../types';
-import { formatWholeNumber } from '../../utils/formatters';
-import { SalesScreen } from './SalesScreen';
-import { StockReportView } from './StockReportView';
-import { StoreReportSummaryView } from './StoreReportSummaryView';
-import { CompanySettingsView } from './CompanySettingsView';
-import { PartnersView } from './PartnersView';
-import { BuyersView } from './BuyersView';
+import type {
+  StoreCoalModuleTab,
+  StoreManagementSection,
+  CoalManagementSection,
+  ItemCategory,
+  ItemUnitType,
+  MineRecord,
+  VehicleRecord,
+  StoreItem,
+  ItemStockEntry,
+  ItemConsumptionRecord,
+  PartnerRecord,
+  BuyerRecord,
+  CoalStockRecord,
+  CoalSellRecord,
+  CompanySettings
+} from '../../types/storeSales.ts';
+
+import ItemsView from './ItemsView.tsx';
+import ItemStockView from './ItemStockView.tsx';
+import ItemConsumptionView from './ItemConsumptionView.tsx';
+import ItemSettingsView from './ItemSettingsView.tsx';
+import StoreReportsView from './StoreReportsView.tsx';
+
+import CoalStockView from './CoalStockView.tsx';
+import CoalSellView from './CoalSellView.tsx';
+import PartnersManagementView from './PartnersManagementView.tsx';
+import BuyerManagementView from './BuyerManagementView.tsx';
 
 interface StoreSalesScreenProps {
-  navTarget?: NavTarget | null;
-  // Pos & Coal
-  posEntries: PosCoalSellEntry[];
-  coalSellRecords: CoalSellRecord[];
-  coalProductionRecords?: CoalProductionRecord[];
-  // Partners & Buyers
+  // Store Management Data
+  categories: ItemCategory[];
+  unitTypes: ItemUnitType[];
+  mines: MineRecord[];
+  vehicles: VehicleRecord[];
+  items: StoreItem[];
+  stockEntries: ItemStockEntry[];
+  consumptions: ItemConsumptionRecord[];
+
+  // Coal Management Data
   partners: PartnerRecord[];
   buyers: BuyerRecord[];
-  // Stock
-  stockItems: StockItem[];
-  stockEntries: StockEntry[];
-  // Vehicle
-  vehicles: VehicleRecord[];
-  consumptions: VehicleConsumptionRecord[];
-  // Company
+  coalStocks: CoalStockRecord[];
+  coalSells: CoalSellRecord[];
   companySettings: CompanySettings;
 
-  // Handlers
-  onAddProduction?: (record: CoalProductionRecord) => void;
-  onUpdateProduction?: (record: CoalProductionRecord) => void;
-  onDeleteProduction?: (id: string) => void;
+  // Store Management Handlers
+  onAddCategory: (cat: Omit<ItemCategory, 'id' | 'createdAt'>) => void;
+  onUpdateCategory: (cat: ItemCategory) => void;
+  onDeleteCategory: (id: string) => void;
 
-  onAddPosEntry: (entry: PosCoalSellEntry) => void;
-  onUpdatePosEntry: (entry: PosCoalSellEntry) => void;
-  onDeletePosEntry: (id: string) => void;
+  onAddUnitType: (unit: Omit<ItemUnitType, 'id' | 'createdAt'>) => void;
+  onUpdateUnitType: (unit: ItemUnitType) => void;
+  onDeleteUnitType: (id: string) => void;
 
-  onAddCoalSellRecord: (record: CoalSellRecord) => void;
-  onUpdateCoalSellRecord: (record: CoalSellRecord) => void;
-  onDeleteCoalSellRecord: (id: string) => void;
+  onAddMine: (mine: Omit<MineRecord, 'id' | 'createdAt'>) => void;
+  onUpdateMine: (mine: MineRecord) => void;
+  onDeleteMine: (id: string) => void;
 
-  onAddPartner: (partner: PartnerRecord) => void;
+  onAddVehicle: (veh: Omit<VehicleRecord, 'id' | 'createdAt'>) => void;
+  onUpdateVehicle: (veh: VehicleRecord) => void;
+  onDeleteVehicle: (id: string) => void;
+
+  onAddItem: (item: Omit<StoreItem, 'id' | 'createdAt'>) => void;
+  onUpdateItem: (item: StoreItem) => void;
+  onDeleteItem: (id: string) => void;
+
+  onAddStockEntry: (entry: any) => void;
+  onAddConsumption: (record: any) => void;
+
+  // Coal Management Handlers
+  onAddCoalStock: (stock: any) => void;
+  onUpdateCoalStock: (stock: CoalStockRecord) => void;
+  onDeleteCoalStock: (id: string) => void;
+
+  onAddCoalSell: (sell: any) => void;
+  onUpdateCoalSell: (sell: CoalSellRecord) => void;
+  onDeleteCoalSell: (id: string) => void;
+
+  onAddPartner: (partner: Omit<PartnerRecord, 'id' | 'createdAt'>) => void;
   onUpdatePartner: (partner: PartnerRecord) => void;
   onDeletePartner: (id: string) => void;
-  onTogglePartnerActive: (id: string) => void;
-  onTogglePartnerReportColumn: (id: string) => void;
 
-  onAddBuyer: (buyer: BuyerRecord) => void;
+  onAddBuyer: (buyer: Omit<BuyerRecord, 'id' | 'createdAt'>) => void;
   onUpdateBuyer: (buyer: BuyerRecord) => void;
   onDeleteBuyer: (id: string) => void;
 
-  onAddStockItem: (item: StockItem) => void;
-  onUpdateStockItem?: (item: StockItem) => void;
-  onDeleteStockItem?: (id: string) => void;
-  onAddStockEntry: (entry: StockEntry) => void;
-  onUpdateStockEntry: (entry: StockEntry) => void;
-  onDeleteStockEntry: (id: string) => void;
+  onUpdateCompanySettings: (settings: CompanySettings) => void;
 
-  onAddVehicle: (vehicle: VehicleRecord) => void;
-  onUpdateVehicle: (vehicle: VehicleRecord) => void;
-  onDeleteVehicle: (id: string) => void;
-  onAddConsumption: (record: VehicleConsumptionRecord) => void;
-  onUpdateConsumption: (record: VehicleConsumptionRecord) => void;
-  onDeleteConsumption: (id: string) => void;
-
-  onSaveCompanySettings: (settings: CompanySettings) => void;
-  onClearLegacyCoalSales?: () => void;
+  navTarget?: { module: string; section?: string; subPage?: string; action?: string; timestamp?: number } | null;
+  initialModuleTab?: StoreCoalModuleTab;
+  initialStoreSection?: StoreManagementSection;
+  initialCoalSection?: CoalManagementSection;
 }
 
 export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
-  navTarget,
-  posEntries,
-  coalSellRecords,
-  coalProductionRecords = [],
+  categories,
+  unitTypes,
+  mines,
+  vehicles,
+  items,
+  stockEntries,
+  consumptions,
   partners,
   buyers,
-  stockItems,
-  stockEntries,
-  vehicles,
-  consumptions,
+  coalStocks,
+  coalSells,
   companySettings,
-  onAddProduction,
-  onUpdateProduction,
-  onDeleteProduction,
-  onAddPosEntry,
-  onUpdatePosEntry,
-  onDeletePosEntry,
-  onAddCoalSellRecord,
-  onUpdateCoalSellRecord,
-  onDeleteCoalSellRecord,
-  onAddPartner,
-  onUpdatePartner,
-  onDeletePartner,
-  onTogglePartnerActive,
-  onTogglePartnerReportColumn,
-  onAddBuyer,
-  onUpdateBuyer,
-  onDeleteBuyer,
-  onAddStockItem,
-  onUpdateStockItem,
-  onDeleteStockItem,
-  onAddStockEntry,
-  onUpdateStockEntry,
-  onDeleteStockEntry,
+  onAddCategory,
+  onUpdateCategory,
+  onDeleteCategory,
+  onAddUnitType,
+  onUpdateUnitType,
+  onDeleteUnitType,
+  onAddMine,
+  onUpdateMine,
+  onDeleteMine,
   onAddVehicle,
   onUpdateVehicle,
   onDeleteVehicle,
+  onAddItem,
+  onUpdateItem,
+  onDeleteItem,
+  onAddStockEntry,
   onAddConsumption,
-  onUpdateConsumption,
-  onDeleteConsumption,
-  onSaveCompanySettings,
-  onClearLegacyCoalSales,
+  onAddCoalStock,
+  onUpdateCoalStock,
+  onDeleteCoalStock,
+  onAddCoalSell,
+  onUpdateCoalSell,
+  onDeleteCoalSell,
+  onAddPartner,
+  onUpdatePartner,
+  onDeletePartner,
+  onAddBuyer,
+  onUpdateBuyer,
+  onDeleteBuyer,
+  onUpdateCompanySettings,
+  navTarget,
+  initialModuleTab = 'store_management',
+  initialStoreSection = 'items',
+  initialCoalSection = 'coal_stock',
 }) => {
-  const [mainTab, setMainTab] = useState<StoreSalesMainTab>('coal_management');
-  const [stockTab, setStockTab] = useState<'view_stock' | 'add_stock' | 'add_item' | 'view_items'>('view_stock');
+  // Main Module Toggle: STORE MANAGEMENT vs COAL MANAGEMENT
+  const [mainTab, setMainTab] = useState<StoreCoalModuleTab>(initialModuleTab);
 
-  // React to navTarget from Sidebar
+  // Sub-sections
+  const [storeSection, setStoreSection] = useState<StoreManagementSection>(initialStoreSection);
+  const [coalSection, setCoalSection] = useState<CoalManagementSection>(initialCoalSection);
+
+  // Respond to navTarget from Sidebar
   React.useEffect(() => {
     if (!navTarget || navTarget.module !== 'store_sales') return;
 
-    if (navTarget.section === 'coal_management' || navTarget.section === 'sale') {
-      setMainTab('coal_management');
-    } else if (navTarget.section === 'stock_report') {
-      if (navTarget.subPage === 'store_summary') {
-        setMainTab('store_summary');
-      } else {
-        setMainTab('stock_report');
-        if (['add_item', 'view_items', 'add_stock', 'view_stock'].includes(navTarget.subPage || '')) {
-          setStockTab(navTarget.subPage as 'view_stock' | 'add_stock' | 'add_item' | 'view_items');
-        }
+    if (navTarget.section === 'store_management') {
+      setMainTab('store_management');
+      if (['items', 'item_stock', 'item_consumption', 'item_setting', 'reports'].includes(navTarget.subPage || '')) {
+        setStoreSection(navTarget.subPage as StoreManagementSection);
       }
-    } else if (navTarget.section === 'company_setting') {
-      setMainTab('company_settings');
+    } else if (navTarget.section === 'coal_management' || navTarget.section === 'sale') {
+      setMainTab('coal_management');
+      if (navTarget.subPage === 'coal_sell' || navTarget.subPage === 'record_coal_sell' || navTarget.subPage === 'daily_csr_entries' || navTarget.subPage === 'total_csr') {
+        setCoalSection('coal_sell');
+      } else if (navTarget.subPage === 'partners' || navTarget.subPage === 'add_partner' || navTarget.subPage === 'view_partners') {
+        setCoalSection('partners');
+      } else if (navTarget.subPage === 'buyers' || navTarget.subPage === 'add_buyer' || navTarget.subPage === 'view_buyers') {
+        setCoalSection('buyers');
+      } else {
+        setCoalSection('coal_stock');
+      }
+    } else if (navTarget.section === 'stock_report') {
+      setMainTab('store_management');
+      if (navTarget.subPage === 'add_item' || navTarget.subPage === 'view_items') {
+        setStoreSection('items');
+      } else if (navTarget.subPage === 'add_stock' || navTarget.subPage === 'view_stock') {
+        setStoreSection('item_stock');
+      } else {
+        setStoreSection('reports');
+      }
     }
   }, [navTarget]);
 
-  const openingCoalStock = (typeof companySettings?.openingCoalStock === 'number' && companySettings.openingCoalStock > 0)
-    ? companySettings.openingCoalStock
-    : 100;
-  const totalProducedTons = coalProductionRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
-  const totalCoalTons = coalSellRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
-  const totalCoalStockGross = totalProducedTons + openingCoalStock;
-  const currentCoalStock = Math.max(0, totalCoalStockGross - totalCoalTons);
-  const totalPosValue = posEntries.reduce((sum, e) => sum + (Number(e.totalValue) || 0), 0);
-  const totalStockItemsCount = stockItems.length;
-  const activeVehiclesCount = vehicles.filter((v) => v.status === 'Active').length;
+  // Calculate live coal stock for high-level banner
+  const openingCoal = Number(companySettings.openingCoalStock || 0);
+  const totalCoalInflow = coalStocks.reduce((sum, s) => sum + Number(s.quantity || 0), 0);
+  const totalCoalSold = coalSells.reduce((sum, s) => sum + Number(s.quantity || 0), 0);
+  const liveCoalBalance = (openingCoal + totalCoalInflow) - totalCoalSold;
+
+  // Compute live item stock map
+  const itemStockMap = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    items.forEach((it) => {
+      const itStock = stockEntries.filter((s) => s.itemId === it.id);
+      const stockQty = itStock.reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0), 0);
+      const purchaseQty = itStock.reduce((sum, s) => sum + Number(s.purchase || s.purchaseQty || 0), 0);
+      const itConsumptions = consumptions.filter((c) => c.itemId === it.id);
+      const used = itConsumptions.reduce((sum, c) => sum + Number(c.quantity || 0), 0);
+      map[it.id] = (stockQty + purchaseQty) - used;
+    });
+    return map;
+  }, [items, stockEntries, consumptions]);
 
   return (
-    <div className="space-y-6">
-      {/* Module Banner / Workspace Header */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-blue-600">
-                Operations & Mining Logistics
-              </span>
-              <span className="text-slate-300">/</span>
-              <span className="text-xs text-slate-500">Commercial & Inventory Center</span>
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1 flex items-center gap-2.5">
-              <Boxes className="w-6 h-6 text-blue-600" />
-              <span>Store & Sales Module</span>
+    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Top Header / Primary Module Selector */}
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <div className="flex items-center space-x-2">
+            <span className="text-2xl">🏭</span>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              {mainTab === 'store_management' ? 'STORE MANAGEMENT' : 'COAL MANAGEMENT'}
             </h1>
-            <p className="text-sm text-slate-600 mt-0.5">
-              Dedicated, fully isolated workspace for Coal Sales, Point of Sale (POS), Partner Matrices, Store Inventories, and Fleet Maintenance.
-            </p>
           </div>
-
-          {/* Quick Metrics */}
-          <div className="flex items-center gap-3 text-xs font-medium text-slate-600 flex-wrap">
-            <div className="p-2.5 rounded-lg bg-emerald-50/90 border border-emerald-300">
-              <span className="text-emerald-800 block text-[11px] font-bold uppercase tracking-wider">Live Coal Stock</span>
-              <span className="text-sm font-bold font-mono tabular-nums text-emerald-950">
-                {formatWholeNumber(totalCoalStockGross)} Tons
-              </span>
-              <span className="text-[10px] text-emerald-700 block font-mono">
-                Stock + Opening ({formatWholeNumber(totalProducedTons)} + {formatWholeNumber(openingCoalStock)})
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-              <span className="text-slate-500 block text-[11px] font-semibold">Total Produced</span>
-              <span className="text-sm font-bold font-mono tabular-nums text-emerald-700">
-                {formatWholeNumber(totalProducedTons)} Tons
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-              <span className="text-slate-500 block text-[11px] font-semibold">Total Dispatched / Sold</span>
-              <span className="text-sm font-bold font-mono tabular-nums text-blue-700">
-                {formatWholeNumber(totalCoalTons)} Tons
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-blue-50/70 border border-blue-200 hidden sm:block">
-              <span className="text-blue-700 block text-[11px] font-semibold">POS Gross Sales</span>
-              <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
-                PKR {totalPosValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-teal-50/70 border border-teal-200 hidden md:block">
-              <span className="text-teal-700 block text-[11px] font-semibold">Active Fleet</span>
-              <span className="text-sm font-bold font-mono tabular-nums text-slate-900">
-                {activeVehiclesCount} Units
-              </span>
-            </div>
-          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            {mainTab === 'store_management'
+              ? 'Catalog items, inventory inflows, vehicle & mine consumptions, unit settings and audit reports.'
+              : 'Coal production & stock logs, POS invoicing (strictly in Tons), partner extraction and buyer profiles.'}
+          </p>
         </div>
 
-        {/* Main Module screen Buttons:
-            Coal Management, Stock Report, Store Report Summary, Company setting, Partners, Buyers
-        */}
-        <div className="pt-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Module Sections:
+        {/* Big Dual Tab Switcher */}
+        <div className="flex items-center bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+          <button
+            onClick={() => setMainTab('store_management')}
+            className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+              mainTab === 'store_management'
+                ? 'bg-white text-emerald-800 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>📦</span>
+            <span>STORE MANAGEMENT</span>
+          </button>
+          <button
+            onClick={() => setMainTab('coal_management')}
+            className={`flex items-center space-x-2 px-5 py-2.5 rounded-lg text-xs font-bold transition-all ${
+              mainTab === 'coal_management'
+                ? 'bg-emerald-800 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>⛏️</span>
+            <span>COAL MANAGEMENT</span>
+            <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-700 text-emerald-100 font-mono">
+              {liveCoalBalance.toLocaleString()} Tons
             </span>
-
-            <div className="flex items-center flex-wrap gap-2">
-              {/* 1. Coal Management (Special Section) */}
-              <button
-                type="button"
-                id="btn-store-sales-coal-mgmt"
-                onClick={() => setMainTab('coal_management')}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer ${
-                  mainTab === 'coal_management' || mainTab === 'sales'
-                    ? 'bg-emerald-600 text-white ring-2 ring-emerald-600/30'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                <Boxes className="w-3.5 h-3.5" />
-                <span>Coal Management</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                  mainTab === 'coal_management' || mainTab === 'sales' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'
-                }`}>
-                  {formatWholeNumber(totalCoalStockGross)} Tons
-                </span>
-              </button>
-
-              {/* 2. Stock Report */}
-              <button
-                type="button"
-                id="btn-store-sales-stock"
-                onClick={() => setMainTab('stock_report')}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer ${
-                  mainTab === 'stock_report'
-                    ? 'bg-amber-600 text-white ring-2 ring-amber-600/30'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                <Package className="w-3.5 h-3.5" />
-                <span>Stock Report</span>
-              </button>
-
-              {/* 3. Store Report Summary */}
-              <button
-                type="button"
-                id="btn-store-sales-summary"
-                onClick={() => setMainTab('store_summary')}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer ${
-                  mainTab === 'store_summary'
-                    ? 'bg-purple-600 text-white ring-2 ring-purple-600/30'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Store Report Summary</span>
-              </button>
-
-              {/* 4. Company setting */}
-              <button
-                type="button"
-                id="btn-store-sales-company"
-                onClick={() => setMainTab('company_settings')}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer ${
-                  mainTab === 'company_settings'
-                    ? 'bg-slate-800 text-white ring-2 ring-slate-800/30'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                <SettingsIcon className="w-3.5 h-3.5" />
-                <span>Company setting</span>
-              </button>
-
-              {/* 5. Partners */}
-              <button
-                type="button"
-                id="btn-store-sales-partners"
-                onClick={() => setMainTab('partners')}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer ${
-                  mainTab === 'partners'
-                    ? 'bg-emerald-600 text-white ring-2 ring-emerald-600/30'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                <Handshake className="w-3.5 h-3.5" />
-                <span>Partners</span>
-              </button>
-
-              {/* 6. Buyers */}
-              <button
-                type="button"
-                id="btn-store-sales-buyers"
-                onClick={() => setMainTab('buyers')}
-                className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all shadow-xs cursor-pointer ${
-                  mainTab === 'buyers'
-                    ? 'bg-blue-600 text-white ring-2 ring-blue-600/30'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span>Buyers</span>
-              </button>
-            </div>
-          </div>
+          </button>
         </div>
       </div>
 
-      {/* Main Section Content */}
-      <div>
-        {(mainTab === 'coal_management' || mainTab === 'sales') && (
-          <SalesScreen
-            navTarget={navTarget}
-            productionRecords={coalProductionRecords}
-            posEntries={posEntries}
-            coalSellRecords={coalSellRecords}
-            partners={partners}
-            buyers={buyers}
-            vehicles={vehicles}
-            consumptions={consumptions}
-            companySettings={companySettings}
-            onAddProduction={onAddProduction}
-            onUpdateProduction={onUpdateProduction}
-            onDeleteProduction={onDeleteProduction}
-            onAddPosEntry={onAddPosEntry}
-            onUpdatePosEntry={onUpdatePosEntry}
-            onDeletePosEntry={onDeletePosEntry}
-            onAddCoalSellRecord={onAddCoalSellRecord}
-            onUpdateCoalSellRecord={onUpdateCoalSellRecord}
-            onDeleteCoalSellRecord={onDeleteCoalSellRecord}
-            onAddPartner={onAddPartner}
-            onUpdatePartner={onUpdatePartner}
-            onDeletePartner={onDeletePartner}
-            onTogglePartnerActive={onTogglePartnerActive}
-            onTogglePartnerReportColumn={onTogglePartnerReportColumn}
-            onAddBuyer={onAddBuyer}
-            onUpdateBuyer={onUpdateBuyer}
-            onDeleteBuyer={onDeleteBuyer}
-            onAddVehicle={onAddVehicle}
-            onUpdateVehicle={onUpdateVehicle}
-            onDeleteVehicle={onDeleteVehicle}
-            onAddConsumption={onAddConsumption}
-            onUpdateConsumption={onUpdateConsumption}
-            onDeleteConsumption={onDeleteConsumption}
-            onClearLegacyCoalSales={onClearLegacyCoalSales}
-            onUpdateCompanySettings={onSaveCompanySettings}
-          />
-        )}
+      {/* ----------------------------------------------------------------- */}
+      {/* 1. STORE MANAGEMENT SUB-NAVIGATION & SECTIONS                     */}
+      {/* ----------------------------------------------------------------- */}
+      {mainTab === 'store_management' && (
+        <div className="space-y-6">
+          {/* Section Navigation Pills */}
+          <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+            <button
+              onClick={() => setStoreSection('items')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
+                storeSection === 'items'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>🏷️</span>
+              <span>Items ({items.length})</span>
+            </button>
 
-        {mainTab === 'stock_report' && (
-          <StockReportView
-            stockItems={stockItems}
-            stockEntries={stockEntries}
-            initialTab={stockTab}
-            onAddItem={onAddStockItem}
-            onUpdateItem={onUpdateStockItem}
-            onDeleteItem={onDeleteStockItem}
-            onAddStockEntry={onAddStockEntry}
-            onUpdateStockEntry={onUpdateStockEntry}
-            onDeleteStockEntry={onDeleteStockEntry}
-          />
-        )}
+            <button
+              onClick={() => setStoreSection('item_stock')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
+                storeSection === 'item_stock'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>📥</span>
+              <span>Item Stock ({stockEntries.length})</span>
+            </button>
 
-        {mainTab === 'store_summary' && (
-          <StoreReportSummaryView
-            stockEntries={stockEntries}
-            stockItems={stockItems}
-            companySettings={companySettings}
-          />
-        )}
+            <button
+              onClick={() => setStoreSection('item_consumption')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
+                storeSection === 'item_consumption'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>⛽</span>
+              <span>Item Consumption ({consumptions.length})</span>
+            </button>
 
-        {mainTab === 'company_settings' && (
-          <CompanySettingsView
-            settings={companySettings}
-            onSaveSettings={onSaveCompanySettings}
-          />
-        )}
+            <button
+              onClick={() => setStoreSection('item_setting')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
+                storeSection === 'item_setting'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>⚙️</span>
+              <span>Item Settings</span>
+            </button>
 
-        {mainTab === 'partners' && (
-          <PartnersView
-            partners={partners}
-            onAddPartner={onAddPartner}
-            onUpdatePartner={onUpdatePartner}
-            onDeletePartner={onDeletePartner}
-            onToggleActive={onTogglePartnerActive}
-            onToggleShowInReport={onTogglePartnerReportColumn}
-          />
-        )}
+            <button
+              onClick={() => setStoreSection('reports')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
+                storeSection === 'reports'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>📊</span>
+              <span>Reports</span>
+            </button>
+          </div>
 
-        {mainTab === 'buyers' && (
-          <BuyersView
-            buyers={buyers}
-            onAddBuyer={onAddBuyer}
-            onUpdateBuyer={onUpdateBuyer}
-            onDeleteBuyer={onDeleteBuyer}
-          />
-        )}
-      </div>
+          {/* Section View Routing */}
+          {storeSection === 'items' && (
+            <ItemsView
+              items={items}
+              categories={categories}
+              unitTypes={unitTypes}
+              itemStockMap={itemStockMap}
+              onAddItem={onAddItem}
+              onUpdateItem={onUpdateItem}
+              onDeleteItem={onDeleteItem}
+            />
+          )}
+
+          {storeSection === 'item_stock' && (
+            <ItemStockView
+              stockEntries={stockEntries}
+              items={items}
+              consumptions={consumptions}
+              mines={mines}
+              onAddStockEntry={onAddStockEntry}
+              onUpdateStockEntry={(entry) => {}}
+              onDeleteStockEntry={(id) => {}}
+            />
+          )}
+
+          {storeSection === 'item_consumption' && (
+            <ItemConsumptionView
+              consumptions={consumptions}
+              items={items}
+              mines={mines}
+              vehicles={vehicles}
+              itemStockMap={itemStockMap}
+              onAddConsumption={onAddConsumption}
+              onUpdateConsumption={(record) => {}}
+              onDeleteConsumption={(id) => {}}
+            />
+          )}
+
+          {storeSection === 'item_setting' && (
+            <ItemSettingsView
+              categories={categories}
+              unitTypes={unitTypes}
+              mines={mines}
+              vehicles={vehicles}
+              onAddCategory={onAddCategory}
+              onUpdateCategory={onUpdateCategory}
+              onDeleteCategory={onDeleteCategory}
+              onAddUnit={onAddUnitType}
+              onUpdateUnit={onUpdateUnitType}
+              onDeleteUnit={onDeleteUnitType}
+              onAddMine={onAddMine}
+              onUpdateMine={onUpdateMine}
+              onDeleteMine={onDeleteMine}
+              onAddVehicle={onAddVehicle}
+              onUpdateVehicle={onUpdateVehicle}
+              onDeleteVehicle={onDeleteVehicle}
+            />
+          )}
+
+          {storeSection === 'reports' && (
+            <StoreReportsView
+              items={items}
+              stockEntries={stockEntries}
+              consumptions={consumptions}
+              mines={mines}
+              vehicles={vehicles}
+              categories={categories}
+            />
+          )}
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------------- */}
+      {/* 2. COAL MANAGEMENT SUB-NAVIGATION & SECTIONS                      */}
+      {/* ----------------------------------------------------------------- */}
+      {mainTab === 'coal_management' && (
+        <div className="space-y-6">
+          {/* Section Navigation Pills */}
+          <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+            <button
+              onClick={() => setCoalSection('coal_stock')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
+                coalSection === 'coal_stock'
+                  ? 'bg-emerald-800 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>📦</span>
+              <span>Coal Stock ({coalStocks.length})</span>
+            </button>
+
+            <button
+              onClick={() => setCoalSection('coal_sell')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
+                coalSection === 'coal_sell'
+                  ? 'bg-emerald-800 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>🧾</span>
+              <span>Coal Sell & POS Invoices ({coalSells.length})</span>
+            </button>
+
+            <button
+              onClick={() => setCoalSection('partners')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
+                coalSection === 'partners'
+                  ? 'bg-emerald-800 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>🤝</span>
+              <span>Partner Management ({partners.length})</span>
+            </button>
+
+            <button
+              onClick={() => setCoalSection('buyers')}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
+                coalSection === 'buyers'
+                  ? 'bg-emerald-800 text-white shadow-sm'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>🏢</span>
+              <span>Buyer Management ({buyers.length})</span>
+            </button>
+          </div>
+
+          {/* Coal Section View Routing */}
+          {coalSection === 'coal_stock' && (
+            <CoalStockView
+              coalStocks={coalStocks}
+              partners={partners}
+              coalSells={coalSells}
+              companySettings={companySettings}
+              onAddCoalStock={onAddCoalStock}
+              onUpdateCoalStock={onUpdateCoalStock}
+              onDeleteCoalStock={onDeleteCoalStock}
+              onUpdateCompanySettings={onUpdateCompanySettings}
+            />
+          )}
+
+          {coalSection === 'coal_sell' && (
+            <CoalSellView
+              coalSells={coalSells}
+              coalStocks={coalStocks}
+              partners={partners}
+              buyers={buyers}
+              companySettings={companySettings}
+              onAddCoalSell={onAddCoalSell}
+              onUpdateCoalSell={onUpdateCoalSell}
+              onDeleteCoalSell={onDeleteCoalSell}
+            />
+          )}
+
+          {coalSection === 'partners' && (
+            <PartnersManagementView
+              partners={partners}
+              coalStocks={coalStocks}
+              coalSells={coalSells}
+              onAddPartner={onAddPartner}
+              onUpdatePartner={onUpdatePartner}
+              onDeletePartner={onDeletePartner}
+            />
+          )}
+
+          {coalSection === 'buyers' && (
+            <BuyerManagementView
+              buyers={buyers}
+              coalSells={coalSells}
+              onAddBuyer={onAddBuyer}
+              onUpdateBuyer={onUpdateBuyer}
+              onDeleteBuyer={onDeleteBuyer}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 };
+
+export default StoreSalesScreen;

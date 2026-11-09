@@ -16,6 +16,7 @@ import type {
   PartnerRecord,
   PosCoalSellEntry,
   CoalSellRecord,
+  CoalStockRecord,
   CoalProductionRecord,
   StockItem,
   StockEntry,
@@ -533,16 +534,17 @@ const mapBankAccountToRow = (a: BankAccountRecord) => ({
 
 const mapPosSaleFromRow = (r: any): PosCoalSellEntry => ({
   id: r.id,
+  date: r.document_date || r.date || '',
   srNo: Number(r.sr_no || 1),
   partnerId: r.partner_id || '',
   partnerName: r.partner_name || '',
   buyerId: r.buyer_id || '',
   buyerNTN: r.buyer_ntn || '',
   buyerCNIC: r.buyer_cnic || '',
-  buyerName: r.buyer_name,
+  buyerName: r.buyer_name || 'Buyer',
   buyerType: (r.buyer_type || 'Registered') as any,
-  saleOrganization: r.sale_organization || '',
-  documentType: r.document_type || '',
+  saleOrganization: r.sale_organization || 'Balochistan',
+  documentType: r.document_type || 'Sales Tax Invoice',
   documentNumber: r.document_number || '',
   documentDate: r.document_date,
   quantity: Number(r.quantity || 0),
@@ -579,8 +581,19 @@ const mapCoalRecordFromRow = (r: any): CoalSellRecord => ({
   id: r.id,
   date: r.date,
   partnerId: r.partner_id || '',
-  partnerName: r.partner_name,
+  partnerName: r.partner_name || '',
+  buyerName: 'Direct Dispatch',
+  buyerType: 'Registered' as any,
+  saleOrganization: 'Balochistan',
+  documentType: 'Sales Tax Invoice',
+  documentNumber: `DISP-${r.id}`,
+  quantity: Number(r.quantity_tons || 0),
   quantityTons: Number(r.quantity_tons || 0),
+  valueExcludingTax: 0,
+  salesTaxFed: 0,
+  furtherTax: 0,
+  totalTax: 0,
+  totalValue: 0,
   vehicleNo: r.vehicle_no || '',
   remarks: r.remarks || '',
 });
@@ -590,17 +603,18 @@ const mapCoalRecordToRow = (c: CoalSellRecord) => ({
   date: c.date,
   partner_id: c.partnerId || '',
   partner_name: c.partnerName,
-  quantity_tons: c.quantityTons || 0,
+  quantity_tons: c.quantityTons ?? c.quantity ?? 0,
   vehicle_no: c.vehicleNo || '',
   remarks: c.remarks || '',
 });
 
-const mapCoalProductionFromRow = (r: any): CoalProductionRecord => ({
+const mapCoalProductionFromRow = (r: any): CoalStockRecord => ({
   id: r.id,
   srNo: r.sr_no ? Number(r.sr_no) : undefined,
   date: r.date,
   partnerId: r.partner_id || '',
   partnerName: r.partner_name,
+  quantity: Number(r.quantity_tons || 0),
   quantityTons: Number(r.quantity_tons || 0),
   pitheadLocation: r.pithead_location || '',
   vehicleNo: r.vehicle_no || '',
@@ -803,10 +817,11 @@ export function computeVehicleConsumptionSummary(
   });
 
   consumptionsList.forEach((c) => {
-    let target = summaryMap.get(c.vehicleId);
+    const vNo = (c.vehicleNo || '').trim().toUpperCase();
+    let target = summaryMap.get(c.vehicleId || '');
     if (!target) {
       for (const item of summaryMap.values()) {
-        if (item.vehicleNo.trim().toUpperCase() === c.vehicleNo.trim().toUpperCase()) {
+        if ((item.vehicleNo || '').trim().toUpperCase() === vNo) {
           target = item;
           break;
         }
@@ -815,8 +830,8 @@ export function computeVehicleConsumptionSummary(
 
     if (!target) {
       target = {
-        vehicleId: c.vehicleId || `v-${c.vehicleNo}`,
-        vehicleNo: c.vehicleNo,
+        vehicleId: c.vehicleId || `v-${c.vehicleNo || 'veh'}`,
+        vehicleNo: c.vehicleNo || 'Unknown',
         vehicleType: 'Fleet Vehicle',
         driverName: 'Designated Driver',
         status: 'Active',
@@ -831,25 +846,25 @@ export function computeVehicleConsumptionSummary(
         logsCount: 0,
         lastDate: '',
       };
-      summaryMap.set(target.vehicleId, target);
+      summaryMap.set(target.vehicleId || `v-${c.vehicleNo || 'veh'}`, target);
     }
 
-    target.totalDiesel += Number(c.diesel || 0);
-    target.totalMOil += Number(c.mOil || 0);
-    target.totalDOil += Number(c.dOil || 0);
-    target.totalOFltr += Number(c.oFltr || 0);
-    target.totalDFltr += Number(c.dFltr || 0);
-    target.totalKOil += Number(c.kOil || 0);
-    target.totalCOil += Number(c.cOil || 0);
-    target.totalBOil += Number(c.bOil || 0);
-    target.logsCount += 1;
-    if (!target.lastDate || c.date > target.lastDate) {
+    target.totalDiesel = (target.totalDiesel || 0) + Number(c.diesel || 0);
+    target.totalMOil = (target.totalMOil || 0) + Number(c.mOil || 0);
+    target.totalDOil = (target.totalDOil || 0) + Number(c.dOil || 0);
+    target.totalOFltr = (target.totalOFltr || 0) + Number(c.oFltr || 0);
+    target.totalDFltr = (target.totalDFltr || 0) + Number(c.dFltr || 0);
+    target.totalKOil = (target.totalKOil || 0) + Number(c.kOil || 0);
+    target.totalCOil = (target.totalCOil || 0) + Number(c.cOil || 0);
+    target.totalBOil = (target.totalBOil || 0) + Number(c.bOil || 0);
+    target.logsCount = (target.logsCount || 0) + 1;
+    if (!target.lastDate || (c.date && c.date > target.lastDate)) {
       target.lastDate = c.date;
     }
   });
 
   const result = Array.from(summaryMap.values());
-  result.sort((a, b) => b.totalDiesel - a.totalDiesel);
+  result.sort((a, b) => (b.totalDiesel || 0) - (a.totalDiesel || 0));
   return result;
 }
 
@@ -904,21 +919,23 @@ export function computeItemWiseStockSummary(
         lastDate: '',
         stockStatus: 'In Stock',
       };
-      summaryMap.set(target.itemId, target);
+      summaryMap.set(target.itemId || entry.itemId || 'it', target);
     }
 
-    target.totalOpeningStock += Number(entry.stockQty || 0);
-    target.totalPurchaseQty += Number(entry.purchaseQty || 0);
-    target.totalMineQty += Number(entry.mineQty || 0);
-    target.totalVehiclesQty += Number(entry.vehiclesQty || 0);
-    target.entriesCount += 1;
-    if (!target.lastDate || entry.date > target.lastDate) {
-      target.lastDate = entry.date;
+    if (target) {
+      target.totalOpeningStock = (target.totalOpeningStock || 0) + Number(entry.stockQty || 0);
+      target.totalPurchaseQty = (target.totalPurchaseQty || 0) + Number(entry.purchaseQty || 0);
+      target.totalMineQty = (target.totalMineQty || 0) + Number(entry.mineQty || 0);
+      target.totalVehiclesQty = (target.totalVehiclesQty || 0) + Number(entry.vehiclesQty || 0);
+      target.entriesCount = (target.entriesCount || 0) + 1;
+      if (!target.lastDate || entry.date > target.lastDate) {
+        target.lastDate = entry.date;
+      }
     }
   });
 
   const result = Array.from(summaryMap.values()).map((s) => {
-    const net = (s.totalOpeningStock + s.totalPurchaseQty) - (s.totalMineQty + s.totalVehiclesQty);
+    const net = ((s.totalOpeningStock || 0) + (s.totalPurchaseQty || 0)) - ((s.totalMineQty || 0) + (s.totalVehiclesQty || 0));
     let status: 'In Stock' | 'Low Stock' | 'Critical' = 'In Stock';
     if (net <= 5) {
       status = 'Critical';

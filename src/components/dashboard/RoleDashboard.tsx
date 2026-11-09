@@ -189,10 +189,11 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
     });
 
     consumptions.forEach((c) => {
-      let target = map.get(c.vehicleId);
+      const vNo = (c.vehicleNo || '').trim().toUpperCase();
+      let target = map.get(c.vehicleId || '');
       if (!target) {
         for (const [_, item] of map.entries()) {
-          if (item.vehicleNo.trim().toUpperCase() === c.vehicleNo.trim().toUpperCase()) {
+          if ((item.vehicleNo || '').trim().toUpperCase() === vNo) {
             target = item;
             break;
           }
@@ -201,8 +202,8 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
 
       if (!target) {
         target = {
-          vehicleId: c.vehicleId || `v-${c.vehicleNo}`,
-          vehicleNo: c.vehicleNo,
+          vehicleId: c.vehicleId || `v-${c.vehicleNo || 'veh'}`,
+          vehicleNo: c.vehicleNo || 'Unknown',
           vehicleType: 'Fleet Vehicle',
           driverName: 'Assigned Driver',
           status: 'Active',
@@ -220,21 +221,21 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
         map.set(target.vehicleId, target);
       }
 
-      target.totalDiesel += Number(c.diesel || 0);
-      target.totalMOil += Number(c.mOil || 0);
-      target.totalDOil += Number(c.dOil || 0);
-      target.totalOFltr += Number(c.oFltr || 0);
-      target.totalDFltr += Number(c.dFltr || 0);
-      target.totalKOil += Number(c.kOil || 0);
-      target.totalCOil += Number(c.cOil || 0);
-      target.totalBOil += Number(c.bOil || 0);
-      target.logsCount += 1;
-      if (!target.lastDate || c.date > target.lastDate) {
+      target.totalDiesel = (target.totalDiesel || 0) + Number(c.diesel || 0);
+      target.totalMOil = (target.totalMOil || 0) + Number(c.mOil || 0);
+      target.totalDOil = (target.totalDOil || 0) + Number(c.dOil || 0);
+      target.totalOFltr = (target.totalOFltr || 0) + Number(c.oFltr || 0);
+      target.totalDFltr = (target.totalDFltr || 0) + Number(c.dFltr || 0);
+      target.totalKOil = (target.totalKOil || 0) + Number(c.kOil || 0);
+      target.totalCOil = (target.totalCOil || 0) + Number(c.cOil || 0);
+      target.totalBOil = (target.totalBOil || 0) + Number(c.bOil || 0);
+      target.logsCount = (target.logsCount || 0) + 1;
+      if (!target.lastDate || (c.date && c.date > target.lastDate)) {
         target.lastDate = c.date;
       }
     });
 
-    return Array.from(map.values()).sort((a, b) => b.totalDiesel - a.totalDiesel);
+    return Array.from(map.values()).sort((a, b) => (b.totalDiesel || 0) - (a.totalDiesel || 0));
   }, [vehicles, consumptions]);
 
   // Memoized Item-Wise Stock Summary

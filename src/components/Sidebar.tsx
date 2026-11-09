@@ -769,422 +769,176 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ------------------------------------------------------------- */}
                     {item.id === 'store_sales' && (
                       <div className="space-y-2">
-                        {/* 3.1 Coal Management (Daily Production / Stock, POS, Record Coal Sell, Reports, Partners, Buyers, Vehicles) */}
+                        {/* 3.1 STORE MANAGEMENT */}
                         <div className="space-y-0.5">
                           <button
                             type="button"
-                            onClick={(e) => toggleSubGroup('store-sale', e)}
-                            className="w-full flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded cursor-pointer"
+                            onClick={(e) => toggleSubGroup('store-management', e)}
+                            className="w-full flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded cursor-pointer"
                           >
                             <span className="flex items-center gap-1.5 truncate">
-                              <Pickaxe className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                              <span className="truncate">Coal Management</span>
+                              <Boxes className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                              <span className="truncate font-bold">STORE MANAGEMENT</span>
                             </span>
-                            {expandedSubGroups['store-sale'] ? (
+                            {expandedSubGroups['store-management'] !== false ? (
                               <ChevronDown className="w-3 h-3 text-slate-400" />
                             ) : (
                               <ChevronRight className="w-3 h-3 text-slate-400" />
                             )}
                           </button>
 
-                          {expandedSubGroups['store-sale'] && (
-                            <div className="pl-3 space-y-1.5 border-l border-slate-200 ml-2 mt-1">
-                              {/* 3.1.0 Daily Coal Production / Stock */}
-                              <div className="space-y-0.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => toggleSubGroup('store-coal-production', e)}
-                                  className="w-full flex items-center justify-between px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-900 rounded cursor-pointer"
-                                >
-                                  <span className="truncate font-semibold text-emerald-800">Daily Production / Stock</span>
-                                  {expandedSubGroups['store-coal-production'] ? (
-                                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                                  ) : (
-                                    <ChevronRight className="w-3 h-3 text-slate-400" />
-                                  )}
-                                </button>
-                                {expandedSubGroups['store-coal-production'] && (
-                                  <div className="pl-3 space-y-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'coal_management', 'add_coal_production')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'coal_management', 'add_coal_production')
-                                          ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Plus className="w-3 h-3 text-emerald-600 shrink-0" />
-                                      <span>Add Daily Production</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'coal_management', 'view_coal_production')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'coal_management', 'view_coal_production')
-                                          ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Table className="w-3 h-3 text-slate-400 shrink-0" />
-                                      <span>Production Register</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* 3.1.1 New Coal Sell (POS Entry Form) */}
+                          {expandedSubGroups['store-management'] !== false && (
+                            <div className="pl-3 space-y-1 border-l border-slate-200 ml-2 mt-1">
+                              {/* Items */}
                               <button
                                 type="button"
-                                onClick={() => handleOperationClick('store_sales', 'sale', 'record_coal_sell')}
+                                onClick={() => handleOperationClick('store_sales', 'store_management', 'items')}
                                 className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                  isOpActive('store_sales', 'sale', 'record_coal_sell')
-                                    ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                }`}
-                              >
-                                <FileCheck2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>New Coal Sell (POS Form)</span>
-                              </button>
-
-                              {/* 3.1.2 Daily CSR Entries */}
-                              <button
-                                type="button"
-                                onClick={() => handleOperationClick('store_sales', 'sale', 'daily_csr_entries')}
-                                className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                  isOpActive('store_sales', 'sale', 'daily_csr_entries')
+                                  isOpActive('store_sales', 'store_management', 'items')
                                     ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <Table className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>Daily CSR Entries</span>
+                                <span>🏷️</span>
+                                <span>Items (Add / View)</span>
                               </button>
 
-                              {/* 3.1.3 Total CSR (sales report) */}
-                              <div className="space-y-0.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => toggleSubGroup('store-sale-coal-report', e)}
-                                  className="w-full flex items-center justify-between px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-900 rounded cursor-pointer"
-                                >
-                                  <span className="truncate">Total CSR (sales report)</span>
-                                  {expandedSubGroups['store-sale-coal-report'] ? (
-                                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                                  ) : (
-                                    <ChevronRight className="w-3 h-3 text-slate-400" />
-                                  )}
-                                </button>
-                                {expandedSubGroups['store-sale-coal-report'] && (
-                                  <div className="pl-3 space-y-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'total_csr')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'total_csr') || isOpActive('store_sales', 'sale', 'coal_sales_report')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <BarChart3 className="w-3 h-3 text-blue-600 shrink-0" />
-                                      <span>Sales Report Matrix</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'coal_sales_report_record')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'coal_sales_report_record')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Plus className="w-3 h-3 text-emerald-600 shrink-0" />
-                                      <span>Record Coal Sell</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'coal_sales_report_partner_col')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'coal_sales_report_partner_col')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Handshake className="w-3 h-3 text-blue-600 shrink-0" />
-                                      <span>Add Partners Column</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              {/* Item Stock */}
+                              <button
+                                type="button"
+                                onClick={() => handleOperationClick('store_sales', 'store_management', 'item_stock')}
+                                className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                  isOpActive('store_sales', 'store_management', 'item_stock')
+                                    ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span>📥</span>
+                                <span>Item Stock & Report</span>
+                              </button>
 
-                              {/* 3.1.4 Partners (Add Partners, View Partners) */}
-                              <div className="space-y-0.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => toggleSubGroup('store-sale-partners', e)}
-                                  className="w-full flex items-center justify-between px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-900 rounded cursor-pointer"
-                                >
-                                  <span className="truncate">Partners</span>
-                                  {expandedSubGroups['store-sale-partners'] ? (
-                                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                                  ) : (
-                                    <ChevronRight className="w-3 h-3 text-slate-400" />
-                                  )}
-                                </button>
-                                {expandedSubGroups['store-sale-partners'] && (
-                                  <div className="pl-3 space-y-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'add_partner')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'add_partner')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Plus className="w-3 h-3 text-blue-600 shrink-0" />
-                                      <span>Add Partners</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'view_partners')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'view_partners')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Table className="w-3 h-3 text-slate-400 shrink-0" />
-                                      <span>View Partners</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              {/* Item Consumption */}
+                              <button
+                                type="button"
+                                onClick={() => handleOperationClick('store_sales', 'store_management', 'item_consumption')}
+                                className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                  isOpActive('store_sales', 'store_management', 'item_consumption')
+                                    ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span>⛽</span>
+                                <span>Item Consumption</span>
+                              </button>
 
-                              {/* 3.1.5 Buyers (Add Buyers, View Buyers) */}
-                              <div className="space-y-0.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => toggleSubGroup('store-sale-buyers', e)}
-                                  className="w-full flex items-center justify-between px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-900 rounded cursor-pointer"
-                                >
-                                  <span className="truncate">Buyers</span>
-                                  {expandedSubGroups['store-sale-buyers'] ? (
-                                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                                  ) : (
-                                    <ChevronRight className="w-3 h-3 text-slate-400" />
-                                  )}
-                                </button>
-                                {expandedSubGroups['store-sale-buyers'] && (
-                                  <div className="pl-3 space-y-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'add_buyer')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'add_buyer')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Plus className="w-3 h-3 text-blue-600 shrink-0" />
-                                      <span>Add Buyers</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'view_buyers')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'view_buyers')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Table className="w-3 h-3 text-slate-400 shrink-0" />
-                                      <span>View Buyers</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              {/* Item Settings */}
+                              <button
+                                type="button"
+                                onClick={() => handleOperationClick('store_sales', 'store_management', 'item_setting')}
+                                className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                  isOpActive('store_sales', 'store_management', 'item_setting')
+                                    ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span>⚙️</span>
+                                <span>Item Settings (Categories, Units, Mines, Vehicles)</span>
+                              </button>
 
-                              {/* 3.1.6 Vehicles (Manage Vehicle, Add Vehicle, View Vehicle, Add Vehicle Consumption, View Consumption Table) */}
-                              <div className="space-y-0.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => toggleSubGroup('store-sale-vehicles', e)}
-                                  className="w-full flex items-center justify-between px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:text-slate-900 rounded cursor-pointer"
-                                >
-                                  <span className="truncate">Vehicles</span>
-                                  {expandedSubGroups['store-sale-vehicles'] ? (
-                                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                                  ) : (
-                                    <ChevronRight className="w-3 h-3 text-slate-400" />
-                                  )}
-                                </button>
-                                {expandedSubGroups['store-sale-vehicles'] && (
-                                  <div className="pl-3 space-y-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'manage_vehicle')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'manage_vehicle')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Truck className="w-3 h-3 text-teal-600 shrink-0" />
-                                      <span>Manage Vehicle</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'add_vehicle')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'add_vehicle')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Plus className="w-3 h-3 text-blue-600 shrink-0" />
-                                      <span>Add Vehicle</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'view_vehicle')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'view_vehicle')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Table className="w-3 h-3 text-slate-400 shrink-0" />
-                                      <span>View Vehicle</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'add_consumption')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'add_consumption')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Plus className="w-3 h-3 text-amber-600 shrink-0" />
-                                      <span>Add Vehicle Consumption</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOperationClick('store_sales', 'sale', 'view_consumption')}
-                                      className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                        isOpActive('store_sales', 'sale', 'view_consumption')
-                                          ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
-                                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                      }`}
-                                    >
-                                      <Table className="w-3 h-3 text-slate-400 shrink-0" />
-                                      <span>View Consumption Table</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
+                              {/* Store Reports */}
+                              <button
+                                type="button"
+                                onClick={() => handleOperationClick('store_sales', 'store_management', 'reports')}
+                                className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                  isOpActive('store_sales', 'store_management', 'reports')
+                                    ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                }`}
+                              >
+                                <span>📊</span>
+                                <span>Store Reports & Audits</span>
+                              </button>
                             </div>
                           )}
                         </div>
 
-                        {/* 3.2 Stock Report (Add Item, View Items, Add Stock, View Stock, Store Summary) */}
-                        <div className="space-y-0.5">
+                        {/* 3.2 COAL MANAGEMENT */}
+                        <div className="space-y-0.5 pt-1">
                           <button
                             type="button"
-                            onClick={(e) => toggleSubGroup('store-stock-report', e)}
-                            className="w-full flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded cursor-pointer"
+                            onClick={(e) => toggleSubGroup('coal-management-group', e)}
+                            className="w-full flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded cursor-pointer"
                           >
                             <span className="flex items-center gap-1.5 truncate">
-                              <Boxes className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                              <span className="truncate">Stock Report</span>
+                              <Pickaxe className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+                              <span className="truncate font-bold">COAL MANAGEMENT</span>
                             </span>
-                            {expandedSubGroups['store-stock-report'] ? (
+                            {expandedSubGroups['coal-management-group'] !== false ? (
                               <ChevronDown className="w-3 h-3 text-slate-400" />
                             ) : (
                               <ChevronRight className="w-3 h-3 text-slate-400" />
                             )}
                           </button>
-                          {expandedSubGroups['store-stock-report'] && (
-                            <div className="pl-4 space-y-0.5">
+
+                          {expandedSubGroups['coal-management-group'] !== false && (
+                            <div className="pl-3 space-y-1 border-l border-slate-200 ml-2 mt-1">
+                              {/* Coal Stock */}
                               <button
                                 type="button"
-                                onClick={() => handleOperationClick('store_sales', 'stock_report', 'add_item')}
+                                onClick={() => handleOperationClick('store_sales', 'coal_management', 'coal_stock')}
                                 className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                  isOpActive('store_sales', 'stock_report', 'add_item')
-                                    ? 'bg-amber-50 text-amber-900 font-semibold border-l-2 border-amber-600'
+                                  isOpActive('store_sales', 'coal_management', 'coal_stock')
+                                    ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <Plus className="w-3 h-3 text-amber-600 shrink-0" />
-                                <span>Add Item</span>
+                                <span>📦</span>
+                                <span>Coal Stock (Inflow & Opening)</span>
                               </button>
+
+                              {/* Coal Sell & Reports */}
                               <button
                                 type="button"
-                                onClick={() => handleOperationClick('store_sales', 'stock_report', 'view_items')}
+                                onClick={() => handleOperationClick('store_sales', 'coal_management', 'coal_sell')}
                                 className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                  isOpActive('store_sales', 'stock_report', 'view_items')
-                                    ? 'bg-amber-50 text-amber-900 font-semibold border-l-2 border-amber-600'
+                                  isOpActive('store_sales', 'coal_management', 'coal_sell')
+                                    ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <Table className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span>View Items</span>
+                                <span>🧾</span>
+                                <span>Coal Sell POS & Reports</span>
                               </button>
+
+                              {/* Partner Management */}
                               <button
                                 type="button"
-                                onClick={() => handleOperationClick('store_sales', 'stock_report', 'add_stock')}
+                                onClick={() => handleOperationClick('store_sales', 'coal_management', 'partners')}
                                 className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                  isOpActive('store_sales', 'stock_report', 'add_stock')
-                                    ? 'bg-amber-50 text-amber-900 font-semibold border-l-2 border-amber-600'
+                                  isOpActive('store_sales', 'coal_management', 'partners')
+                                    ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <Plus className="w-3 h-3 text-amber-600 shrink-0" />
-                                <span>Add Stock</span>
+                                <span>🤝</span>
+                                <span>Partner Management</span>
                               </button>
+
+                              {/* Buyer Management */}
                               <button
                                 type="button"
-                                onClick={() => handleOperationClick('store_sales', 'stock_report', 'view_stock')}
+                                onClick={() => handleOperationClick('store_sales', 'coal_management', 'buyers')}
                                 className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                  isOpActive('store_sales', 'stock_report', 'view_stock')
-                                    ? 'bg-amber-50 text-amber-900 font-semibold border-l-2 border-amber-600'
+                                  isOpActive('store_sales', 'coal_management', 'buyers')
+                                    ? 'bg-blue-50 text-blue-900 font-semibold border-l-2 border-blue-600'
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <Table className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span>View Stock</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleOperationClick('store_sales', 'stock_report', 'store_summary')}
-                                className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                  isOpActive('store_sales', 'stock_report', 'store_summary')
-                                    ? 'bg-amber-50 text-amber-900 font-semibold border-l-2 border-amber-600'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                                }`}
-                              >
-                                <FileSpreadsheet className="w-3 h-3 text-purple-600 shrink-0" />
-                                <span>Store Summary</span>
+                                <span>🏢</span>
+                                <span>Buyer Management</span>
                               </button>
                             </div>
                           )}
-                        </div>
-
-                        {/* 3.3 Company Setting */}
-                        <div>
-                          <button
-                            type="button"
-                            onClick={() => handleOperationClick('store_sales', 'company_setting', 'company_setting')}
-                            className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                              isOpActive('store_sales', 'company_setting', 'company_setting')
-                                ? 'bg-slate-100 text-slate-900 font-semibold border-l-2 border-slate-700'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                            }`}
-                          >
-                            <Settings className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                            <span>Company Setting</span>
-                          </button>
                         </div>
                       </div>
                     )}
