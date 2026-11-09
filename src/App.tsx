@@ -6,7 +6,9 @@ import {
   LogOut, 
   RefreshCw, 
   Database, 
-  Activity 
+  Activity,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { DatabaseDiagnosticsModal } from './components/common/DatabaseDiagnosticsModal';
 import { 
@@ -219,6 +221,23 @@ export default function App() {
   });
   const [activeNavTarget, setActiveNavTarget] = useState<NavTarget | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ahcm_erp_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('ahcm_erp_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const handleNavigateOperation = (target: NavTarget) => {
     setCurrentModule(target.module);
@@ -1645,6 +1664,8 @@ export default function App() {
         onNavigateOperation={handleNavigateOperation}
         isOpenMobile={isMobileSidebarOpen}
         onToggleMobile={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapse}
         pendingApprovalsCount={pendingApprovalsCount}
         currentUser={currentUser}
         onLogout={handleLogout}
@@ -1658,10 +1679,25 @@ export default function App() {
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
               aria-label="Open sidebar menu"
             >
               <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Desktop Collapsible Sidebar Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleSidebarCollapse}
+              className="hidden lg:flex p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+              title={isSidebarCollapsed ? "Expand sidebar (Full view)" : "Collapse sidebar (Slim icon view)"}
+              aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isSidebarCollapsed ? (
+                <PanelLeftOpen className="w-5 h-5 text-blue-600" />
+              ) : (
+                <PanelLeftClose className="w-5 h-5 text-slate-600" />
+              )}
             </button>
 
             {/* Breadcrumb Navigation */}

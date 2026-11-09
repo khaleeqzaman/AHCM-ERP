@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   ShoppingCart, 
   LayoutDashboard, 
@@ -28,7 +28,9 @@ import {
   FileCheck,
   Edit3,
   Pickaxe,
-  BarChart3
+  BarChart3,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import { NavModule, NavTarget } from '../types';
 import { User, UserRole } from '../types/user';
@@ -40,6 +42,8 @@ interface SidebarProps {
   onNavigateOperation: (target: NavTarget) => void;
   isOpenMobile: boolean;
   onToggleMobile: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
   pendingApprovalsCount?: number;
   currentUser: User;
   onLogout: () => void;
@@ -61,44 +65,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNavigateOperation,
   isOpenMobile,
   onToggleMobile,
+  isCollapsed: propIsCollapsed,
+  onToggleCollapse,
   pendingApprovalsCount = 0,
   currentUser,
   onLogout,
 }) => {
-  // Collapsible state for top-level modules
-  const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({
-    treasury: true,
-    purchase: true,
-    store_sales: true,
-    accounting: true,
-  });
-
-  // Collapsible state for nested sub-groups inside modules
-  const [expandedSubGroups, setExpandedSubGroups] = useState<Record<string, boolean>>({
-    'treasury-cash-book': true,
-    'treasury-credit-book': true,
-    'treasury-bank-management': true,
-    'purchase-demand': true,
-    'purchase-purchase': true,
-    'store-sale': true,
-    'store-coal-production': true,
-    'store-sale-pos': true,
-    'store-sale-coal-report': true,
-    'store-sale-partners': true,
-    'store-sale-buyers': true,
-    'store-sale-vehicles': true,
-    'store-stock-report': true,
-  });
-
-  // Auto-expand current active module
-  useEffect(() => {
-    if (['treasury', 'purchase', 'store_sales', 'accounting'].includes(currentModule)) {
-      setExpandedModules((prev) => ({
-        ...prev,
-        [currentModule]: true,
-      }));
+  // Collapsible slim sidebar state
+  const [internalCollapsed, setInternalCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ahcm_erp_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
     }
-  }, [currentModule]);
+  });
+
+  const isCollapsed = propIsCollapsed !== undefined ? propIsCollapsed : internalCollapsed;
+
+  const handleToggleCollapse = (explicitValue?: boolean) => {
+    const next = explicitValue !== undefined ? explicitValue : !isCollapsed;
+    setInternalCollapsed(next);
+    try {
+      localStorage.setItem('ahcm_erp_sidebar_collapsed', String(next));
+    } catch {}
+    if (onToggleCollapse) {
+      onToggleCollapse();
+    }
+  };
+
+  // Collapsible state for top-level menus - COLLAPSED BY DEFAULT
+  const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+
+  // Collapsible state for nested sub-groups inside modules - COLLAPSED BY DEFAULT
+  const [expandedSubGroups, setExpandedSubGroups] = useState<Record<string, boolean>>({});
 
   const toggleModuleExpand = (moduleId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -289,62 +288,139 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white text-slate-700 flex flex-col border-r border-slate-200 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
-          isOpenMobile ? 'translate-x-0 shadow-xl' : '-translate-x-full'
+        className={`fixed inset-y-0 left-0 z-50 bg-white text-slate-700 flex flex-col border-r border-slate-200 transition-all duration-300 ease-in-out lg:static lg:translate-x-0 ${
+          isOpenMobile 
+            ? 'translate-x-0 w-72 shadow-xl' 
+            : `-translate-x-full lg:translate-x-0 ${isCollapsed ? 'lg:w-[72px]' : 'lg:w-72'}`
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between px-5 h-16 border-b border-slate-200 shrink-0 bg-white">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm tracking-tight shadow-xs">
-              <Building2 className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-sm font-bold tracking-tight text-slate-900 block">
-                AHCM ERP
-              </span>
-              <span className="text-[11px] text-slate-500 block -mt-0.5">
-                Enterprise Suite
-              </span>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="lg:hidden p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
-            onClick={onToggleMobile}
-            aria-label="Close sidebar"
-          >
-            <X className="w-5 h-5" />
-          </button>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center px-2' : 'justify-between px-4'} h-16 border-b border-slate-200 shrink-0 bg-white transition-all`}>
+          {isCollapsed ? (
+            <button
+              type="button"
+              onClick={() => handleToggleCollapse(false)}
+              className="w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white font-bold shadow-xs transition-transform hover:scale-105 cursor-pointer"
+              title="Expand sidebar (Full view)"
+              aria-label="Expand sidebar"
+            >
+              <Building2 className="w-5 h-5" />
+            </button>
+          ) : (
+            <>
+              <div className="flex items-center gap-2.5 truncate">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm tracking-tight shadow-xs shrink-0">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div className="truncate">
+                  <span className="text-sm font-bold tracking-tight text-slate-900 block truncate">
+                    AHCM ERP
+                  </span>
+                  <span className="text-[11px] text-slate-500 block -mt-0.5 truncate">
+                    Enterprise Suite
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleToggleCollapse(true)}
+                  className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  title="Collapse sidebar (Slim icon view)"
+                  aria-label="Collapse sidebar"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  className="lg:hidden p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+                  onClick={onToggleMobile}
+                  aria-label="Close sidebar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Current Active Role Indicator */}
-        <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              Active Session
-            </span>
-            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-semibold ${roleBadge.color}`}>
-              {roleBadge.label}
-            </span>
+        {isCollapsed ? (
+          <div className="py-3 px-2 border-b border-slate-200 flex justify-center bg-slate-50/80">
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold border ${roleBadge.color} shadow-xs cursor-default`}
+              title={`${currentUser.name} (@${currentUser.username}) - ${roleBadge.label} (${currentUser.department || 'All'})`}
+            >
+              {currentUser.name ? currentUser.name.substring(0, 2).toUpperCase() : 'U'}
+            </div>
           </div>
-          <div className="text-xs font-semibold text-slate-900 truncate mt-1">
-            {currentUser.name}
+        ) : (
+          <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-200">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Active Session
+              </span>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-semibold ${roleBadge.color}`}>
+                {roleBadge.label}
+              </span>
+            </div>
+            <div className="text-xs font-semibold text-slate-900 truncate mt-1">
+              {currentUser.name}
+            </div>
+            <div className="text-[11px] text-slate-500 truncate">
+              @{currentUser.username} · {currentUser.department}
+            </div>
           </div>
-          <div className="text-[11px] text-slate-500 truncate">
-            @{currentUser.username} · {currentUser.department}
-          </div>
-        </div>
+        )}
 
         {/* Navigation Menu */}
-        <div className="flex-1 py-3 px-2.5 overflow-y-auto space-y-1 text-xs">
-          <div className="px-2.5 pb-2 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-            {currentUser.role === 'admin' ? 'Administration & Modules' : 'Assigned Workspace'}
-          </div>
+        <div className={`flex-1 py-3 ${isCollapsed ? 'px-2 space-y-2' : 'px-2.5 space-y-1'} overflow-y-auto overflow-x-hidden text-xs`}>
+          {!isCollapsed && (
+            <div className="px-2.5 pb-2 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+              {currentUser.role === 'admin' ? 'Administration & Modules' : 'Assigned Workspace'}
+            </div>
+          )}
 
           {navItems.map((item) => {
             const isModuleActive = currentModule === item.id;
             const isExpanded = !!expandedModules[item.id];
+
+            if (isCollapsed) {
+              return (
+                <div key={item.id} className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // On slim collapse, clicking expands the sidebar and opens the module's sub-items
+                      handleToggleCollapse(false);
+                      onSelectModule(item.id);
+                      if (item.hasSubmenu) {
+                        setExpandedModules({ [item.id]: true });
+                      }
+                    }}
+                    className={`relative w-11 h-11 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                      isModuleActive
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-semibold'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                    title={`${item.label}${item.hasSubmenu ? ' (Click to expand)' : ''}${item.badgeCount ? ` - ${item.badgeCount} pending` : ''}`}
+                    aria-label={item.label}
+                  >
+                    <span className="scale-110">{item.icon}</span>
+
+                    {typeof item.badgeCount === 'number' && item.badgeCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-purple-600 text-white text-[10px] font-bold font-mono rounded-full flex items-center justify-center shadow-xs border border-white">
+                        {item.badgeCount}
+                      </span>
+                    )}
+
+                    {item.hasSubmenu && !isModuleActive && (
+                      <span className="absolute bottom-1 right-1 w-1.5 h-1.5 bg-slate-400 rounded-full" />
+                    )}
+                  </button>
+                </div>
+              );
+            }
 
             return (
               <div key={item.id} className="space-y-0.5">
@@ -357,6 +433,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}
                   onClick={() => {
                     onSelectModule(item.id);
+                    if (item.hasSubmenu) {
+                      setExpandedModules((prev) => ({
+                        ...prev,
+                        [item.id]: !prev[item.id],
+                      }));
+                    }
                     if (!item.hasSubmenu && isOpenMobile) {
                       onToggleMobile();
                     }
@@ -780,14 +862,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <Boxes className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
                               <span className="truncate font-bold">STORE MANAGEMENT</span>
                             </span>
-                            {expandedSubGroups['store-management'] !== false ? (
+                            {expandedSubGroups['store-management'] ? (
                               <ChevronDown className="w-3 h-3 text-slate-400" />
                             ) : (
                               <ChevronRight className="w-3 h-3 text-slate-400" />
                             )}
                           </button>
 
-                          {expandedSubGroups['store-management'] !== false && (
+                          {expandedSubGroups['store-management'] && (
                             <div className="pl-3 space-y-1 border-l border-slate-200 ml-2 mt-1">
                               {/* Items */}
                               <button
@@ -873,14 +955,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <Pickaxe className="w-3.5 h-3.5 text-blue-700 shrink-0" />
                               <span className="truncate font-bold">COAL MANAGEMENT</span>
                             </span>
-                            {expandedSubGroups['coal-management-group'] !== false ? (
+                            {expandedSubGroups['coal-management-group'] ? (
                               <ChevronDown className="w-3 h-3 text-slate-400" />
                             ) : (
                               <ChevronRight className="w-3 h-3 text-slate-400" />
                             )}
                           </button>
 
-                          {expandedSubGroups['coal-management-group'] !== false && (
+                          {expandedSubGroups['coal-management-group'] && (
                             <div className="pl-3 space-y-1 border-l border-slate-200 ml-2 mt-1">
                               {/* Coal Stock */}
                               <button
@@ -1048,16 +1130,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Sidebar Footer with Sign Out for All Users */}
-        <div className="p-3 border-t border-slate-200 shrink-0 bg-slate-50 space-y-2">
-          <button
-            type="button"
-            onClick={onLogout}
-            title="Sign out of current account"
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 active:bg-red-200 border border-red-200 hover:border-red-300 transition-colors cursor-pointer shadow-xs"
-          >
-            <LogOut className="w-4 h-4 text-red-600" />
-            <span>Sign Out ({currentUser.username})</span>
-          </button>
+        <div className={`p-3 border-t border-slate-200 shrink-0 bg-slate-50 ${isCollapsed ? 'flex justify-center px-2' : 'space-y-2'}`}>
+          {isCollapsed ? (
+            <button
+              type="button"
+              onClick={onLogout}
+              title={`Sign Out (${currentUser.username})`}
+              className="w-11 h-11 rounded-xl flex items-center justify-center text-red-600 hover:bg-red-100 active:bg-red-200 transition-colors cursor-pointer"
+              aria-label="Sign Out"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onLogout}
+              title="Sign out of current account"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 active:bg-red-200 border border-red-200 hover:border-red-300 transition-colors cursor-pointer shadow-xs"
+            >
+              <LogOut className="w-4 h-4 text-red-600" />
+              <span>Sign Out ({currentUser.username})</span>
+            </button>
+          )}
         </div>
       </aside>
     </>
