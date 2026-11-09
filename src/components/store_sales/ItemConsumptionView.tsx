@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Fuel, 
   Truck, 
@@ -9,7 +9,6 @@ import {
   Printer, 
   Trash2, 
   Edit2, 
-  Calendar, 
   CheckCircle2, 
   AlertCircle, 
   X, 
@@ -17,19 +16,23 @@ import {
   Layers, 
   Eye, 
   FileSpreadsheet,
-  AlertTriangle
+  AlertTriangle,
+  ArrowUpDown,
+  Building2,
+  Calendar,
+  Package
 } from 'lucide-react';
-import { 
+import type { 
   ItemConsumptionRecord, 
   StoreItem, 
   VehicleRecord, 
   MineRecord, 
   ItemConsumptionSubTab,
   ConsumptionTargetType 
-} from '../../types/storeSales';
-import { DatePickerInput } from '../common/DatePickerInput';
-import { ConfirmModal } from './ConfirmModal';
-import { formatWholeNumber } from '../../utils/formatters';
+} from '../../types/storeSales.ts';
+import { DatePickerInput } from '../common/DatePickerInput.tsx';
+import ConfirmModal from './ConfirmModal.tsx';
+import { formatWholeNumber } from '../../utils/formatters.ts';
 
 interface ItemConsumptionViewProps {
   consumptions: ItemConsumptionRecord[];
@@ -44,25 +47,34 @@ interface ItemConsumptionViewProps {
 }
 
 export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
-  consumptions,
-  items,
-  vehicles,
-  mines,
-  itemStockMap,
+  consumptions = [],
+  items = [],
+  vehicles = [],
+  mines = [],
+  itemStockMap = {},
   onAddConsumption,
   onUpdateConsumption,
   onDeleteConsumption,
   initialSubTab = 'view_consumption',
 }) => {
+  // Navigation tabs: Add Consumption | View Item Consumption | Item Consumption Report
   const [activeSubTab, setActiveSubTab] = useState<ItemConsumptionSubTab>(initialSubTab);
-  const [consumptionViewFilter, setConsumptionViewFilter] = useState<'all' | 'vehicle' | 'mine' | 'item'>('all');
+
+  // In View Item Consumption: Sub-views: 'vehicle_wise' | 'mine_wise' | 'item_wise' | 'all_logs'
+  const [viewGrouping, setViewGrouping] = useState<'vehicle_wise' | 'mine_wise' | 'item_wise' | 'all_logs'>('all_logs');
+
+  // Search and date filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [targetFilter, setTargetFilter] = useState('all');
+  const [filterType, setFilterType] = useState<'all' | 'vehicle' | 'mine'>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Add Form State
+  // Sorting state for tables
+  const [sortField, setSortField] = useState<'date' | 'quantity' | 'itemName' | 'targetName'>('date');
+  const [sortAsc, setSortAsc] = useState(false);
+
+  // Form State for Add Consumption
   const [formConsumptionType, setFormConsumptionType] = useState<ConsumptionTargetType>('vehicle');
   const [formDate, setFormDate] = useState(() => {
     const today = new Date();
@@ -80,16 +92,40 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
   // Edit Modal State
   const [editingRecord, setEditingRecord] = useState<ItemConsumptionRecord | null>(null);
+  const [editQuantity, setEditQuantity] = useState<number | ''>('');
+  const [editDate, setEditDate] = useState('');
+  const [editOperator, setEditOperator] = useState('');
+  const [editRemarks, setEditRemarks] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
 
   // Report Item Visibility Filter (allow user to add/remove items from report table)
   const [selectedReportItemIds, setSelectedReportItemIds] = useState<string[]>(() => items.map(i => i.id));
 
-  // Sync selected items if new items arrive
-  React.useEffect(() => {
-    if (selectedReportItemIds.length === 0 && items.length > 0) {
+  // Sync selected item ids when items array changes
+  useEffect(() => {
+    if (items.length > 0 && selectedReportItemIds.length === 0) {
       setSelectedReportItemIds(items.map(i => i.id));
     }
-  }, [items, selectedReportItemIds.length]);
+  }, [items]);
+
+  // Ensure form selections stay valid when data arrives or changes
+  useEffect(() => {
+    if (!formItemId && items.length > 0) {
+      setFormItemId(items[0].id);
+    }
+  }, [items, formItemId]);
+
+  useEffect(() => {
+    if (!formVehicleId && vehicles.length > 0) {
+      setFormVehicleId(vehicles[0].id);
+    }
+  }, [vehicles, formVehicleId]);
+
+  useEffect(() => {
+    if (!formMineId && mines.length > 0) {
+      setFormMineId(mines[0].id);
+    }
+  }, [mines, formMineId]);
 
   // Confirmation Modal
   const [confirmModal, setConfirmModal] = useState<{
@@ -111,13 +147,45 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // Safe selected item in Add Form
   const selectedItem = useMemo(() => {
     return items.find(i => i.id === formItemId);
   }, [items, formItemId]);
 
+  // Current live stock quantity for the currently selected item
   const currentAvailableStock = useMemo(() => {
-    return formItemId ? (itemStockMap[formItemId] || 0) : 0;
+    if (!formItemId) return 0;
+    return itemStockMap[formItemId] ?? 0;
   }, [itemStockMap, formItemId]);
+
+  // Safe sanitization of consumption records to prevent any runtime undefined errors
+  const safeConsumptions = useMemo(() => {
+    return (consumptions || []).map((c, idx) => {
+      const targetName = c.targetName || c.vehicleNo || c.mineName || (c.consumptionType === 'mine' ? 'Mining Site' : 'Fleet Unit');
+      const itemCode = c.itemCode || 'ITM-00';
+      const itemName = c.itemName || 'Store Item';
+      const unit = c.unit || 'Units';
+      const qty = Number(c.quantity ?? 0);
+      const date = c.date || '01-01-2026';
+      const type = c.consumptionType === 'mine' ? 'mine' : 'vehicle';
+
+      return {
+        ...c,
+        id: c.id || `con-safe-${idx + 1}`,
+        date,
+        consumptionType: type as ConsumptionTargetType,
+        targetId: c.targetId || (type === 'mine' ? (mines[0]?.id || 'm-1') : (vehicles[0]?.id || 'v-1')),
+        targetName,
+        itemId: c.itemId || (items[0]?.id || 'it-1'),
+        itemCode,
+        itemName,
+        unit,
+        quantity: isNaN(qty) ? 0 : qty,
+        operatorName: c.operatorName || c.driverName || '',
+        remarks: c.remarks || '',
+      };
+    });
+  }, [consumptions, mines, vehicles, items]);
 
   // -------------------------------------------------------------
   // Add Consumption Submit
@@ -126,21 +194,21 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     e.preventDefault();
     setFormError(null);
 
-    if (!formItemId) {
-      setFormError('Please select an item.');
+    if (!formItemId || !selectedItem) {
+      setFormError('Please select a valid item from the catalog.');
       return;
     }
 
     const qty = Number(formQuantity);
-    if (!qty || qty <= 0) {
-      setFormError('Consumption quantity must be greater than 0.');
+    if (!qty || isNaN(qty) || qty <= 0) {
+      setFormError('Consumption quantity must be a positive number greater than 0.');
       return;
     }
 
     // Strict validation: cannot consume more than available stock!
     if (qty > currentAvailableStock) {
       setFormError(
-        `Insufficient Stock! Available stock for "${selectedItem?.itemName}" is only ${formatWholeNumber(currentAvailableStock)} ${selectedItem?.unitSymbol}. You cannot issue ${formatWholeNumber(qty)} ${selectedItem?.unitSymbol}.`
+        `Insufficient Stock! Available stock for "${selectedItem.itemName}" is only ${formatWholeNumber(currentAvailableStock)} ${selectedItem.unitSymbol}. You cannot issue ${formatWholeNumber(qty)} ${selectedItem.unitSymbol}.`
       );
       return;
     }
@@ -151,7 +219,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     if (formConsumptionType === 'vehicle') {
       const veh = vehicles.find(v => v.id === formVehicleId);
       if (!veh) {
-        setFormError('Please select a valid vehicle / machinery.');
+        setFormError('Please select a valid vehicle / equipment.');
         return;
       }
       targetId = veh.id;
@@ -166,13 +234,13 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
       targetName = mine.name;
     }
 
-    const item = selectedItem!;
+    const item = selectedItem;
 
     setConfirmModal({
       isOpen: true,
       title: 'Confirm Item Consumption Issue',
-      message: `Are you sure you want to issue consumption:\n\n• Target: ${targetName}\n• Item: ${item.itemName} (${item.itemCode})\n• Quantity: ${formatWholeNumber(qty)} ${item.unitSymbol}\n• Remaining Stock After Issue: ${formatWholeNumber(currentAvailableStock - qty)} ${item.unitSymbol}\n• Date: ${formDate}`,
-      confirmText: 'Issue Consumption',
+      message: `Are you sure you want to record this consumption?\n\n• Type: ${formConsumptionType === 'vehicle' ? 'Vehicle Consumption' : 'Mine Consumption'}\n• Target: ${targetName}\n• Item: ${item.itemName} (${item.itemCode})\n• Quantity: ${formatWholeNumber(qty)} ${item.unitSymbol}\n• Remaining Stock After Issue: ${formatWholeNumber(currentAvailableStock - qty)} ${item.unitSymbol}\n• Date: ${formDate}`,
+      confirmText: 'Confirm & Issue',
       variant: 'primary',
       action: () => {
         const newRecord: ItemConsumptionRecord = {
@@ -184,7 +252,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
           itemId: item.id,
           itemCode: item.itemCode,
           itemName: item.itemName,
-          unit: item.unitSymbol || (item as any).unit || 'Units',
+          unit: item.unitSymbol || 'Units',
           quantity: qty,
           operatorName: formOperator.trim(),
           remarks: formRemarks.trim(),
@@ -192,7 +260,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
         };
 
         onAddConsumption(newRecord);
-        showToast(`Issued ${formatWholeNumber(qty)} ${item.unitSymbol} of ${item.itemName} to ${targetName}. Stock decreased.`);
+        showToast(`Successfully issued ${formatWholeNumber(qty)} ${item.unitSymbol} of ${item.itemName} to ${targetName}. Stock decreased.`);
         setFormQuantity('');
         setFormRemarks('');
         setFormOperator('');
@@ -204,17 +272,32 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   // -------------------------------------------------------------
   // Edit Consumption Submit
   // -------------------------------------------------------------
+  const handleOpenEdit = (rec: ItemConsumptionRecord) => {
+    setEditingRecord(rec);
+    setEditDate(rec.date);
+    setEditQuantity(rec.quantity);
+    setEditOperator(rec.operatorName || '');
+    setEditRemarks(rec.remarks || '');
+    setEditError(null);
+  };
+
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRecord) return;
+    setEditError(null);
 
-    const qty = Number(formQuantity);
-    if (!qty || qty <= 0) return;
+    const qty = Number(editQuantity);
+    if (!qty || isNaN(qty) || qty <= 0) {
+      setEditError('Quantity must be greater than 0.');
+      return;
+    }
 
     // Available stock + previous quantity since we are editing
-    const effectiveStock = (itemStockMap[editingRecord.itemId] || 0) + editingRecord.quantity;
+    const currentBal = itemStockMap[editingRecord.itemId] ?? 0;
+    const effectiveStock = currentBal + (editingRecord.quantity || 0);
+
     if (qty > effectiveStock) {
-      setFormError(`Insufficient stock! Maximum allowed is ${formatWholeNumber(effectiveStock)}.`);
+      setEditError(`Insufficient stock! Maximum allowed is ${formatWholeNumber(effectiveStock)} ${editingRecord.unit}.`);
       return;
     }
 
@@ -227,10 +310,10 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
       action: () => {
         onUpdateConsumption({
           ...editingRecord,
-          date: formDate,
+          date: editDate,
           quantity: qty,
-          operatorName: formOperator.trim(),
-          remarks: formRemarks.trim(),
+          operatorName: editOperator.trim(),
+          remarks: editRemarks.trim(),
         });
         showToast(`Consumption entry updated.`);
         setEditingRecord(null);
@@ -238,20 +321,12 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     });
   };
 
-  const handleOpenEdit = (rec: ItemConsumptionRecord) => {
-    setEditingRecord(rec);
-    setFormDate(rec.date);
-    setFormQuantity(rec.quantity);
-    setFormOperator(rec.operatorName || '');
-    setFormRemarks(rec.remarks || '');
-    setFormError(null);
-  };
-
+  // Delete Consumption Prompt
   const handleDeletePrompt = (rec: ItemConsumptionRecord) => {
     setConfirmModal({
       isOpen: true,
       title: 'Delete Consumption Entry',
-      message: `Are you sure you want to delete this consumption record (${formatWholeNumber(rec.quantity)} ${rec.unit} for ${rec.targetName})?\n\nThis quantity will be restored to available store stock.`,
+      message: `Are you sure you want to delete this consumption record (${formatWholeNumber(rec.quantity)} ${rec.unit} for ${rec.targetName})?\n\nThis quantity will be restored to available store stock balance.`,
       confirmText: 'Delete Entry',
       variant: 'danger',
       action: () => {
@@ -262,28 +337,134 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   };
 
   // -------------------------------------------------------------
-  // Filtered Consumption Records
+  // Filtered & Sorted Consumption Records
   // -------------------------------------------------------------
   const filteredConsumptions = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return consumptions.filter(c => {
-      const matchSearch = c.targetName.toLowerCase().includes(q) ||
+    const q = searchTerm.toLowerCase().trim();
+    return safeConsumptions.filter(c => {
+      const matchSearch = !q || 
+        c.targetName.toLowerCase().includes(q) ||
         c.itemCode.toLowerCase().includes(q) ||
         c.itemName.toLowerCase().includes(q) ||
-        (c.operatorName || '').toLowerCase().includes(q) ||
-        (c.remarks || '').toLowerCase().includes(q);
+        c.operatorName.toLowerCase().includes(q) ||
+        c.remarks.toLowerCase().includes(q) ||
+        c.date.includes(q);
 
-      const matchType = consumptionViewFilter === 'all' || c.consumptionType === consumptionViewFilter;
+      const matchType = filterType === 'all' || c.consumptionType === filterType;
       const matchFrom = !dateFrom || c.date >= dateFrom;
       const matchTo = !dateTo || c.date <= dateTo;
 
       return matchSearch && matchType && matchFrom && matchTo;
-    }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [consumptions, searchTerm, consumptionViewFilter, dateFrom, dateTo]);
+    }).sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'date') cmp = a.date.localeCompare(b.date);
+      else if (sortField === 'quantity') cmp = a.quantity - b.quantity;
+      else if (sortField === 'itemName') cmp = a.itemName.localeCompare(b.itemName);
+      else if (sortField === 'targetName') cmp = a.targetName.localeCompare(b.targetName);
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [safeConsumptions, searchTerm, filterType, dateFrom, dateTo, sortField, sortAsc]);
 
-  // Item-wise Aggregated View Data
-  const itemWiseConsumptionSummary = useMemo(() => {
-    const map = new Map<string, { itemId: string; itemCode: string; itemName: string; unit: string; vehicleQty: number; mineQty: number; totalQty: number; logsCount: number }>();
+  // -------------------------------------------------------------
+  // Aggregated Views: Vehicle-wise, Mine-wise, Item-wise
+  // -------------------------------------------------------------
+  // 1. Vehicle-wise Aggregation
+  const vehicleWiseSummary = useMemo(() => {
+    const map = new Map<string, {
+      vehicleId: string;
+      vehicleNo: string;
+      itemBreakdown: Record<string, { itemName: string; unit: string; quantity: number }>;
+      totalEntries: number;
+    }>();
+
+    // Seed all vehicles
+    vehicles.forEach(v => {
+      map.set(v.id, {
+        vehicleId: v.id,
+        vehicleNo: `${v.vehicleNo} (${v.vehicleType})`,
+        itemBreakdown: {},
+        totalEntries: 0,
+      });
+    });
+
+    filteredConsumptions
+      .filter(c => c.consumptionType === 'vehicle')
+      .forEach(c => {
+        let entry = map.get(c.targetId);
+        if (!entry) {
+          entry = {
+            vehicleId: c.targetId,
+            vehicleNo: c.targetName,
+            itemBreakdown: {},
+            totalEntries: 0,
+          };
+          map.set(c.targetId, entry);
+        }
+        if (!entry.itemBreakdown[c.itemId]) {
+          entry.itemBreakdown[c.itemId] = { itemName: c.itemName, unit: c.unit, quantity: 0 };
+        }
+        entry.itemBreakdown[c.itemId].quantity += c.quantity;
+        entry.totalEntries += 1;
+      });
+
+    return Array.from(map.values()).sort((a, b) => b.totalEntries - a.totalEntries);
+  }, [vehicles, filteredConsumptions]);
+
+  // 2. Mine-wise Aggregation
+  const mineWiseSummary = useMemo(() => {
+    const map = new Map<string, {
+      mineId: string;
+      mineName: string;
+      itemBreakdown: Record<string, { itemName: string; unit: string; quantity: number }>;
+      totalEntries: number;
+    }>();
+
+    // Seed all mines
+    mines.forEach(m => {
+      map.set(m.id, {
+        mineId: m.id,
+        mineName: m.name,
+        itemBreakdown: {},
+        totalEntries: 0,
+      });
+    });
+
+    filteredConsumptions
+      .filter(c => c.consumptionType === 'mine')
+      .forEach(c => {
+        let entry = map.get(c.targetId);
+        if (!entry) {
+          entry = {
+            mineId: c.targetId,
+            mineName: c.targetName,
+            itemBreakdown: {},
+            totalEntries: 0,
+          };
+          map.set(c.targetId, entry);
+        }
+        if (!entry.itemBreakdown[c.itemId]) {
+          entry.itemBreakdown[c.itemId] = { itemName: c.itemName, unit: c.unit, quantity: 0 };
+        }
+        entry.itemBreakdown[c.itemId].quantity += c.quantity;
+        entry.totalEntries += 1;
+      });
+
+    return Array.from(map.values()).sort((a, b) => b.totalEntries - a.totalEntries);
+  }, [mines, filteredConsumptions]);
+
+  // 3. Item-wise Aggregation
+  const itemWiseSummary = useMemo(() => {
+    const map = new Map<string, {
+      itemId: string;
+      itemCode: string;
+      itemName: string;
+      unit: string;
+      vehicleQty: number;
+      mineQty: number;
+      totalQty: number;
+      entriesCount: number;
+    }>();
+
     filteredConsumptions.forEach(c => {
       const existing = map.get(c.itemId) || {
         itemId: c.itemId,
@@ -293,21 +474,25 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
         vehicleQty: 0,
         mineQty: 0,
         totalQty: 0,
-        logsCount: 0,
+        entriesCount: 0,
       };
+
       if (c.consumptionType === 'vehicle') {
         existing.vehicleQty += c.quantity;
       } else {
         existing.mineQty += c.quantity;
       }
       existing.totalQty += c.quantity;
-      existing.logsCount += 1;
+      existing.entriesCount += 1;
       map.set(c.itemId, existing);
     });
+
     return Array.from(map.values()).sort((a, b) => b.totalQty - a.totalQty);
   }, [filteredConsumptions]);
 
+  // -------------------------------------------------------------
   // Report Filtered Data (respects user's add/remove items from report table)
+  // -------------------------------------------------------------
   const reportTableRows = useMemo(() => {
     return filteredConsumptions.filter(c => selectedReportItemIds.includes(c.itemId));
   }, [filteredConsumptions, selectedReportItemIds]);
@@ -318,14 +503,14 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     );
   };
 
-  // CSV Export for View Consumption
+  // CSV Export
   const handleExportCSV = () => {
     const headers = ['Sr.', 'Date', 'Type', 'Target (Vehicle/Mine)', 'Item Code', 'Item Name', 'Unit', 'Quantity Consumed', 'Operator / Incharge', 'Remarks'];
     const rows = filteredConsumptions.map((c, idx) => [
       idx + 1,
       `"${c.date}"`,
       c.consumptionType.toUpperCase(),
-      `"${c.targetName}"`,
+      `"${c.targetName.replace(/"/g, '""')}"`,
       `"${c.itemCode}"`,
       `"${c.itemName.replace(/"/g, '""')}"`,
       `"${c.unit}"`,
@@ -360,7 +545,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
         </div>
       )}
 
-      {/* Header */}
+      {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
           <div className="flex items-center gap-2">
@@ -368,14 +553,14 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
               Store Management
             </span>
             <span className="text-slate-300">/</span>
-            <span className="text-xs text-slate-500 font-medium">Internal Consumption</span>
+            <span className="text-xs text-slate-500 font-medium">Item Consumption</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1 flex items-center gap-2">
             <Fuel className="w-5 h-5 text-blue-600" />
-            <span>Item Consumption & Material Requisition</span>
+            <span>Item Consumption (Vehicles & Mines)</span>
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
-            Issue diesel, motor oils, filters, and spares to mining sites and haulage vehicles. Stock balances auto-decrease.
+            Record material and fuel issues to heavy machinery and mine sites. Live inventory stock automatically decreases.
           </p>
         </div>
 
@@ -399,7 +584,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
         </div>
       </div>
 
-      {/* Sub-Tabs: Add Consumption, View Item Consumption, Item Consumption Report */}
+      {/* Sub-Tabs: View Item Consumption, Item Consumption Report, Add Consumption */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
         <button
           type="button"
@@ -412,7 +597,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
         >
           <Eye className="w-3.5 h-3.5" />
           <span>View Item Consumption</span>
-          <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{consumptions.length}</span>
+          <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{safeConsumptions.length}</span>
         </button>
 
         <button
@@ -444,21 +629,21 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
       {/* -------------------------------------------------------------
           SUB-TAB 1: ADD CONSUMPTION FORM
-          Two options: Vehicle Consumption & Mine Consumption
-          Item dropdown shows CURRENT STOCK QUANTITY!
-          Decreases item stock quantity!
+          Vehicle Consumption & Mine Consumption
+          Item dropdown shows CURRENT STOCK QUANTITY
+          Decreases item stock quantity
           ------------------------------------------------------------- */}
       {activeSubTab === 'add_consumption' && (
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs max-w-3xl">
           <div className="pb-4 mb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Issue Store Item Consumption</h3>
+              <h3 className="text-sm font-bold text-slate-900">Record Item Consumption Issue</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Select Vehicle Consumption or Mine Consumption. Items validate against real-time pithead stock.
+                Issue fuel, lubricants, spare parts, or explosives. Stock decreases automatically.
               </p>
             </div>
 
-            {/* Target Type Switcher */}
+            {/* Target Switcher: Vehicle Consumption vs Mine Consumption */}
             <div className="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200">
               <button
                 type="button"
@@ -496,7 +681,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
           <form onSubmit={handleAddSubmit} className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Date */}
+              {/* Requisition Date */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
                   Requisition Date <span className="text-rose-500">*</span>
@@ -509,7 +694,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
                     <Truck className="w-3.5 h-3.5 text-teal-600" />
-                    <span>Select Vehicle / Equipment <span className="text-rose-500">*</span></span>
+                    <span>Select Vehicle / Machinery <span className="text-rose-500">*</span></span>
                   </label>
                   <select
                     required
@@ -517,12 +702,15 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                     onChange={(e) => setFormVehicleId(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
-                    <option value="" disabled>-- Select Vehicle --</option>
-                    {vehicles.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.vehicleNo} ({v.vehicleType}) — Driver: {v.driverName}
-                      </option>
-                    ))}
+                    {vehicles.length === 0 ? (
+                      <option value="" disabled>No vehicles registered in Item Settings</option>
+                    ) : (
+                      vehicles.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.vehicleNo} ({v.vehicleType}) {v.driverName ? `— Driver: ${v.driverName}` : ''}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
               ) : (
@@ -537,20 +725,30 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                     onChange={(e) => setFormMineId(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
-                    <option value="" disabled>-- Select Mine --</option>
-                    {mines.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} ({m.location || 'Active Ridge'}) — {m.incharge}
-                      </option>
-                    ))}
+                    {mines.length === 0 ? (
+                      <option value="" disabled>No mines registered in Item Settings</option>
+                    ) : (
+                      mines.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} {m.location ? `(${m.location})` : ''} {m.incharge ? `— Incharge: ${m.incharge}` : ''}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
               )}
 
-              {/* Item Dropdown WITH CURRENT STOCK QUANTITY! */}
+              {/* Item Dropdown WITH CURRENT LIVE STOCK QUANTITY */}
               <div className="sm:col-span-2">
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Item Selection (With Current Available Stock) <span className="text-rose-500">*</span>
+                <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>
+                    Item Selection (With Current Available Stock) <span className="text-rose-500">*</span>
+                  </span>
+                  {selectedItem && (
+                    <span className="text-[11px] font-normal text-slate-500">
+                      Code: <strong className="font-mono text-slate-800">{selectedItem.itemCode}</strong>
+                    </span>
+                  )}
                 </label>
                 <select
                   required
@@ -558,29 +756,50 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                   onChange={(e) => setFormItemId(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
                 >
-                  <option value="" disabled>-- Select Item to Issue --</option>
-                  {items.map((item) => {
-                    const stock = itemStockMap[item.id] || 0;
-                    return (
-                      <option key={item.id} value={item.id}>
-                        {item.itemName} ({item.itemCode}) — [Available Stock: {formatWholeNumber(stock)} {item.unitSymbol}]
-                      </option>
-                    );
-                  })}
+                  {items.length === 0 ? (
+                    <option value="" disabled>No store items found in catalog</option>
+                  ) : (
+                    items.map((item) => {
+                      const stock = itemStockMap[item.id] ?? 0;
+                      return (
+                        <option key={item.id} value={item.id}>
+                          {item.itemName} ({item.itemCode}) — [Available Stock: {formatWholeNumber(stock)} {item.unitSymbol}]
+                        </option>
+                      );
+                    })
+                  )}
                 </select>
               </div>
 
               {/* Live Stock Indicator Banner */}
               {selectedItem && (
-                <div className="sm:col-span-2 p-3 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                <div className={`sm:col-span-2 p-3 rounded-lg border flex items-center justify-between text-xs ${
+                  currentAvailableStock > 0 
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+                    : 'bg-rose-50 border-rose-200 text-rose-900'
+                }`}>
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="text-emerald-900">
-                      Current Available Balance for <strong>{selectedItem.itemName}</strong>:
+                    {currentAvailableStock > 0 ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    )}
+                    <span>
+                      Live Available Stock for <strong>{selectedItem.itemName}</strong>:
                     </span>
                   </div>
-                  <span className="font-mono font-bold text-sm text-emerald-950">
+                  <span className="font-mono font-bold text-sm">
                     {formatWholeNumber(currentAvailableStock)} {selectedItem.unitSymbol}
+                  </span>
+                </div>
+              )}
+
+              {/* Zero Stock Warning */}
+              {selectedItem && currentAvailableStock <= 0 && (
+                <div className="sm:col-span-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    Warning: <strong>{selectedItem.itemName}</strong> currently has zero stock in inventory. Please add stock in <strong>Item Stock</strong> before recording consumption.
                   </span>
                 </div>
               )}
@@ -593,27 +812,27 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 <div className="relative">
                   <input
                     type="number"
-                    step="0.01"
+                    step="any"
                     min="0.01"
-                    max={currentAvailableStock}
+                    max={currentAvailableStock > 0 ? currentAvailableStock : undefined}
                     required
                     value={formQuantity}
                     onChange={(e) => setFormQuantity(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder={`Max ${formatWholeNumber(currentAvailableStock)}`}
+                    placeholder={currentAvailableStock > 0 ? `Max ${formatWholeNumber(currentAvailableStock)}` : '0'}
                     className="w-full pl-3 pr-16 py-2 border border-slate-300 rounded-lg font-mono font-bold text-rose-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
                     {selectedItem?.unitSymbol || 'Units'}
                   </span>
                 </div>
-                {Number(formQuantity) > currentAvailableStock && (
+                {Number(formQuantity) > currentAvailableStock && currentAvailableStock > 0 && (
                   <p className="text-[11px] text-rose-600 font-semibold mt-1">
                     Cannot issue more than {formatWholeNumber(currentAvailableStock)} {selectedItem?.unitSymbol}!
                   </p>
                 )}
               </div>
 
-              {/* Operator / Incharge */}
+              {/* Operator / Receiving Incharge */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
                   Operator / Driver / Receiving Official
@@ -637,12 +856,12 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 rows={2}
                 value={formRemarks}
                 onChange={(e) => setFormRemarks(e.target.value)}
-                placeholder="Hour meter reading, pit excavation haulage run, emergency compressor refill..."
+                placeholder="Hour meter reading, pit excavation haulage run, compressor overhaul..."
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               />
             </div>
 
-            {/* Actions */}
+            {/* Action Buttons */}
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
               <button
                 type="button"
@@ -665,47 +884,58 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
       {/* -------------------------------------------------------------
           SUB-TAB 2: VIEW ITEM CONSUMPTION
-          Views: Vehicle-wise, Mine-wise, and Item-wise
+          Views: Vehicle-wise, Mine(s)-wise, Item-wise, All Logs
           ------------------------------------------------------------- */}
       {activeSubTab === 'view_consumption' && (
         <div className="space-y-4">
-          {/* Top View Filter Switcher: All, Vehicle-wise, Mine-wise, Item-wise */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 border border-slate-200 rounded-xl shadow-xs">
-            <div className="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200 flex-wrap">
+          {/* Top Controls: Switch between All Logs, Vehicle-wise, Mine(s)-wise, Item-wise */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 border border-slate-200 rounded-xl shadow-xs">
+            <div className="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200 flex-wrap gap-1">
               <button
                 type="button"
-                onClick={() => setConsumptionViewFilter('all')}
+                onClick={() => setViewGrouping('all_logs')}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                  consumptionViewFilter === 'all' ? 'bg-white text-blue-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  viewGrouping === 'all_logs' 
+                    ? 'bg-white text-blue-900 shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                All Logs ({consumptions.length})
+                All Logs ({safeConsumptions.length})
               </button>
+
               <button
                 type="button"
-                onClick={() => setConsumptionViewFilter('vehicle')}
+                onClick={() => setViewGrouping('vehicle_wise')}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                  consumptionViewFilter === 'vehicle' ? 'bg-white text-teal-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  viewGrouping === 'vehicle_wise' 
+                    ? 'bg-white text-teal-900 shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Truck className="w-3.5 h-3.5 text-teal-600" />
                 <span>Vehicle-Wise</span>
               </button>
+
               <button
                 type="button"
-                onClick={() => setConsumptionViewFilter('mine')}
+                onClick={() => setViewGrouping('mine_wise')}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                  consumptionViewFilter === 'mine' ? 'bg-white text-emerald-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  viewGrouping === 'mine_wise' 
+                    ? 'bg-white text-emerald-900 shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Pickaxe className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Mine(s)-Wise</span>
               </button>
+
               <button
                 type="button"
-                onClick={() => setConsumptionViewFilter('item')}
+                onClick={() => setViewGrouping('item_wise')}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                  consumptionViewFilter === 'item' ? 'bg-white text-purple-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                  viewGrouping === 'item_wise' 
+                    ? 'bg-white text-purple-900 shadow-xs' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5 text-purple-600" />
@@ -713,6 +943,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
               </button>
             </div>
 
+            {/* Search Input */}
             <div className="relative flex-1 max-w-xs">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -725,8 +956,124 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
             </div>
           </div>
 
-          {/* ITEM-WISE CONSOLIDATED VIEW TABLE */}
-          {consumptionViewFilter === 'item' ? (
+          {/* 1. VEHICLE-WISE VIEW */}
+          {viewGrouping === 'vehicle_wise' && (
+            <div className="space-y-4">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-teal-600" />
+                    <span>Vehicle-Wise Item Consumption Summary</span>
+                  </h3>
+                  <span className="text-[11px] text-slate-500">{vehicleWiseSummary.length} Vehicles Registered</span>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {vehicleWiseSummary.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      No vehicles found. Add vehicles in "Item Settings".
+                    </div>
+                  ) : (
+                    vehicleWiseSummary.map((veh) => {
+                      const itemsIssued = Object.values(veh.itemBreakdown);
+                      return (
+                        <div key={veh.vehicleId} className="p-4 hover:bg-slate-50/50 transition-colors">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-7 h-7 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 font-bold text-xs">
+                                🚛
+                              </span>
+                              <div>
+                                <span className="font-bold text-xs text-slate-900 block">{veh.vehicleNo}</span>
+                                <span className="text-[11px] text-slate-500 font-mono">{veh.totalEntries} Requisition Logs</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Items issued to this vehicle */}
+                          {itemsIssued.length === 0 ? (
+                            <p className="text-[11px] text-slate-400 italic">No consumption issues logged yet for this vehicle.</p>
+                          ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                              {itemsIssued.map((it, idx) => (
+                                <div key={idx} className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                                  <span className="text-slate-500 text-[10px] block truncate">{it.itemName}</span>
+                                  <span className="font-mono font-bold text-teal-900 text-sm">
+                                    {formatWholeNumber(it.quantity)} <span className="text-[10px] text-slate-500 font-normal">{it.unit}</span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2. MINE(S)-WISE VIEW */}
+          {viewGrouping === 'mine_wise' && (
+            <div className="space-y-4">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                    <Pickaxe className="w-4 h-4 text-emerald-600" />
+                    <span>Mine(s)-Wise Item Consumption Summary</span>
+                  </h3>
+                  <span className="text-[11px] text-slate-500">{mineWiseSummary.length} Mining Sites</span>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {mineWiseSummary.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-400">
+                      No mine sites found. Add mines in "Item Settings".
+                    </div>
+                  ) : (
+                    mineWiseSummary.map((mine) => {
+                      const itemsIssued = Object.values(mine.itemBreakdown);
+                      return (
+                        <div key={mine.mineId} className="p-4 hover:bg-slate-50/50 transition-colors">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 font-bold text-xs">
+                                ⛏️
+                              </span>
+                              <div>
+                                <span className="font-bold text-xs text-slate-900 block">{mine.mineName}</span>
+                                <span className="text-[11px] text-slate-500 font-mono">{mine.totalEntries} Requisition Logs</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Items issued to this mine */}
+                          {itemsIssued.length === 0 ? (
+                            <p className="text-[11px] text-slate-400 italic">No consumption issues logged yet for this mine.</p>
+                          ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                              {itemsIssued.map((it, idx) => (
+                                <div key={idx} className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                                  <span className="text-slate-500 text-[10px] block truncate">{it.itemName}</span>
+                                  <span className="font-mono font-bold text-emerald-900 text-sm">
+                                    {formatWholeNumber(it.quantity)} <span className="text-[10px] text-slate-500 font-normal">{it.unit}</span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 3. ITEM-WISE CONSOLIDATED VIEW TABLE */}
+          {viewGrouping === 'item_wise' && (
             <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
@@ -735,8 +1082,8 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                       <th className="py-3 px-4 w-12 text-center">Sr.</th>
                       <th className="py-3 px-4">Item Code</th>
                       <th className="py-3 px-4">Item Name</th>
-                      <th className="py-3 px-4 text-right text-teal-800 bg-teal-50/40">Total Vehicle Consumed</th>
-                      <th className="py-3 px-4 text-right text-emerald-800 bg-emerald-50/40">Total Mine Consumed</th>
+                      <th className="py-3 px-4 text-right text-teal-800 bg-teal-50/40">Vehicle Usage</th>
+                      <th className="py-3 px-4 text-right text-emerald-800 bg-emerald-50/40">Mine Usage</th>
                       <th className="py-3 px-4 text-right font-bold text-slate-900 bg-slate-100/60">
                         Total Consumption
                       </th>
@@ -744,14 +1091,14 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-800">
-                    {itemWiseConsumptionSummary.length === 0 ? (
+                    {itemWiseSummary.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="py-10 text-center text-slate-400">
                           No item consumption records found.
                         </td>
                       </tr>
                     ) : (
-                      itemWiseConsumptionSummary.map((row, idx) => (
+                      itemWiseSummary.map((row, idx) => (
                         <tr key={row.itemId} className="hover:bg-slate-50/70 transition-colors">
                           <td className="py-3 px-4 text-center font-mono text-slate-400">{idx + 1}</td>
                           <td className="py-3 px-4 font-mono font-bold text-slate-900">{row.itemCode}</td>
@@ -766,7 +1113,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                             {formatWholeNumber(row.totalQty)} <span className="text-[10px] text-slate-500 font-normal">{row.unit}</span>
                           </td>
                           <td className="py-3 px-4 text-center font-mono text-slate-500">
-                            {row.logsCount} logs
+                            {row.entriesCount} logs
                           </td>
                         </tr>
                       ))
@@ -775,28 +1122,79 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 </table>
               </div>
             </div>
-          ) : (
-            /* DETAILED LOGS TABLE (All / Vehicle / Mine) */
+          )}
+
+          {/* 4. ALL DETAILED LOGS REGISTER TABLE */}
+          {viewGrouping === 'all_logs' && (
             <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="py-3 px-4 w-12 text-center">Sr.</th>
-                      <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (sortField === 'date') setSortAsc(!sortAsc);
+                            else { setSortField('date'); setSortAsc(false); }
+                          }}
+                          className="flex items-center gap-1 font-semibold hover:text-slate-900 cursor-pointer"
+                        >
+                          <span>Date</span>
+                          <ArrowUpDown className="w-3 h-3" />
+                        </button>
+                      </th>
                       <th className="py-3 px-4">Type</th>
-                      <th className="py-3 px-4">Target (Vehicle / Mine)</th>
+                      <th className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (sortField === 'targetName') setSortAsc(!sortAsc);
+                            else { setSortField('targetName'); setSortAsc(true); }
+                          }}
+                          className="flex items-center gap-1 font-semibold hover:text-slate-900 cursor-pointer"
+                        >
+                          <span>Target (Vehicle / Mine)</span>
+                          <ArrowUpDown className="w-3 h-3" />
+                        </button>
+                      </th>
                       <th className="py-3 px-4">Item Code</th>
-                      <th className="py-3 px-4">Item Name</th>
-                      <th className="py-3 px-4 text-right">Quantity Consumed</th>
+                      <th className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (sortField === 'itemName') setSortAsc(!sortAsc);
+                            else { setSortField('itemName'); setSortAsc(true); }
+                          }}
+                          className="flex items-center gap-1 font-semibold hover:text-slate-900 cursor-pointer"
+                        >
+                          <span>Item Name</span>
+                          <ArrowUpDown className="w-3 h-3" />
+                        </button>
+                      </th>
+                      <th className="py-3 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (sortField === 'quantity') setSortAsc(!sortAsc);
+                            else { setSortField('quantity'); setSortAsc(false); }
+                          }}
+                          className="inline-flex items-center gap-1 font-semibold hover:text-slate-900 cursor-pointer"
+                        >
+                          <span>Quantity Consumed</span>
+                          <ArrowUpDown className="w-3 h-3" />
+                        </button>
+                      </th>
                       <th className="py-3 px-4">Operator / Incharge</th>
+                      <th className="py-3 px-4">Remarks</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-800">
                     {filteredConsumptions.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="py-10 text-center text-slate-400">
+                        <td colSpan={10} className="py-10 text-center text-slate-400">
                           No consumption entries match selected filter. Click "Add Consumption" to record issues.
                         </td>
                       </tr>
@@ -807,7 +1205,9 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                           <td className="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">{rec.date}</td>
                           <td className="py-3 px-4">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              rec.consumptionType === 'vehicle' ? 'bg-teal-100 text-teal-800' : 'bg-emerald-100 text-emerald-800'
+                              rec.consumptionType === 'vehicle' 
+                                ? 'bg-teal-100 text-teal-800' 
+                                : 'bg-emerald-100 text-emerald-800'
                             }`}>
                               {rec.consumptionType === 'vehicle' ? <Truck className="w-3 h-3" /> : <Pickaxe className="w-3 h-3" />}
                               <span>{rec.consumptionType === 'vehicle' ? 'Vehicle' : 'Mine'}</span>
@@ -820,6 +1220,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                             -{formatWholeNumber(rec.quantity)} <span className="text-[10px] font-normal text-slate-500">{rec.unit}</span>
                           </td>
                           <td className="py-3 px-4 text-slate-600">{rec.operatorName || '—'}</td>
+                          <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{rec.remarks || '—'}</td>
                           <td className="py-3 px-4 text-right">
                             <div className="inline-flex items-center gap-1.5">
                               <button
@@ -853,23 +1254,23 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
       {/* -------------------------------------------------------------
           SUB-TAB 3: ITEM CONSUMPTION REPORT
-          User should be able to add/remove items from the report table,
-          have all kind of sorting, filtering, export and print options
+          User can add/remove items from the report table
+          All kinds of sorting, filtering, export and print options
           ------------------------------------------------------------- */}
       {activeSubTab === 'consumption_report' && (
         <div className="space-y-4">
-          {/* Item Selector Filter: Add / Remove Items from the report table */}
+          {/* Interactive Item Selector Filter: Add / Remove Items from the report table */}
           <div className="bg-white p-4 border border-slate-200 rounded-xl shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5 text-blue-600" />
-                <span>Included Items in Report Table ({selectedReportItemIds.length}/{items.length})</span>
+                <span>Select Items to Include in Report Table ({selectedReportItemIds.length}/{items.length})</span>
               </span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setSelectedReportItemIds(items.map(i => i.id))}
-                  className="text-[11px] text-blue-600 hover:underline cursor-pointer"
+                  className="text-[11px] text-blue-600 hover:underline cursor-pointer font-medium"
                 >
                   Select All
                 </button>
@@ -877,14 +1278,14 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedReportItemIds([])}
-                  className="text-[11px] text-slate-500 hover:underline cursor-pointer"
+                  className="text-[11px] text-slate-500 hover:underline cursor-pointer font-medium"
                 >
                   Deselect All
                 </button>
               </div>
             </div>
 
-            {/* Checkboxes of items */}
+            {/* Checkboxes of items to add/remove */}
             <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto">
               {items.map((item) => {
                 const isSelected = selectedReportItemIds.includes(item.id);
@@ -895,7 +1296,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                     onClick={() => toggleReportItem(item.id)}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                       isSelected
-                        ? 'bg-blue-50 border-blue-300 text-blue-900 font-semibold'
+                        ? 'bg-blue-50 border-blue-300 text-blue-900 font-semibold shadow-2xs'
                         : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'
                     }`}
                   >
@@ -912,6 +1313,70 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
             </div>
           </div>
 
+          {/* Filtering Bar for Report: Search, Type filter, Date range */}
+          <div className="bg-white p-3 border border-slate-200 rounded-xl shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative w-48">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Filter report..."
+                  className="w-full pl-8 pr-2 py-1.5 border border-slate-300 rounded-lg text-xs"
+                />
+              </div>
+
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as any)}
+                className="px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white text-xs font-medium"
+              >
+                <option value="all">All Targets (Vehicles & Mines)</option>
+                <option value="vehicle">Vehicles Only</option>
+                <option value="mine">Mines Only</option>
+              </select>
+
+              <div className="flex items-center gap-1 text-slate-500">
+                <span>From:</span>
+                <input
+                  type="text"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  placeholder="DD-MM-YYYY"
+                  className="w-24 px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono"
+                />
+                <span>To:</span>
+                <input
+                  type="text"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  placeholder="DD-MM-YYYY"
+                  className="w-24 px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Export CSV</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print</span>
+              </button>
+            </div>
+          </div>
+
           {/* Report Table */}
           <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
@@ -920,7 +1385,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                   <tr>
                     <th className="py-3 px-4 w-12 text-center">Sr.</th>
                     <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">Target Type</th>
                     <th className="py-3 px-4">Target Entity</th>
                     <th className="py-3 px-4">Item Code</th>
                     <th className="py-3 px-4">Item Name</th>
@@ -986,6 +1451,13 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
               </button>
             </div>
 
+            {editError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1">
                 <div className="flex justify-between">
@@ -1000,18 +1472,18 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Date</label>
-                <DatePickerInput value={formDate} onChange={setFormDate} className="w-full text-xs" />
+                <DatePickerInput value={editDate} onChange={setEditDate} className="w-full text-xs" />
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Quantity ({editingRecord.unit})</label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="any"
                   min="0.01"
                   required
-                  value={formQuantity}
-                  onChange={(e) => setFormQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                  value={editQuantity}
+                  onChange={(e) => setEditQuantity(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full px-3 py-2 font-mono font-bold text-rose-800 border border-slate-300 rounded-lg bg-white"
                 />
               </div>
@@ -1020,8 +1492,8 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 <label className="block font-semibold text-slate-700 mb-1">Operator / Official</label>
                 <input
                   type="text"
-                  value={formOperator}
-                  onChange={(e) => setFormOperator(e.target.value)}
+                  value={editOperator}
+                  onChange={(e) => setEditOperator(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
                 />
               </div>
@@ -1030,8 +1502,8 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 <label className="block font-semibold text-slate-700 mb-1">Remarks</label>
                 <textarea
                   rows={2}
-                  value={formRemarks}
-                  onChange={(e) => setFormRemarks(e.target.value)}
+                  value={editRemarks}
+                  onChange={(e) => setEditRemarks(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
                 />
               </div>
@@ -1046,7 +1518,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs"
+                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
                 >
                   Update Issue
                 </button>

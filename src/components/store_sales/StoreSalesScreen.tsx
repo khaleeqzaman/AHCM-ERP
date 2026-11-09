@@ -67,7 +67,11 @@ interface StoreSalesScreenProps {
   onDeleteItem: (id: string) => void;
 
   onAddStockEntry: (entry: any) => void;
+  onUpdateStockEntry?: (entry: any) => void;
+  onDeleteStockEntry?: (id: string) => void;
   onAddConsumption: (record: any) => void;
+  onUpdateConsumption?: (record: any) => void;
+  onDeleteConsumption?: (id: string) => void;
 
   // Coal Management Handlers
   onAddCoalStock: (stock: any) => void;
@@ -123,7 +127,11 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   onUpdateItem,
   onDeleteItem,
   onAddStockEntry,
+  onUpdateStockEntry,
+  onDeleteStockEntry,
   onAddConsumption,
+  onUpdateConsumption,
+  onDeleteConsumption,
   onAddCoalStock,
   onUpdateCoalStock,
   onDeleteCoalStock,
@@ -191,10 +199,10 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   const itemStockMap = React.useMemo(() => {
     const map: Record<string, number> = {};
     items.forEach((it) => {
-      const itStock = stockEntries.filter((s) => s.itemId === it.id);
+      const itStock = stockEntries.filter((s) => s.itemId === it.id || (s.itemCode && s.itemCode === it.itemCode));
       const stockQty = itStock.reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0), 0);
       const purchaseQty = itStock.reduce((sum, s) => sum + Number(s.purchase || s.purchaseQty || 0), 0);
-      const itConsumptions = consumptions.filter((c) => c.itemId === it.id);
+      const itConsumptions = consumptions.filter((c) => c.itemId === it.id || (c.itemCode && c.itemCode === it.itemCode));
       const used = itConsumptions.reduce((sum, c) => sum + Number(c.quantity || 0), 0);
       map[it.id] = (stockQty + purchaseQty) - used;
     });
@@ -337,8 +345,8 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
               consumptions={consumptions}
               mines={mines}
               onAddStockEntry={onAddStockEntry}
-              onUpdateStockEntry={(entry) => {}}
-              onDeleteStockEntry={(id) => {}}
+              onUpdateStockEntry={onUpdateStockEntry || (() => {})}
+              onDeleteStockEntry={onDeleteStockEntry || (() => {})}
             />
           )}
 
@@ -350,8 +358,8 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
               vehicles={vehicles}
               itemStockMap={itemStockMap}
               onAddConsumption={onAddConsumption}
-              onUpdateConsumption={(record) => {}}
-              onDeleteConsumption={(id) => {}}
+              onUpdateConsumption={onUpdateConsumption || (() => {})}
+              onDeleteConsumption={onDeleteConsumption || (() => {})}
             />
           )}
 

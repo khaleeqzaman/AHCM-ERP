@@ -52,7 +52,8 @@ import {
   StockItem,
   StockEntry,
   CoalProductionRecord,
-  VehicleConsumptionRecord
+  VehicleConsumptionRecord,
+  ConsumptionTargetType
 } from './types/storeSales';
 import { initialDemands, initialPurchases } from './data/mockData';
 import { initialChartOfAccounts, initialVouchers } from './data/mockAccountingData';
@@ -361,7 +362,24 @@ export default function App() {
   const [vehicles, setVehicles] = useState<VehicleRecord[]>(() => loadCache('vehicles', initialVehicles));
   const [storeItems, setStoreItems] = useState<StoreItem[]>(() => loadCache('store_items', initialStoreItems));
   const [stockEntries, setStockEntries] = useState<ItemStockEntry[]>(() => loadCache('stock_entries', initialStockEntries));
-  const [itemConsumptions, setItemConsumptions] = useState<ItemConsumptionRecord[]>(() => loadCache('consumptions', initialItemConsumptions));
+  const [itemConsumptions, setItemConsumptions] = useState<ItemConsumptionRecord[]>(() => {
+    const raw = loadCache<any[]>('consumptions', initialItemConsumptions);
+    return (raw || []).map((c, idx) => ({
+      id: c.id || `con-${idx + 1}`,
+      date: c.date || '01-01-2026',
+      consumptionType: (c.consumptionType === 'mine' ? 'mine' : 'vehicle') as ConsumptionTargetType,
+      targetId: c.targetId || c.vehicleId || c.mineId || (c.consumptionType === 'mine' ? 'mine-1' : 'veh-1'),
+      targetName: c.targetName || c.vehicleNo || c.mineName || (c.consumptionType === 'mine' ? 'Mine #01 - North Pit' : 'DT-104 (Dump Truck)'),
+      itemId: c.itemId || 'item-1',
+      itemCode: c.itemCode || 'ITM-DSL-01',
+      itemName: c.itemName || 'High Speed Diesel (HSD)',
+      unit: c.unit || 'L',
+      quantity: Number(c.quantity ?? c.diesel ?? c.mOil ?? 0),
+      operatorName: c.operatorName || c.driverName || '',
+      remarks: c.remarks || '',
+      createdAt: c.createdAt || new Date().toISOString(),
+    }));
+  });
 
   // Database Synchronization & Diagnostics state
   const [isRefreshingDb, setIsRefreshingDb] = useState(false);
@@ -1988,6 +2006,22 @@ export default function App() {
                 });
                 apiSaveStockEntry(newEntry as any);
               }}
+              onUpdateStockEntry={(entry) => {
+                setStockEntries((prev) => {
+                  const next = prev.map((s) => (s.id === entry.id ? entry : s));
+                  saveCache('stock_entries', next);
+                  return next;
+                });
+                apiSaveStockEntry(entry as any);
+              }}
+              onDeleteStockEntry={(id) => {
+                setStockEntries((prev) => {
+                  const next = prev.filter((s) => s.id !== id);
+                  saveCache('stock_entries', next);
+                  return next;
+                });
+                apiDeleteStockEntry(id);
+              }}
               onAddConsumption={(record: any) => {
                 const newRec: ItemConsumptionRecord = { ...record, id: record.id || `con-${Date.now()}` };
                 setItemConsumptions((prev) => {
@@ -1996,6 +2030,22 @@ export default function App() {
                   return next;
                 });
                 apiSaveVehicleConsumption(newRec as any);
+              }}
+              onUpdateConsumption={(record: any) => {
+                setItemConsumptions((prev) => {
+                  const next = prev.map((c) => (c.id === record.id ? record : c));
+                  saveCache('consumptions', next);
+                  return next;
+                });
+                apiSaveVehicleConsumption(record as any);
+              }}
+              onDeleteConsumption={(id: string) => {
+                setItemConsumptions((prev) => {
+                  const next = prev.filter((c) => c.id !== id);
+                  saveCache('consumptions', next);
+                  return next;
+                });
+                apiDeleteVehicleConsumption(id);
               }}
               onAddCoalStock={(stock: any) => {
                 const newStk: CoalStockRecord = { ...stock, id: stock.id || `cstk-${Date.now()}` };
