@@ -1,6 +1,15 @@
 import React, { useState, useMemo } from 'react';
+import { 
+  Printer, 
+  Download, 
+  Plus, 
+  Search, 
+  Users, 
+  Building2 
+} from 'lucide-react';
 import type { BuyerRecord, CoalSellRecord, BuyerType, SaleProvince } from '../../types/storeSales.ts';
 import ConfirmModal from './ConfirmModal.tsx';
+import { printConcernedTable } from '../../utils/printTable.ts';
 
 interface BuyerManagementViewProps {
   buyers: BuyerRecord[];
@@ -209,110 +218,60 @@ export const BuyerManagementView: React.FC<BuyerManagementViewProps> = ({
     document.body.removeChild(link);
   };
 
-  // Print List
+  // Print List (Table Only)
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Buyer Directory - Coal Management</title>
-          <style>
-            body { font-family: system-ui, sans-serif; margin: 24px; color: #1e293b; }
-            h1 { font-size: 20px; margin-bottom: 4px; }
-            h2 { font-size: 14px; font-weight: normal; color: #64748b; margin-top: 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; }
-            th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
-            th { background: #0f172a; color: white; }
-            .num { text-align: right; }
-          </style>
-        </head>
-        <body>
-          <h1>REGISTERED BUYERS DIRECTORY</h1>
-          <h2>Commercial & Industrial Clients (Generated: ${new Date().toLocaleDateString()})</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Sr.</th>
-                <th>Buyer Name</th>
-                <th>Buyer NTN</th>
-                <th>Buyer CNIC</th>
-                <th>Type</th>
-                <th>Province</th>
-                <th>City</th>
-                <th class="num">Invoices</th>
-                <th class="num">Tons Purchased</th>
-                <th class="num">Total Billed (PKR)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredBuyers.map((b, idx) => {
-                const stats = buyerStats[b.id] || { totalPurchasedTons: 0, totalSpentPKR: 0, invoicesCount: 0 };
-                return `
-                  <tr>
-                    <td>${idx + 1}</td>
-                    <td><strong>${b.buyerName}</strong></td>
-                    <td>${b.buyerNTN || '-'}</td>
-                    <td>${b.buyerCNIC || '-'}</td>
-                    <td>${b.buyerType}</td>
-                    <td>${b.saleOrganization}</td>
-                    <td>${b.city || '-'}</td>
-                    <td class="num">${stats.invoicesCount}</td>
-                    <td class="num">${stats.totalPurchasedTons.toLocaleString()} Tons</td>
-                    <td class="num font-bold">PKR ${stats.totalSpentPKR.toLocaleString()}</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    printConcernedTable('printable-buyers-directory-table', 'Registered Buyers Directory');
   };
 
   return (
     <div className="space-y-6">
       {/* Sub Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
-        <div className="flex space-x-2">
+        <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setActiveTab('list')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'list'
-                ? 'bg-emerald-700 text-white shadow-sm'
+                ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            📋 View Buyers List ({buyers.length})
+            <Users className="w-4 h-4" />
+            <span>View Buyers List ({buyers.length})</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('add')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'add'
-                ? 'bg-emerald-700 text-white shadow-sm'
+                ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            ➕ Add Buyer Form
+            <Plus className="w-4 h-4" />
+            <span>Add Buyer Form</span>
           </button>
         </div>
 
         {activeTab === 'list' && (
-          <div className="flex space-x-2">
+          <div className="flex items-center gap-2 no-print">
             <button
+              type="button"
               onClick={handleExportCSV}
-              className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-1.5 shadow-sm"
+              className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
-              <span>📥 Export CSV</span>
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Export CSV</span>
             </button>
             <button
+              type="button"
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-1.5 shadow-sm"
+              className="px-3 py-1.5 bg-emerald-50 border border-emerald-300 rounded-lg text-xs font-semibold text-emerald-800 hover:bg-emerald-100 flex items-center gap-1.5 shadow-xs cursor-pointer"
+              title="Print Buyers Directory Table Only"
             >
-              <span>🖨️ Print Directory</span>
+              <Printer className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Print View (Table Only)</span>
             </button>
           </div>
         )}
@@ -455,9 +414,16 @@ export const BuyerManagementView: React.FC<BuyerManagementViewProps> = ({
 
       {/* TAB 2: VIEW BUYERS LIST */}
       {activeTab === 'list' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div id="printable-buyers-directory-table" className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print-concerned-table">
+          {/* Print only formal header */}
+          <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
+            <h1 className="text-base font-bold text-slate-900">AL-HAMD COAL MINES & METALS (PVT) LTD.</h1>
+            <p className="text-xs text-slate-700 font-semibold uppercase tracking-wider">Registered Commercial & Industrial Buyers Directory</p>
+            <p className="text-[10px] text-slate-500">Printed on {new Date().toLocaleDateString('en-GB')}</p>
+          </div>
+
           {/* Filters */}
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 no-print">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
                 <input
@@ -530,7 +496,7 @@ export const BuyerManagementView: React.FC<BuyerManagementViewProps> = ({
                   <th className="px-4 py-3 text-right">Invoices</th>
                   <th className="px-4 py-3 text-right">Tons Bought</th>
                   <th className="px-4 py-3 text-right">Total PKR</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
+                  <th className="px-4 py-3 text-center no-print">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -569,7 +535,7 @@ export const BuyerManagementView: React.FC<BuyerManagementViewProps> = ({
                         <td className="px-4 py-3 text-right font-mono font-medium text-slate-800 whitespace-nowrap">
                           {stats.totalSpentPKR.toLocaleString()}
                         </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <td className="px-4 py-3 text-center whitespace-nowrap no-print">
                           <div className="flex items-center justify-center space-x-2">
                             <button
                               onClick={() => setEditingBuyer(b)}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Vault, 
+  Banknote, 
   BookOpen, 
   BookMarked,
   Landmark, 

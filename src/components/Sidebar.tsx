@@ -6,7 +6,7 @@ import {
   Settings, 
   Building2,
   Scale,
-  Vault,
+  Banknote,
   Boxes,
   Users,
   LogOut,
@@ -29,6 +29,11 @@ import {
   Edit3,
   Pickaxe,
   BarChart3,
+  Tag,
+  Layers,
+  Fuel,
+  Sliders,
+  Database,
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react';
@@ -174,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {
             id: 'treasury' as NavModule,
             label: 'Cashier Module',
-            icon: <Vault className="w-4 h-4" />,
+            icon: <Banknote className="w-4 h-4" />,
             badge: 'Cashier',
             hasSubmenu: true,
           },
@@ -244,7 +249,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {
             id: 'treasury' as NavModule,
             label: 'Cashier Desk',
-            icon: <Vault className="w-4 h-4" />,
+            icon: <Banknote className="w-4 h-4" />,
             badge: 'Cashier',
             hasSubmenu: true,
           },
@@ -899,7 +904,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <span>🏷️</span>
+                                <Tag className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>Items (Add / View)</span>
                               </button>
 
@@ -913,7 +918,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <span>📥</span>
+                                <Layers className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>Item Stock & Report</span>
                               </button>
 
@@ -927,7 +932,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <span>⛽</span>
+                                <Fuel className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>Item Consumption</span>
                               </button>
 
@@ -941,7 +946,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <span>⚙️</span>
+                                <Sliders className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>Item Settings (Categories, Units, Mines, Vehicles)</span>
                               </button>
 
@@ -955,7 +960,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <span>📊</span>
+                                <BarChart3 className="w-3 h-3 text-emerald-600 shrink-0" />
                                 <span>Store Reports & Audits</span>
                               </button>
                             </div>
@@ -992,7 +997,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <span>📦</span>
+                                <Database className="w-3 h-3 text-blue-600 shrink-0" />
                                 <span>Coal Stock (Inflow & Opening)</span>
                               </button>
 
@@ -1006,7 +1011,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <span>🧾</span>
+                                <Receipt className="w-3 h-3 text-blue-600 shrink-0" />
                                 <span>Coal Sell POS & Reports</span>
                               </button>
 
@@ -1020,7 +1025,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <span>🤝</span>
+                                <Handshake className="w-3 h-3 text-blue-600 shrink-0" />
                                 <span>Partner Management</span>
                               </button>
 
@@ -1034,7 +1039,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
-                                <span>🏢</span>
+                                <Building2 className="w-3 h-3 text-blue-600 shrink-0" />
                                 <span>Buyer Management</span>
                               </button>
                             </div>

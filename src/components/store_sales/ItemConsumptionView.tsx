@@ -33,6 +33,7 @@ import type {
 import { DatePickerInput } from '../common/DatePickerInput.tsx';
 import ConfirmModal from './ConfirmModal.tsx';
 import { formatWholeNumber } from '../../utils/formatters.ts';
+import { printConcernedTable } from '../../utils/printTable.ts';
 
 interface ItemConsumptionViewProps {
   consumptions: ItemConsumptionRecord[];
@@ -575,11 +576,19 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => {
+              let tableId = 'printable-consumption-all-logs-table';
+              let title = 'Store Item Consumption Register';
+              if (viewGrouping === 'item_wise') {
+                tableId = 'printable-consumption-item-wise-table';
+                title = 'Store Item-wise Consumption Summary';
+              }
+              printConcernedTable(tableId, title);
+            }}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-xs cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5 text-slate-600" />
-            <span>Print View</span>
+            <span>Print View (Table Only)</span>
           </button>
         </div>
       </div>
@@ -1074,7 +1083,11 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
           {/* 3. ITEM-WISE CONSOLIDATED VIEW TABLE */}
           {viewGrouping === 'item_wise' && (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+            <div id="printable-consumption-item-wise-table" className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden print-concerned-table">
+              <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
+                <h1 className="text-lg font-bold text-slate-900">Store Management - Item-Wise Consolidated Consumption</h1>
+                <p className="text-xs text-slate-600">Generated on {new Date().toLocaleDateString('en-GB')} · Official Material & Fuel Issues Summary</p>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
@@ -1126,7 +1139,11 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
           {/* 4. ALL DETAILED LOGS REGISTER TABLE */}
           {viewGrouping === 'all_logs' && (
-            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+            <div id="printable-consumption-all-logs-table" className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden print-concerned-table">
+              <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
+                <h1 className="text-lg font-bold text-slate-900">Store Management - Item Consumption Register</h1>
+                <p className="text-xs text-slate-600">Generated on {new Date().toLocaleDateString('en-GB')} · Official Machinery & Mining Requisition Logs</p>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
@@ -1368,17 +1385,21 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => printConcernedTable('printable-consumption-report-table', 'Store Item Consumption Report')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>Print</span>
+                <span>Print Table Only</span>
               </button>
             </div>
           </div>
 
           {/* Report Table */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+          <div id="printable-consumption-report-table" className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden print-concerned-table">
+            <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
+              <h1 className="text-lg font-bold text-slate-900">Store Management - Item Consumption Audit Report</h1>
+              <p className="text-xs text-slate-600">Generated on {new Date().toLocaleDateString('en-GB')} · Official Material & Fuel Requisition Report</p>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">

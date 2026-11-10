@@ -3,7 +3,7 @@ import {
   LayoutDashboard, 
   ShoppingCart, 
   Scale, 
-  Vault, 
+  Banknote, 
   Boxes, 
   ShieldCheck, 
   Users, 
@@ -463,7 +463,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
             <div>
               <div className="flex items-center justify-between text-slate-500 mb-2">
                 <span className="text-xs font-medium">Cashier Cash in Hand</span>
-                <Vault className="w-4 h-4 text-amber-600" />
+                <Banknote className="w-4 h-4 text-amber-600" />
               </div>
               <div className="text-2xl font-bold font-mono text-amber-700">
                 PKR {formatWholeNumber(netCashInHand)}
@@ -1423,7 +1423,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
         <div className="bg-gradient-to-r from-amber-900 via-slate-900 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-sm border border-amber-800/40 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-800/60 border border-amber-600/60 text-amber-200 text-xs font-semibold uppercase tracking-wider mb-2">
-              <Vault className="w-3.5 h-3.5 text-amber-400" />
+              <Banknote className="w-3.5 h-3.5 text-amber-400" />
               <span>Cashier Desk</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
@@ -1440,7 +1440,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
               onClick={() => onNavigate('treasury')}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 transition-colors shadow-lg shadow-amber-600/20 cursor-pointer"
             >
-              <Vault className="w-4 h-4" />
+              <Banknote className="w-4 h-4" />
               <span>Open Cashier Module</span>
               <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
             </button>
@@ -1452,7 +1452,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
               <span className="text-xs font-medium">Cash in Hand</span>
-              <Vault className="w-4 h-4 text-amber-600" />
+              <Banknote className="w-4 h-4 text-amber-600" />
             </div>
             <div className="text-2xl font-bold font-mono text-amber-700">
               PKR {netCashInHand.toLocaleString()}

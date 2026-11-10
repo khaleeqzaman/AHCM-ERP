@@ -27,6 +27,7 @@ import {
 import { CashBookEntry } from '../../types/treasury';
 import { formatWholeNumber } from '../../utils/formatters';
 import { DatePickerInput } from '../common/DatePickerInput';
+import { printConcernedTable } from '../../utils/printTable';
 
 interface CashBookRegisterViewProps {
   entries: CashBookEntry[];
@@ -471,7 +472,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                   </span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Press <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10px] text-slate-700 font-semibold shadow-2xs">Tab</kbd> in the last column (Debit) to automatically add a new row. Use row action buttons (+ / delete) to manage rows.
+                  Press <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono text-[10px] text-slate-700 font-semibold shadow-2xs">Tab</kbd> on the last row to automatically add a new row. Use row action buttons (+ / delete) in the last column to manage rows.
                 </p>
               </div>
 
@@ -490,13 +491,13 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-                    <th className="py-2.5 px-3 w-20 text-center">Actions</th>
                     <th className="py-2.5 px-2 w-12 text-center">Sr.</th>
                     <th className="py-2.5 px-3 w-36">Date</th>
                     <th className="py-2.5 px-3">Description / Narration</th>
                     <th className="py-2.5 px-3 w-36 text-right">Credit (Inflow)</th>
                     <th className="py-2.5 px-3 w-36 text-right">Debit (Outflow)</th>
                     <th className="py-2.5 px-4 w-36 text-right">Balance</th>
+                    <th className="py-2.5 px-3 w-20 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -508,28 +509,6 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
 
                     return (
                       <tr key={row.id} className="hover:bg-amber-50/20 transition-colors">
-                        {/* Actions in front of each row: Add Button (+) & Delete Button (trash) */}
-                        <td className="py-2 px-3 text-center">
-                          <div className="inline-flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleAddDraftRow(index)}
-                              className="p-1 rounded text-slate-400 hover:text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
-                              title="Add row below"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteDraftRow(index)}
-                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                              title={draftRows.length <= 1 ? 'Clear row' : 'Delete row'}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-
                         {/* Sr. No. */}
                         <td className="py-2 px-2 text-center font-mono font-medium text-slate-500">
                           {index + 1}
@@ -603,13 +582,41 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                             {formatWholeNumber(rowBalance)}
                           </span>
                         </td>
+
+                        {/* Actions in the last column of each row: Add Button (+) & Delete Button (trash) */}
+                        <td className="py-2 px-3 text-center">
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleAddDraftRow(index)}
+                              className="p-1 rounded text-slate-400 hover:text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
+                              title="Add row below"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDraftRow(index)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Tab' && !e.shiftKey && isLastRow) {
+                                  e.preventDefault();
+                                  handleAddDraftRow();
+                                }
+                              }}
+                              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                              title={draftRows.length <= 1 ? 'Clear row' : 'Delete row'}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold text-xs text-slate-900">
-                    <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider text-[11px] text-slate-700">
+                    <td colSpan={3} className="py-3 px-4 text-right uppercase tracking-wider text-[11px] text-slate-700">
                       Draft Batch Totals ({draftRows.length} rows):
                     </td>
                     <td className="py-3 px-3 text-right font-mono tabular-nums text-emerald-800 text-sm">
@@ -621,6 +628,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                     <td className="py-3 px-4 text-right font-mono tabular-nums text-blue-900 text-sm whitespace-nowrap">
                       {formatWholeNumber(draftTotalBalance)}
                     </td>
+                    <td className="py-3 px-3"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -786,12 +794,22 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
 
                 <button
                   type="button"
+                  onClick={() => printConcernedTable('printable-cashbook-history-table', 'Cash Book Register Table')}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg transition-colors shadow-2xs cursor-pointer"
+                  title="Print Cash Book register table only"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Print View (Table Only)</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setIsPrintModalOpen(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors shadow-2xs cursor-pointer"
-                  title="Print formal Cash Book Register"
+                  title="Formal Cash Book Journal with signatures"
                 >
-                  <Printer className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Print</span>
+                  <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Formal Journal</span>
                 </button>
               </div>
             </div>
@@ -810,7 +828,14 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
           </div>
 
           {/* Historical Register Table */}
-          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <div id="printable-cashbook-history-table" className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs print-concerned-table">
+            {/* Print only formal header */}
+            <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
+              <h1 className="text-base font-bold text-slate-900">AL-HAMD COAL MINES & METALS (PVT) LTD.</h1>
+              <p className="text-xs text-slate-700 font-semibold uppercase tracking-wider">Cashier Treasury - Cash Book Register</p>
+              <p className="text-[10px] text-slate-500">Period: {startDate || 'Inception'} to {endDate || 'Present'} · Printed on {new Date().toLocaleDateString('en-GB')}</p>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
@@ -835,7 +860,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                     <th className="py-3 px-4 w-36 text-right">Credit (Inflow)</th>
                     <th className="py-3 px-4 w-36 text-right">Debit (Outflow)</th>
                     <th className="py-3 px-4 w-36 text-right">Balance</th>
-                    <th className="py-3 px-3 w-28 text-center">Actions</th>
+                    <th className="py-3 px-3 w-28 text-center no-print">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -886,7 +911,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                           </td>
 
                           {/* Action Buttons in Each Row: Edit & Delete */}
-                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap no-print">
                             <div className="inline-flex items-center gap-1.5">
                               <button
                                 type="button"
@@ -935,7 +960,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                     <td className="py-3 px-4 text-right font-mono tabular-nums text-blue-900 text-sm whitespace-nowrap">
                       {formatWholeNumber(filteredTotalBalance)}
                     </td>
-                    <td></td>
+                    <td className="no-print"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -943,7 +968,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
 
             {/* Pagination Controls */}
             {pageSize !== 'all' && totalPages > 1 && (
-              <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs no-print">
                 <span className="text-slate-500">
                   Page <strong className="text-slate-900">{safeCurrentPage}</strong> of{' '}
                   <strong className="text-slate-900">{totalPages}</strong> ({totalRecords} records)
@@ -1202,7 +1227,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-4xl w-full p-6 space-y-6 shadow-2xl border border-slate-200 text-slate-900 max-h-[90vh] overflow-y-auto">
             {/* Modal Controls */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 no-print">
               <div className="flex items-center gap-2">
                 <Printer className="w-5 h-5 text-amber-600" />
                 <h3 className="text-base font-bold text-slate-900">
@@ -1212,7 +1237,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => printConcernedTable('printable-cashbook-formal-report', 'Physical Cash Book Register Journal')}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg shadow-xs transition-colors cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
@@ -1229,7 +1254,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
             </div>
 
             {/* Formal Report Layout */}
-            <div className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900">
+            <div id="printable-cashbook-formal-report" className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900 print-concerned-table">
               <div className="text-center pb-3 border-b border-slate-800">
                 <h2 className="text-lg font-extrabold uppercase tracking-wider text-slate-950">
                   AL-HAMD COAL MINES & METALS (PVT) LTD.

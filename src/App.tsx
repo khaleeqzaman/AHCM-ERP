@@ -10,11 +10,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react';
-import { DatabaseDiagnosticsModal } from './components/common/DatabaseDiagnosticsModal';
-import { 
-  getDbApiDiagnosticLogs, 
-  subscribeDbApiDiagnostics 
-} from './api/client';
 import { 
   NavModule, 
   NavTarget,
@@ -581,19 +576,8 @@ export default function App() {
     }));
   });
 
-  // Database Synchronization & Diagnostics state
+  // Background database refresh state
   const [isRefreshingDb, setIsRefreshingDb] = useState(false);
-  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-  const [diagnosticErrorsCount, setDiagnosticErrorsCount] = useState(0);
-
-  useEffect(() => {
-    const updateErrorCount = () => {
-      const logs = getDbApiDiagnosticLogs();
-      setDiagnosticErrorsCount(logs.filter((l) => !l.success).length);
-    };
-    updateErrorCount();
-    return subscribeDbApiDiagnostics(updateErrorCount);
-  }, []);
 
   const refreshDataFromDatabase = async () => {
     setIsRefreshingDb(true);
@@ -1869,114 +1853,29 @@ export default function App() {
             </nav>
           </div>
 
-          {/* Top Bar Right Actions: System Status & User Profile */}
+          {/* Top Bar Right Actions */}
           <div className="flex items-center gap-2.5">
+            {/* Profile & Password Button */}
+            <button
+              type="button"
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Change profile name or password"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
+            >
+              <SettingsIcon className="w-3.5 h-3.5 text-slate-600" />
+              <span>Profile</span>
+            </button>
 
-            {/* Supabase PostgreSQL Status & Sync */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <div 
-                title="Supabase PostgreSQL Database Connected" 
-                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 rounded-full border border-emerald-200"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <Database className="w-3 h-3 text-emerald-600" />
-                <span>Supabase Live</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={refreshDataFromDatabase}
-                disabled={isRefreshingDb}
-                title="Sync and reload all data from Supabase PostgreSQL database"
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                  isRefreshingDb
-                    ? 'bg-blue-50 text-blue-700 border-blue-200 cursor-wait'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900 shadow-xs'
-                }`}
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isRefreshingDb ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{isRefreshingDb ? 'Syncing...' : 'Sync Database'}</span>
-              </button>
-
-              {/* DB API Diagnostics Inspector Button */}
-              <button
-                type="button"
-                onClick={() => setIsDiagnosticsOpen(true)}
-                title="Inspect real-time Supabase Database API calls, request payloads, responses, and errors"
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                  diagnosticErrorsCount > 0
-                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-slate-900 shadow-xs'
-                }`}
-              >
-                <Activity className={`w-3.5 h-3.5 ${diagnosticErrorsCount > 0 ? 'text-red-600' : 'text-purple-600'}`} />
-                <span className="hidden sm:inline">DB Logs</span>
-                {diagnosticErrorsCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-red-600 text-white font-bold">
-                    {diagnosticErrorsCount}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            <div className="w-px h-5 bg-slate-200 hidden sm:block" />
-
-            {/* User Profile Info - Clickable for Profile Name and Password Change */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsProfileModalOpen(true)}
-                title="Change Profile Name and Password"
-                className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer text-left group"
-              >
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase shadow-xs group-hover:scale-105 transition-transform ${
-                    currentUser.role === 'admin'
-                      ? 'bg-purple-600 text-white'
-                      : currentUser.role === 'purchaser'
-                      ? 'bg-blue-600 text-white'
-                      : currentUser.role === 'cashier'
-                      ? 'bg-amber-600 text-white'
-                      : currentUser.role === 'accountant'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-cyan-600 text-white'
-                  }`}
-                >
-                  {currentUser.username.slice(0, 2)}
-                </div>
-
-                <div className="hidden lg:block text-left">
-                  <div className="text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors leading-tight flex items-center gap-1">
-                    <span>{currentUser.name}</span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-blue-500">✎</span>
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-mono capitalize">
-                    @{currentUser.username} · {currentUser.role.replace('_', ' ')}
-                  </div>
-                </div>
-              </button>
-
-              {/* Explicit Profile & Password button for clarity */}
-              <button
-                type="button"
-                onClick={() => setIsProfileModalOpen(true)}
-                title="Change profile name or password"
-                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-              >
-                <span>⚙️ Profile</span>
-              </button>
-
-              {/* Sign Out Button */}
-              <button
-                type="button"
-                onClick={handleLogout}
-                title="Sign out of system"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors cursor-pointer ml-1"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </button>
-            </div>
+            {/* Sign Out Button */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Sign out of system"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
+            </button>
           </div>
         </header>
 
@@ -2457,13 +2356,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Real-Time Database API Diagnostics Inspector Modal */}
-      <DatabaseDiagnosticsModal
-        isOpen={isDiagnosticsOpen}
-        onClose={() => setIsDiagnosticsOpen(false)}
-        onRefreshDatabase={refreshDataFromDatabase}
-        isRefreshing={isRefreshingDb}
-      />
 
       {/* Universal User Profile & Password Change Modal (Available in all modules) */}
       <UserProfileModal

@@ -1,6 +1,17 @@
 import React, { useState, useMemo } from 'react';
+import { 
+  Printer, 
+  Download, 
+  Plus, 
+  Search, 
+  Sliders, 
+  FileText, 
+  Layers, 
+  Boxes 
+} from 'lucide-react';
 import type { CoalStockRecord, PartnerRecord, CoalSellRecord, CompanySettings } from '../../types/storeSales.ts';
 import ConfirmModal from './ConfirmModal.tsx';
+import { printConcernedTable } from '../../utils/printTable.ts';
 
 interface CoalStockViewProps {
   coalStocks: CoalStockRecord[];
@@ -228,89 +239,12 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
     document.body.removeChild(link);
   };
 
-  // Print Register
+  // Print Register (Table Only)
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Coal Stock Register - ${companySettings.companyName}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; margin: 24px; color: #1e293b; }
-            h1 { font-size: 20px; margin-bottom: 4px; color: #0f172a; }
-            h2 { font-size: 15px; font-weight: normal; color: #475569; margin-top: 0; }
-            .kpis { display: flex; gap: 16px; margin: 16px 0; padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; }
-            .kpi-box { flex: 1; }
-            .kpi-title { font-size: 11px; text-transform: uppercase; color: #64748b; }
-            .kpi-val { font-size: 18px; font-weight: bold; color: #047857; }
-            table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-            th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
-            th { background: #064e3b; color: white; }
-            .num { text-align: right; }
-            @media print { body { margin: 0; } }
-          </style>
-        </head>
-        <body>
-          <h1>${companySettings.companyName}</h1>
-          <h2>COAL STOCK REGISTER & PITHEAD LOGS (Generated: ${new Date().toLocaleDateString()})</h2>
-          
-          <div class="kpis">
-            <div class="kpi-box">
-              <div class="kpi-title">Opening Balance</div>
-              <div class="kpi-val">${openingStock.toLocaleString()} Tons</div>
-            </div>
-            <div class="kpi-box">
-              <div class="kpi-title">Stock Added</div>
-              <div class="kpi-val">${totalStockAdded.toLocaleString()} Tons</div>
-            </div>
-            <div class="kpi-box">
-              <div class="kpi-title">Sold / Dispatched</div>
-              <div class="kpi-val">${totalCoalSold.toLocaleString()} Tons</div>
-            </div>
-            <div class="kpi-box">
-              <div class="kpi-title">Live Coal Balance</div>
-              <div class="kpi-val">${liveCoalStock.toLocaleString()} Tons</div>
-            </div>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Sr.</th>
-                <th>Date</th>
-                <th>Partner Name</th>
-                <th class="num">Quantity (Tons)</th>
-                <th>Pithead Yard</th>
-                <th>Vehicle Ref</th>
-                <th>Remarks</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredStocks.map((stk, idx) => `
-                <tr>
-                  <td>${idx + 1}</td>
-                  <td>${stk.date}</td>
-                  <td><strong>${stk.partnerName}</strong></td>
-                  <td class="num">${stk.quantity.toLocaleString()} Tons</td>
-                  <td>${stk.pitheadLocation || '-'}</td>
-                  <td>${stk.vehicleRef || '-'}</td>
-                  <td>${stk.remarks || '-'}</td>
-                </tr>
-              `).join('')}
-              <tr style="font-weight: bold; background: #f1f5f9;">
-                <td colspan="3" style="text-align: right;">Total Logged Inflows:</td>
-                <td class="num">${filteredStocks.reduce((sum, s) => sum + s.quantity, 0).toLocaleString()} Tons</td>
-                <td colspan="3"></td>
-              </tr>
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    printConcernedTable(
+      'printable-coal-stock-register-table',
+      `Coal Stock Register - ${companySettings.companyName}`
+    );
   };
 
   return (
@@ -386,52 +320,63 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
 
       {/* Sub Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
-        <div className="flex space-x-2">
+        <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setActiveTab('register')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'register'
-                ? 'bg-emerald-700 text-white shadow-sm'
+                ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            📋 View Coal Stock Register
+            <FileText className="w-4 h-4" />
+            <span>View Coal Stock Register</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('add')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'add'
-                ? 'bg-emerald-700 text-white shadow-sm'
+                ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            ➕ Add Coal Stock
+            <Plus className="w-4 h-4" />
+            <span>Add Coal Stock</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'settings'
-                ? 'bg-emerald-700 text-white shadow-sm'
+                ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            ⚙️ Opening Coal Stock
+            <Sliders className="w-4 h-4" />
+            <span>Opening Coal Stock</span>
           </button>
         </div>
 
         {activeTab === 'register' && (
-          <div className="flex space-x-2">
+          <div className="flex items-center gap-2 no-print">
             <button
+              type="button"
               onClick={handleExportCSV}
-              className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-1.5 shadow-sm"
+              className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
-              <span>📥 Export CSV</span>
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Export CSV</span>
             </button>
             <button
+              type="button"
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-1.5 shadow-sm"
+              className="px-3 py-1.5 bg-emerald-50 border border-emerald-300 rounded-lg text-xs font-semibold text-emerald-800 hover:bg-emerald-100 flex items-center gap-1.5 shadow-xs cursor-pointer"
+              title="Print Coal Stock Register Table Only"
             >
-              <span>🖨️ Print Register</span>
+              <Printer className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Print View (Table Only)</span>
             </button>
           </div>
         )}
@@ -626,9 +571,16 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
 
       {/* TAB 3: COAL STOCK REGISTER (TABLE) */}
       {activeTab === 'register' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div id="printable-coal-stock-register-table" className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print-concerned-table">
+          {/* Print only formal header */}
+          <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
+            <h1 className="text-base font-bold text-slate-900">{companySettings.companyName}</h1>
+            <p className="text-xs text-slate-700 font-semibold uppercase tracking-wider">Coal Stock Register & Pithead Extraction Logs</p>
+            <p className="text-[10px] text-slate-500">Printed on {new Date().toLocaleDateString('en-GB')} · Unit: Strictly Tons</p>
+          </div>
+
           {/* Filter Bar */}
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 no-print">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
                 <input
@@ -688,7 +640,7 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
                   <th className="px-4 py-3 text-left">Pithead Location</th>
                   <th className="px-4 py-3 text-left">Vehicle / Bilty</th>
                   <th className="px-4 py-3 text-left">Remarks</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
+                  <th className="px-4 py-3 text-center no-print">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -710,7 +662,7 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
                       <td className="px-4 py-3 text-slate-600">{stk.pitheadLocation || '-'}</td>
                       <td className="px-4 py-3 text-slate-600 font-mono">{stk.vehicleRef || '-'}</td>
                       <td className="px-4 py-3 text-slate-500 truncate max-w-xs">{stk.remarks || '-'}</td>
-                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <td className="px-4 py-3 text-center whitespace-nowrap no-print">
                         <div className="flex items-center justify-center space-x-2">
                           <button
                             onClick={() => setEditingStock(stk)}
@@ -737,7 +689,8 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
                     <td className="px-4 py-3 text-right text-emerald-900">
                       {filteredStocks.reduce((sum, s) => sum + s.quantity, 0).toLocaleString()} Tons
                     </td>
-                    <td colSpan={4}></td>
+                    <td colSpan={3}></td>
+                    <td className="no-print"></td>
                   </tr>
                 </tfoot>
               )}

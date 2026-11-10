@@ -28,6 +28,7 @@ import {
 import { DatePickerInput } from '../common/DatePickerInput';
 import { ConfirmModal } from './ConfirmModal';
 import { formatWholeNumber } from '../../utils/formatters';
+import { printConcernedTable } from '../../utils/printTable';
 
 interface ItemStockViewProps {
   stockEntries: ItemStockEntry[];
@@ -117,11 +118,13 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
 
   // Print view triggers print with specific print-only table styles
   const handlePrintStockTable = () => {
-    document.body.classList.add('printing-stock-table');
-    window.print();
-    setTimeout(() => {
-      document.body.classList.remove('printing-stock-table');
-    }, 1000);
+    const tableId = activeSubTab === 'stock_report' 
+      ? 'printable-stock-report-table' 
+      : 'printable-view-stock-table';
+    const title = activeSubTab === 'stock_report' 
+      ? 'Store Stock Balance & Mines Matrix' 
+      : 'Store Item Stock Ledger';
+    printConcernedTable(tableId, title);
   };
 
   // -------------------------------------------------------------
@@ -774,8 +777,8 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
           </div>
 
           {/* Table Container - Print View target for clean print of table only */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden print-stock-table-only">
-            <div className="hidden print:block p-4 border-b border-slate-200 text-center">
+          <div id="printable-view-stock-table" className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden print-concerned-table print-stock-table-only">
+            <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
               <h1 className="text-lg font-bold text-slate-900">Store Management - Item Stock Ledger</h1>
               <p className="text-xs text-slate-600">Generated on {new Date().toLocaleDateString('en-GB')} · Official Inventory Inflow & Running Balance Ledger</p>
             </div>
@@ -910,7 +913,11 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
           </div>
 
           {/* Table */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+          <div id="printable-stock-report-table" className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden print-concerned-table print-stock-table-only">
+            <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
+              <h1 className="text-lg font-bold text-slate-900">Store Management - Stock Balance & Mines Consumption Matrix</h1>
+              <p className="text-xs text-slate-600">Generated on {new Date().toLocaleDateString('en-GB')} · Official Inventory Balance & Usage Report</p>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">

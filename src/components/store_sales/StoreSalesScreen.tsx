@@ -1,4 +1,18 @@
 import React, { useState } from 'react';
+import { 
+  Building2, 
+  Boxes, 
+  Pickaxe, 
+  Tag, 
+  Layers, 
+  Fuel, 
+  Sliders, 
+  BarChart3, 
+  Database, 
+  Receipt, 
+  Handshake, 
+  Factory 
+} from 'lucide-react';
 import type {
   StoreCoalModuleTab,
   StoreManagementSection,
@@ -214,8 +228,8 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
       {/* Top Header / Primary Module Selector */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2">
-            <span className="text-2xl">🏭</span>
+          <div className="flex items-center space-x-2.5">
+            <Factory className="w-7 h-7 text-emerald-700 shrink-0" />
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">
               {mainTab === 'store_management' ? 'STORE MANAGEMENT' : 'COAL MANAGEMENT'}
             </h1>
@@ -237,7 +251,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <span>📦</span>
+            <Boxes className="w-4 h-4 shrink-0 text-emerald-700" />
             <span>STORE MANAGEMENT</span>
           </button>
           <button
@@ -248,7 +262,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <span>⛏️</span>
+            <Pickaxe className="w-4 h-4 shrink-0" />
             <span>COAL MANAGEMENT</span>
             <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-700 text-emerald-100 font-mono">
               {liveCoalBalance.toLocaleString()} Tons
@@ -272,7 +286,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span>🏷️</span>
+              <Tag className="w-3.5 h-3.5 shrink-0" />
               <span>Items ({items.length})</span>
             </button>
 
@@ -284,7 +298,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span>📥</span>
+              <Layers className="w-3.5 h-3.5 shrink-0" />
               <span>Item Stock ({stockEntries.length})</span>
             </button>
 
@@ -296,7 +310,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span>⛽</span>
+              <Fuel className="w-3.5 h-3.5 shrink-0" />
               <span>Item Consumption ({consumptions.length})</span>
             </button>
 
@@ -308,7 +322,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span>⚙️</span>
+              <Sliders className="w-3.5 h-3.5 shrink-0" />
               <span>Item Settings</span>
             </button>
 
@@ -320,7 +334,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span>📊</span>
+              <BarChart3 className="w-3.5 h-3.5 shrink-0" />
               <span>Reports</span>
             </button>
           </div>
@@ -413,7 +427,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span>📦</span>
+              <Database className="w-3.5 h-3.5 shrink-0" />
               <span>Coal Stock ({coalStocks.length})</span>
             </button>
 
@@ -425,7 +439,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span>🧾</span>
+              <Receipt className="w-3.5 h-3.5 shrink-0" />
               <span>Coal Sell & POS Invoices ({coalSells.length})</span>
             </button>
 
@@ -437,7 +451,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span>🤝</span>
+              <Handshake className="w-3.5 h-3.5 shrink-0" />
               <span>Partner Management ({partners.length})</span>
             </button>
 
@@ -449,7 +463,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span>🏢</span>
+              <Building2 className="w-3.5 h-3.5 shrink-0" />
               <span>Buyer Management ({buyers.length})</span>
             </button>
           </div>

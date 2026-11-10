@@ -1,6 +1,15 @@
 import React, { useState, useMemo } from 'react';
+import { 
+  Printer, 
+  Download, 
+  Plus, 
+  Search, 
+  Handshake, 
+  Users 
+} from 'lucide-react';
 import type { PartnerRecord, CoalStockRecord, CoalSellRecord } from '../../types/storeSales.ts';
 import ConfirmModal from './ConfirmModal.tsx';
+import { printConcernedTable } from '../../utils/printTable.ts';
 
 interface PartnersManagementViewProps {
   partners: PartnerRecord[];
@@ -206,108 +215,60 @@ export const PartnersManagementView: React.FC<PartnersManagementViewProps> = ({
     document.body.removeChild(link);
   };
 
-  // Print List
+  // Print List (Table Only)
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Mining Partners Directory</title>
-          <style>
-            body { font-family: system-ui, sans-serif; margin: 24px; color: #1e293b; }
-            h1 { font-size: 20px; margin-bottom: 4px; }
-            h2 { font-size: 14px; font-weight: normal; color: #64748b; margin-top: 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; }
-            th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
-            th { background: #0f172a; color: white; }
-            .num { text-align: right; }
-          </style>
-        </head>
-        <body>
-          <h1>MINING PARTNERS REGISTER</h1>
-          <h2>Active Extraction & Seam Allocation Partners (Generated: ${new Date().toLocaleDateString()})</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Sr.</th>
-                <th>Partner Name</th>
-                <th>Code</th>
-                <th>Status</th>
-                <th>Contact Person</th>
-                <th>Phone</th>
-                <th class="num">Stock Inflow (Tons)</th>
-                <th class="num">Sold (Tons)</th>
-                <th class="num">Partner Balance (Tons)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredPartners.map((p, idx) => {
-                const stats = partnerStats[p.id] || { stockAdded: 0, sold: 0, netBalance: 0 };
-                return `
-                  <tr>
-                    <td>${idx + 1}</td>
-                    <td><strong>${p.name}</strong></td>
-                    <td>${p.code}</td>
-                    <td>${p.isActive ? 'Active' : 'Inactive'}</td>
-                    <td>${p.contactPerson || '-'}</td>
-                    <td>${p.phone || '-'}</td>
-                    <td class="num">${stats.stockAdded.toLocaleString()} Tons</td>
-                    <td class="num">${stats.sold.toLocaleString()} Tons</td>
-                    <td class="num font-bold">${stats.netBalance.toLocaleString()} Tons</td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    printConcernedTable('printable-partners-directory-table', 'Mining Partners Directory');
   };
 
   return (
     <div className="space-y-6">
       {/* Top Banner / Actions */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2">
-        <div className="flex space-x-2">
+        <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setActiveTab('list')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'list'
-                ? 'bg-emerald-700 text-white shadow-sm'
+                ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            📋 View Partners List ({partners.length})
+            <Handshake className="w-4 h-4" />
+            <span>View Partners List ({partners.length})</span>
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('add')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
               activeTab === 'add'
-                ? 'bg-emerald-700 text-white shadow-sm'
+                ? 'bg-emerald-700 text-white shadow-xs'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
-            ➕ Add Partner Name
+            <Plus className="w-4 h-4" />
+            <span>Add Partner Name</span>
           </button>
         </div>
 
         {activeTab === 'list' && (
-          <div className="flex space-x-2">
+          <div className="flex items-center gap-2 no-print">
             <button
+              type="button"
               onClick={handleExportCSV}
-              className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-1.5 shadow-sm"
+              className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
-              <span>📥 Export CSV</span>
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Export CSV</span>
             </button>
             <button
+              type="button"
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center space-x-1.5 shadow-sm"
+              className="px-3 py-1.5 bg-emerald-50 border border-emerald-300 rounded-lg text-xs font-semibold text-emerald-800 hover:bg-emerald-100 flex items-center gap-1.5 shadow-xs cursor-pointer"
+              title="Print Mining Partners Table Only"
             >
-              <span>🖨️ Print Partners</span>
+              <Printer className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Print View (Table Only)</span>
             </button>
           </div>
         )}
@@ -428,9 +389,16 @@ export const PartnersManagementView: React.FC<PartnersManagementViewProps> = ({
 
       {/* TAB 2: VIEW PARTNERS LIST */}
       {activeTab === 'list' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div id="printable-partners-directory-table" className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden print-concerned-table">
+          {/* Print only formal header */}
+          <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
+            <h1 className="text-base font-bold text-slate-900">AL-HAMD COAL MINES & METALS (PVT) LTD.</h1>
+            <p className="text-xs text-slate-700 font-semibold uppercase tracking-wider">Active Extraction & Mining Partners Register</p>
+            <p className="text-[10px] text-slate-500">Printed on {new Date().toLocaleDateString('en-GB')} · Unit: Strictly Tons</p>
+          </div>
+
           {/* Filters */}
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 no-print">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative">
                 <input
@@ -490,7 +458,7 @@ export const PartnersManagementView: React.FC<PartnersManagementViewProps> = ({
                   <th className="px-4 py-3 text-right">Stock Inflow (Tons)</th>
                   <th className="px-4 py-3 text-right">Sold / Dispatched (Tons)</th>
                   <th className="px-4 py-3 text-right">Partner Balance</th>
-                  <th className="px-4 py-3 text-center">Actions</th>
+                  <th className="px-4 py-3 text-center no-print">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white">
@@ -530,7 +498,7 @@ export const PartnersManagementView: React.FC<PartnersManagementViewProps> = ({
                         <td className="px-4 py-3 text-right font-bold text-emerald-800 font-mono whitespace-nowrap">
                           {stats.netBalance.toLocaleString()} Tons
                         </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <td className="px-4 py-3 text-center whitespace-nowrap no-print">
                           <div className="flex items-center justify-center space-x-2">
                             <button
                               onClick={() => setEditingPartner(p)}
