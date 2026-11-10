@@ -167,10 +167,10 @@ export const TreasuryScreen: React.FC<TreasuryScreenProps> = ({
                 Cashier Operations
               </span>
               <span className="text-slate-300">/</span>
-              <span className="text-xs text-slate-500">Treasury & Bank Management</span>
+              <span className="text-xs text-slate-500">Cashier & Bank Management</span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
-              Treasury Module
+              Cashier Module
             </h1>
             <p className="text-sm text-slate-600 mt-0.5">
               Dedicated, isolated cashier workspace for daily Cash Book Register and multi-account Bank Management.

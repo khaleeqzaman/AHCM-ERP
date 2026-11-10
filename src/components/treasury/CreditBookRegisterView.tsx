@@ -342,7 +342,7 @@ export const CreditBookRegisterView: React.FC<CreditBookRegisterViewProps> = ({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600">
-              Treasury Module
+              Cashier Module
             </span>
             <span className="text-slate-300">·</span>
             <span className="text-xs text-slate-500">Credit Ledger Journal</span>

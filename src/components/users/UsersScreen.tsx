@@ -561,7 +561,7 @@ export const UsersScreen: React.FC<UsersScreenProps> = ({
           <div className="p-3 rounded-lg border border-amber-200 bg-amber-50/50">
             <div className="font-bold text-amber-900">Cashier</div>
             <p className="text-[11px] text-amber-700 mt-1">
-              Own Cashier Dashboard, Treasury Module (Daily Cash Book vouchers, Credit Book, Bank accounts & transactions).
+              Own Cashier Dashboard, Cashier Module (Daily Cash Book vouchers, Credit Book, Bank accounts & transactions).
             </p>
           </div>
           <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/50">

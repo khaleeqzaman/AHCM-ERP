@@ -66,7 +66,8 @@ interface RoleDashboardProps {
   stockItems: StockItem[];
   stockEntries: StockEntry[];
   vehicles: VehicleRecord[];
-  consumptions: VehicleConsumptionRecord[];
+  consumptions: any[];
+  mines?: any[];
   companySettings?: CompanySettings;
   users: User[];
   onNavigate: (module: NavModule) => void;
@@ -90,6 +91,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
   stockEntries,
   vehicles,
   consumptions,
+  mines = [],
   companySettings,
   users,
   onNavigate,
@@ -148,7 +150,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
   const [stockFilterText, setStockFilterText] = useState('');
   const [stockCategoryFilter, setStockCategoryFilter] = useState('all');
 
-  // Memoized Vehicle-Wise Consumption Summary
+  // Memoized Vehicle-Wise Consumption Summary based on newly built item consumption records
   const vehicleSummaries = useMemo(() => {
     const map = new Map<string, {
       vehicleId: string;
@@ -156,14 +158,8 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
       vehicleType: string;
       driverName: string;
       status: string;
-      totalDiesel: number;
-      totalMOil: number;
-      totalDOil: number;
-      totalOFltr: number;
-      totalDFltr: number;
-      totalKOil: number;
-      totalCOil: number;
-      totalBOil: number;
+      totalQuantity: number;
+      primaryUnit: string;
       logsCount: number;
       lastDate?: string;
     }>();
@@ -175,25 +171,24 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
         vehicleType: v.vehicleType || 'Fleet Vehicle',
         driverName: v.driverName || 'Designated Driver',
         status: v.status || 'Active',
-        totalDiesel: 0,
-        totalMOil: 0,
-        totalDOil: 0,
-        totalOFltr: 0,
-        totalDFltr: 0,
-        totalKOil: 0,
-        totalCOil: 0,
-        totalBOil: 0,
+        totalQuantity: 0,
+        primaryUnit: 'L',
         logsCount: 0,
         lastDate: '',
       });
     });
 
     consumptions.forEach((c) => {
-      const vNo = (c.vehicleNo || '').trim().toUpperCase();
-      let target = map.get(c.vehicleId || '');
-      if (!target) {
+      // Support both newly built consumption schema (consumptionType === 'vehicle') and direct records
+      const isVeh = c.consumptionType ? c.consumptionType === 'vehicle' : true;
+      if (!isVeh) return;
+
+      const vId = c.targetId || c.vehicleId;
+      const vName = (c.targetName || c.vehicleNo || '').trim();
+      let target = vId ? map.get(vId) : null;
+      if (!target && vName) {
         for (const [_, item] of map.entries()) {
-          if ((item.vehicleNo || '').trim().toUpperCase() === vNo) {
+          if (item.vehicleNo.toLowerCase() === vName.toLowerCase()) {
             target = item;
             break;
           }
@@ -202,54 +197,61 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
 
       if (!target) {
         target = {
-          vehicleId: c.vehicleId || `v-${c.vehicleNo || 'veh'}`,
-          vehicleNo: c.vehicleNo || 'Unknown',
+          vehicleId: vId || `veh-${vName || 'unknown'}`,
+          vehicleNo: vName || 'General Machine',
           vehicleType: 'Fleet Vehicle',
-          driverName: 'Assigned Driver',
+          driverName: c.operatorName || 'Designated Driver',
           status: 'Active',
-          totalDiesel: 0,
-          totalMOil: 0,
-          totalDOil: 0,
-          totalOFltr: 0,
-          totalDFltr: 0,
-          totalKOil: 0,
-          totalCOil: 0,
-          totalBOil: 0,
+          totalQuantity: 0,
+          primaryUnit: c.unit || 'L',
           logsCount: 0,
           lastDate: '',
         };
         map.set(target.vehicleId, target);
       }
 
-      target.totalDiesel = (target.totalDiesel || 0) + Number(c.diesel || 0);
-      target.totalMOil = (target.totalMOil || 0) + Number(c.mOil || 0);
-      target.totalDOil = (target.totalDOil || 0) + Number(c.dOil || 0);
-      target.totalOFltr = (target.totalOFltr || 0) + Number(c.oFltr || 0);
-      target.totalDFltr = (target.totalDFltr || 0) + Number(c.dFltr || 0);
-      target.totalKOil = (target.totalKOil || 0) + Number(c.kOil || 0);
-      target.totalCOil = (target.totalCOil || 0) + Number(c.cOil || 0);
-      target.totalBOil = (target.totalBOil || 0) + Number(c.bOil || 0);
-      target.logsCount = (target.logsCount || 0) + 1;
+      const qty = Number(c.quantity ?? (Number(c.diesel || 0) + Number(c.mOil || 0) + Number(c.dOil || 0))) || 0;
+      target.totalQuantity += qty;
+      target.logsCount += 1;
+      if (c.unit) target.primaryUnit = c.unit;
       if (!target.lastDate || (c.date && c.date > target.lastDate)) {
         target.lastDate = c.date;
       }
     });
 
-    return Array.from(map.values()).sort((a, b) => (b.totalDiesel || 0) - (a.totalDiesel || 0));
+    return Array.from(map.values()).sort((a, b) => b.totalQuantity - a.totalQuantity);
   }, [vehicles, consumptions]);
 
-  // Memoized Item-Wise Stock Summary
+  // Memoized Item-Wise Stock Summary strictly synced from new Stock Report data
   const stockSummaries = useMemo(() => {
+    // 1. Group consumption by itemId
+    const consumptionMap = new Map<string, { vehicleUsage: number; mineUsage: number; totalUsage: number }>();
+    consumptions.forEach(c => {
+      const itmId = c.itemId;
+      if (!itmId) return;
+      const cur = consumptionMap.get(itmId) || { vehicleUsage: 0, mineUsage: 0, totalUsage: 0 };
+      const q = Number(c.quantity) || 0;
+      if (c.consumptionType === 'mine') {
+        cur.mineUsage += q;
+      } else {
+        cur.vehicleUsage += q;
+      }
+      cur.totalUsage += q;
+      consumptionMap.set(itmId, cur);
+    });
+
+    // 2. Map items with Opening Stock + Stock Inflow purchases - Usages = Net Balance
     const map = new Map<string, {
       itemId: string;
       itemCode: string;
       itemName: string;
       category: string;
       unit: string;
-      totalOpeningStock: number;
-      totalPurchaseQty: number;
-      totalMineQty: number;
-      totalVehiclesQty: number;
+      openingStock: number;
+      totalInflowPurchase: number;
+      vehicleUsage: number;
+      mineUsage: number;
+      totalUsage: number;
       currentBalance: number;
       entriesCount: number;
       lastDate?: string;
@@ -261,12 +263,13 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
         itemId: it.id,
         itemCode: it.itemCode,
         itemName: it.itemName,
-        category: it.category || 'General',
-        unit: it.unit || 'Units',
-        totalOpeningStock: 0,
-        totalPurchaseQty: 0,
-        totalMineQty: 0,
-        totalVehiclesQty: 0,
+        category: it.category || it.categoryName || 'General Supplies',
+        unit: it.unit || it.unitSymbol || 'Units',
+        openingStock: Number(it.openingStock) || 0,
+        totalInflowPurchase: 0,
+        vehicleUsage: 0,
+        mineUsage: 0,
+        totalUsage: 0,
         currentBalance: 0,
         entriesCount: 0,
         lastDate: '',
@@ -291,11 +294,12 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
           itemCode: entry.itemCode,
           itemName: entry.itemName || entry.itemCode,
           category: 'General Supplies',
-          unit: 'Units',
-          totalOpeningStock: 0,
-          totalPurchaseQty: 0,
-          totalMineQty: 0,
-          totalVehiclesQty: 0,
+          unit: entry.unit || 'Units',
+          openingStock: 0,
+          totalInflowPurchase: 0,
+          vehicleUsage: 0,
+          mineUsage: 0,
+          totalUsage: 0,
           currentBalance: 0,
           entriesCount: 0,
           lastDate: '',
@@ -304,26 +308,32 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
         map.set(target.itemId, target);
       }
 
-      target.totalOpeningStock += Number(entry.stockQty || 0);
-      target.totalPurchaseQty += Number(entry.purchaseQty || 0);
-      target.totalMineQty += Number(entry.mineQty || 0);
-      target.totalVehiclesQty += Number(entry.vehiclesQty || 0);
+      const inflow = (entry.stockQuantity ?? entry.stockQty ?? 0) + (entry.purchase ?? entry.purchaseQty ?? 0);
+      target.totalInflowPurchase += inflow;
       target.entriesCount += 1;
       if (!target.lastDate || entry.date > target.lastDate) {
         target.lastDate = entry.date;
       }
     });
 
+    // 3. Compute running balance and stock status: (Opening Stock + Total Inflow) - Total Usage = Balance
     const result = Array.from(map.values()).map((s) => {
-      const net = (s.totalOpeningStock + s.totalPurchaseQty) - (s.totalMineQty + s.totalVehiclesQty);
+      const c = consumptionMap.get(s.itemId) || { vehicleUsage: 0, mineUsage: 0, totalUsage: 0 };
+      const totalAvailable = s.openingStock + s.totalInflowPurchase;
+      const net = totalAvailable - c.totalUsage;
+
       let status: 'In Stock' | 'Low Stock' | 'Critical' = 'In Stock';
       if (net <= 5) {
         status = 'Critical';
       } else if (net <= 25) {
         status = 'Low Stock';
       }
+
       return {
         ...s,
+        vehicleUsage: c.vehicleUsage,
+        mineUsage: c.mineUsage,
+        totalUsage: c.totalUsage,
         currentBalance: Math.round(net),
         stockStatus: status,
       };
@@ -331,11 +341,11 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
 
     const priority = { Critical: 0, 'Low Stock': 1, 'In Stock': 2 };
     return result.sort((a, b) => priority[a.stockStatus] - priority[b.stockStatus] || a.currentBalance - b.currentBalance);
-  }, [stockItems, stockEntries]);
+  }, [stockItems, stockEntries, consumptions]);
 
   // Derived filter categories for stock
   const stockCategories = useMemo(() => {
-    return Array.from(new Set(stockItems.map(s => s.category).filter(Boolean))) as string[];
+    return Array.from(new Set(stockItems.map(s => s.category || s.categoryName).filter(Boolean))) as string[];
   }, [stockItems]);
 
   // Filtered lists
@@ -358,11 +368,9 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
     });
   }, [stockSummaries, stockFilterText, stockCategoryFilter]);
 
-  // Fleet Totals
-  const totalFleetDiesel = useMemo(() => vehicleSummaries.reduce((sum, v) => sum + v.totalDiesel, 0), [vehicleSummaries]);
-  const totalFleetMOil = useMemo(() => vehicleSummaries.reduce((sum, v) => sum + v.totalMOil, 0), [vehicleSummaries]);
-  const totalFleetDOil = useMemo(() => vehicleSummaries.reduce((sum, v) => sum + v.totalDOil, 0), [vehicleSummaries]);
-  const totalFleetFilters = useMemo(() => vehicleSummaries.reduce((sum, v) => sum + v.totalOFltr + v.totalDFltr, 0), [vehicleSummaries]);
+  // Summary Aggregates
+  const totalFleetConsumed = useMemo(() => vehicleSummaries.reduce((sum, v) => sum + v.totalQuantity, 0), [vehicleSummaries]);
+  const totalActiveVehiclesCount = useMemo(() => vehicles.length, [vehicles]);
 
   // Stock Totals
   const criticalStockCount = useMemo(() => stockSummaries.filter(s => s.stockStatus === 'Critical').length, [stockSummaries]);
@@ -450,11 +458,11 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
             </div>
           </div>
 
-          {/* Pillar 3: Treasury Cash in Hand */}
+          {/* Pillar 3: Cashier Cash in Hand */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-xs font-medium">Treasury Cash in Hand</span>
+                <span className="text-xs font-medium">Cashier Cash in Hand</span>
                 <Vault className="w-4 h-4 text-amber-600" />
               </div>
               <div className="text-2xl font-bold font-mono text-amber-700">
@@ -808,7 +816,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                 onClick={() => onNavigate('treasury')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
               >
-                <span>Treasury Module</span>
+                <span>Cashier Module</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -817,7 +825,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {bankAccounts.length === 0 ? (
               <div className="col-span-full py-6 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                No bank accounts registered. Configure bank accounts in the Treasury module.
+                No bank accounts registered. Configure bank accounts in the Cashier module.
               </div>
             ) : (
               bankAccounts.map((b) => {
@@ -942,45 +950,45 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                     </button>
                   </div>
 
-                  {/* Summary Metric Strip */}
+                  {/* Summary Metric Strip - Synced from Store Management */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className="bg-white border border-slate-200 rounded-lg p-2.5">
                       <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <Truck className="w-3 h-3 text-blue-600" />
+                        <span>Active Vehicles</span>
+                      </div>
+                      <div className="text-base font-bold font-mono text-slate-900 mt-0.5">
+                        {totalActiveVehiclesCount} <span className="text-[10px] font-normal text-slate-500">units</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-lg p-2.5">
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1">
                         <Fuel className="w-3 h-3 text-amber-600" />
-                        <span>Total Diesel</span>
+                        <span>Total Consumed</span>
                       </div>
                       <div className="text-base font-bold font-mono text-slate-900 mt-0.5">
-                        {totalFleetDiesel.toLocaleString()} <span className="text-[10px] font-normal text-slate-500">L</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-white border border-slate-200 rounded-lg p-2.5">
-                      <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                        <Droplet className="w-3 h-3 text-blue-600" />
-                        <span>Motor Oil</span>
-                      </div>
-                      <div className="text-base font-bold font-mono text-slate-900 mt-0.5">
-                        {totalFleetMOil.toLocaleString()} <span className="text-[10px] font-normal text-slate-500">L</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-white border border-slate-200 rounded-lg p-2.5">
-                      <div className="text-[11px] text-slate-500 flex items-center gap-1">
-                        <Wrench className="w-3 h-3 text-purple-600" />
-                        <span>Diff Oil</span>
-                      </div>
-                      <div className="text-base font-bold font-mono text-slate-900 mt-0.5">
-                        {totalFleetDOil.toLocaleString()} <span className="text-[10px] font-normal text-slate-500">L</span>
+                        {totalFleetConsumed.toLocaleString()} <span className="text-[10px] font-normal text-slate-500">Qty</span>
                       </div>
                     </div>
 
                     <div className="bg-white border border-slate-200 rounded-lg p-2.5">
                       <div className="text-[11px] text-slate-500 flex items-center gap-1">
                         <Layers className="w-3 h-3 text-emerald-600" />
-                        <span>Filters Used</span>
+                        <span>Logged Vehicles</span>
                       </div>
                       <div className="text-base font-bold font-mono text-slate-900 mt-0.5">
-                        {totalFleetFilters} <span className="text-[10px] font-normal text-slate-500">units</span>
+                        {vehicleSummaries.filter(v => v.totalQuantity > 0).length} <span className="text-[10px] font-normal text-slate-500">with usage</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-lg p-2.5">
+                      <div className="text-[11px] text-slate-500 flex items-center gap-1">
+                        <Boxes className="w-3 h-3 text-purple-600" />
+                        <span>Stock SKUs</span>
+                      </div>
+                      <div className="text-base font-bold font-mono text-slate-900 mt-0.5">
+                        {stockSummaries.length} <span className="text-[10px] font-normal text-slate-500">items</span>
                       </div>
                     </div>
                   </div>
@@ -1005,10 +1013,8 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                           <tr>
                             <th className="py-2 px-3">Vehicle</th>
                             <th className="py-2 px-3">Driver</th>
-                            <th className="py-2 px-3 text-right">Diesel</th>
-                            <th className="py-2 px-3 text-right">M. Oil</th>
-                            <th className="py-2 px-3 text-right">D. Oil</th>
-                            <th className="py-2 px-3 text-center">Fltrs</th>
+                            <th className="py-2 px-3 text-right">Consumed Qty</th>
+                            <th className="py-2 px-3 text-center">Unit</th>
                             <th className="py-2 px-3 text-right">Logs</th>
                           </tr>
                         </thead>
@@ -1026,16 +1032,10 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                                 </td>
                                 <td className="py-2 px-3 text-slate-600">{v.driverName}</td>
                                 <td className="py-2 px-3 text-right font-mono font-bold text-amber-700">
-                                  {v.totalDiesel > 0 ? `${v.totalDiesel} L` : '—'}
+                                  {v.totalQuantity > 0 ? formatWholeNumber(v.totalQuantity) : '—'}
                                 </td>
-                                <td className="py-2 px-3 text-right font-mono text-slate-700">
-                                  {v.totalMOil > 0 ? `${v.totalMOil} L` : '—'}
-                                </td>
-                                <td className="py-2 px-3 text-right font-mono text-slate-700">
-                                  {v.totalDOil > 0 ? `${v.totalDOil} L` : '—'}
-                                </td>
-                                <td className="py-2 px-3 text-center font-mono text-slate-700">
-                                  {v.totalOFltr + v.totalDFltr > 0 ? `${v.totalOFltr + v.totalDFltr}` : '—'}
+                                <td className="py-2 px-3 text-center font-mono text-slate-500 text-[11px]">
+                                  {v.primaryUnit}
                                 </td>
                                 <td className="py-2 px-3 text-right text-slate-500 font-mono text-[11px]">
                                   {v.logsCount} entries
@@ -1044,7 +1044,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={7} className="py-6 text-center text-slate-400 text-xs">
+                              <td colSpan={5} className="py-6 text-center text-slate-400 text-xs">
                                 No vehicle consumption logs match your search.
                               </td>
                             </tr>
@@ -1057,7 +1057,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
 
                 <div className="text-[11px] text-slate-500 flex justify-between items-center pt-2 border-t border-slate-200">
                   <span>Tracking {vehicles.length} fleet machines</span>
-                  <span className="font-mono text-slate-600">Updated from Cloud SQL</span>
+                  <span className="font-mono text-slate-600">Updated from Store Management Stock Report</span>
                 </div>
               </div>
             )}
@@ -1168,8 +1168,9 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                           <tr>
                             <th className="py-2 px-3">Item / Code</th>
                             <th className="py-2 px-3">Category</th>
-                            <th className="py-2 px-3 text-right">Received</th>
-                            <th className="py-2 px-3 text-right">Issued</th>
+                            <th className="py-2 px-3 text-right">Opening</th>
+                            <th className="py-2 px-3 text-right">Inflow</th>
+                            <th className="py-2 px-3 text-right">Usage</th>
                             <th className="py-2 px-3 text-right">Net Balance</th>
                             <th className="py-2 px-3 text-center">Status</th>
                           </tr>
@@ -1187,11 +1188,14 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                                     {s.category}
                                   </span>
                                 </td>
-                                <td className="py-2 px-3 text-right font-mono text-slate-700">
-                                  +{s.totalPurchaseQty}
+                                <td className="py-2 px-3 text-right font-mono text-amber-900">
+                                  {formatWholeNumber(s.openingStock)}
+                                </td>
+                                <td className="py-2 px-3 text-right font-mono text-emerald-700">
+                                  +{formatWholeNumber(s.totalInflowPurchase)}
                                 </td>
                                 <td className="py-2 px-3 text-right font-mono text-slate-700">
-                                  -{s.totalMineQty + s.totalVehiclesQty}
+                                  -{formatWholeNumber(s.totalUsage)}
                                 </td>
                                 <td className="py-2 px-3 text-right font-mono font-bold">
                                   <span
@@ -1203,7 +1207,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                                         : 'bg-emerald-50 text-emerald-800'
                                     }`}
                                   >
-                                    {s.currentBalance} {s.unit}
+                                    {formatWholeNumber(s.currentBalance)} {s.unit}
                                   </span>
                                 </td>
                                 <td className="py-2 px-3 text-center">
@@ -1420,10 +1424,10 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-800/60 border border-amber-600/60 text-amber-200 text-xs font-semibold uppercase tracking-wider mb-2">
               <Vault className="w-3.5 h-3.5 text-amber-400" />
-              <span>Cashier & Treasury Desk</span>
+              <span>Cashier Desk</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-              Treasury Cash Book
+              Cashier Register & Desk
             </h1>
             <p className="text-sm text-slate-300 mt-1 max-w-xl">
               Manage daily cash vouchers, customer credit books, bank accounts, and transactions with 100% independent cash controls.
@@ -1437,7 +1441,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-amber-600 hover:bg-amber-500 transition-colors shadow-lg shadow-amber-600/20 cursor-pointer"
             >
               <Vault className="w-4 h-4" />
-              <span>Open Treasury Module</span>
+              <span>Open Cashier Module</span>
               <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
             </button>
           </div>

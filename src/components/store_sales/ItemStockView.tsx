@@ -37,6 +37,7 @@ interface ItemStockViewProps {
   onAddStockEntry: (entry: ItemStockEntry) => void;
   onUpdateStockEntry: (entry: ItemStockEntry) => void;
   onDeleteStockEntry: (id: string) => void;
+  onUpdateItem?: (item: StoreItem) => void;
   initialSubTab?: ItemStockSubTab;
 }
 
@@ -48,6 +49,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   onAddStockEntry,
   onUpdateStockEntry,
   onDeleteStockEntry,
+  onUpdateItem,
   initialSubTab = 'view_stock',
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<ItemStockSubTab>(initialSubTab);
@@ -65,6 +67,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     return `${dd}-${mm}-${today.getFullYear()}`;
   });
   const [formItemId, setFormItemId] = useState(items[0]?.id || '');
+  const [formItemOpeningBalance, setFormItemOpeningBalance] = useState<number | ''>(() => items[0]?.openingStock ?? 0);
   const [formStockQty, setFormStockQty] = useState<number | ''>(0);
   const [formPurchaseQty, setFormPurchaseQty] = useState<number | ''>('');
   const [formVendor, setFormVendor] = useState('');
@@ -98,12 +101,28 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   React.useEffect(() => {
     if (!formItemId && items.length > 0) {
       setFormItemId(items[0].id);
+      setFormItemOpeningBalance(items[0].openingStock ?? 0);
     }
   }, [items, formItemId]);
+
+  const handleSelectItemChange = (id: string) => {
+    setFormItemId(id);
+    const it = items.find(i => i.id === id);
+    setFormItemOpeningBalance(it?.openingStock ?? 0);
+  };
 
   const selectedItemObj = useMemo(() => {
     return items.find(i => i.id === formItemId);
   }, [items, formItemId]);
+
+  // Print view triggers print with specific print-only table styles
+  const handlePrintStockTable = () => {
+    document.body.classList.add('printing-stock-table');
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove('printing-stock-table');
+    }, 1000);
+  };
 
   // -------------------------------------------------------------
   // Consumption Aggregations per Item
@@ -125,7 +144,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   }, [consumptions]);
 
   // -------------------------------------------------------------
-  // Add Stock Handler with Confirmation
+  // Add Stock Handler with Opening Balance Option and Confirmation
   // -------------------------------------------------------------
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,19 +163,28 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
 
     const stockQty = Number(formStockQty) || 0;
     const purchaseQty = Number(formPurchaseQty) || 0;
+    const newOpeningBal = formItemOpeningBalance === '' ? 0 : Number(formItemOpeningBalance);
 
-    if (stockQty <= 0 && purchaseQty <= 0) {
-      setFormError('Please enter at least Opening Stock Quantity or Purchase Inflow Quantity.');
+    if (stockQty <= 0 && purchaseQty <= 0 && newOpeningBal === (item.openingStock ?? 0)) {
+      setFormError('Please enter Opening Stock, Inflow Purchase Quantity, or set a new Item Opening Balance.');
       return;
     }
 
     setConfirmModal({
       isOpen: true,
       title: 'Confirm Stock Entry',
-      message: `Are you sure you want to log stock for:\n\n• Item: ${item.itemName} (${item.itemCode})\n• Opening/Base Stock: ${formatWholeNumber(stockQty)} ${item.unitSymbol}\n• Purchase (Inflow): ${formatWholeNumber(purchaseQty)} ${item.unitSymbol}\n• Date: ${formDate}`,
+      message: `Are you sure you want to log stock for:\n\n• Item: ${item.itemName} (${item.itemCode})\n• Opening Balance Setting: ${formatWholeNumber(newOpeningBal)} ${item.unitSymbol}\n• Entry Stock Quantity: ${formatWholeNumber(stockQty)} ${item.unitSymbol}\n• Purchase (Inflow): ${formatWholeNumber(purchaseQty)} ${item.unitSymbol}\n• Date: ${formDate}`,
       confirmText: 'Save Stock Entry',
       variant: 'primary',
       action: () => {
+        // Update item's opening balance if changed and onUpdateItem is available
+        if (onUpdateItem && newOpeningBal !== (item.openingStock ?? 0)) {
+          onUpdateItem({
+            ...item,
+            openingStock: newOpeningBal,
+          });
+        }
+
         const newEntry: ItemStockEntry = {
           id: `stk-${Date.now()}`,
           date: formDate,
@@ -254,11 +282,18 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   };
 
   // -------------------------------------------------------------
-  // View Stock Rows
+  // View Stock Rows with Item Opening Balance and Running Ledger Balance
   // -------------------------------------------------------------
   const filteredStockList = useMemo(() => {
     const q = searchTerm.toLowerCase();
-    return stockEntries.filter(entry => {
+
+    // Map item opening balances
+    const itemOpeningMap = new Map<string, number>();
+    items.forEach(i => {
+      itemOpeningMap.set(i.id, Number(i.openingStock) || 0);
+    });
+
+    const filtered = stockEntries.filter(entry => {
       const matchSearch = entry.itemCode.toLowerCase().includes(q) ||
         entry.itemName.toLowerCase().includes(q) ||
         entry.date.includes(q) ||
@@ -270,8 +305,31 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
       const matchEnd = !endDateFilter || entry.date <= endDateFilter;
 
       return matchSearch && matchItem && matchStart && matchEnd;
-    }).sort((a, b) => b.date.localeCompare(a.date));
-  }, [stockEntries, searchTerm, selectedItemFilter, startDateFilter, endDateFilter]);
+    });
+
+    // Sort chronologically ascending to compute progressive running balance ledger per item
+    const sortedChronological = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+    
+    // Track cumulative balance per item: item's opening balance + progressive (stockQuantity + purchase)
+    const runningPerItem = new Map<string, number>();
+    const withRunningBalance = sortedChronological.map(entry => {
+      const baseOpening = itemOpeningMap.get(entry.itemId) || 0;
+      const prevBal = runningPerItem.has(entry.itemId) ? runningPerItem.get(entry.itemId)! : baseOpening;
+      const inflow = (entry.stockQuantity ?? 0) + (entry.purchase ?? 0);
+      const newBal = prevBal + inflow;
+      runningPerItem.set(entry.itemId, newBal);
+
+      return {
+        ...entry,
+        itemOpeningBalance: baseOpening,
+        entryInflow: inflow,
+        runningBalance: newBal,
+      };
+    });
+
+    // Return descending for display (most recent first)
+    return withRunningBalance.sort((a, b) => b.date.localeCompare(a.date));
+  }, [stockEntries, items, searchTerm, selectedItemFilter, startDateFilter, endDateFilter]);
 
   // -------------------------------------------------------------
   // STOCK REPORT CALCULATIONS: Date-wise & Item-wise
@@ -423,7 +481,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap no-print">
           <button
             type="button"
             onClick={activeSubTab === 'stock_report' ? handleExportStockReportCSV : handleExportViewStockCSV}
@@ -434,11 +492,12 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-xs cursor-pointer"
+            onClick={handlePrintStockTable}
+            title="Print clean table view only"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-lg transition-colors shadow-xs cursor-pointer"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-600" />
-            <span>Print View</span>
+            <Printer className="w-3.5 h-3.5 text-blue-600" />
+            <span>Print View (Table Only)</span>
           </button>
         </div>
       </div>
@@ -528,7 +587,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                 <select
                   required
                   value={formItemId}
-                  onChange={(e) => setFormItemId(e.target.value)}
+                  onChange={(e) => handleSelectItemChange(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
                   <option value="" disabled>-- Select Store Item --</option>
@@ -545,10 +604,41 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                 )}
               </div>
 
+              {/* Item Opening Balance Option */}
+              <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 sm:col-span-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <div>
+                    <label className="block font-bold text-amber-900 text-xs">
+                      Set Opening Balance of Item
+                    </label>
+                    <p className="text-[11px] text-amber-700">
+                      Configure or update the initial opening stock balance for {selectedItemObj?.itemName || 'this item'}. Formula: Opening Stock + Stock Inflows = Running Balance.
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-amber-200 text-amber-900 self-start sm:self-auto">
+                    Base Opening Balance
+                  </span>
+                </div>
+                <div className="relative max-w-xs">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formItemOpeningBalance}
+                    onChange={(e) => setFormItemOpeningBalance(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="e.g. 500"
+                    className="w-full pl-3 pr-14 py-2 border border-amber-300 rounded-lg font-mono font-bold text-amber-950 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-xs"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-700 font-mono text-xs">
+                    {selectedItemObj?.unitSymbol || 'Units'}
+                  </span>
+                </div>
+              </div>
+
               {/* Stock Quantity (Base / Opening) */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Stock Quantity (Opening / Base Reserve)
+                  Entry Stock Quantity (Base Inflow)
                 </label>
                 <div className="relative">
                   <input
@@ -683,51 +773,65 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
             </div>
           </div>
 
-          {/* Table */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+          {/* Table Container - Print View target for clean print of table only */}
+          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden print-stock-table-only">
+            <div className="hidden print:block p-4 border-b border-slate-200 text-center">
+              <h1 className="text-lg font-bold text-slate-900">Store Management - Item Stock Ledger</h1>
+              <p className="text-xs text-slate-600">Generated on {new Date().toLocaleDateString('en-GB')} · Official Inventory Inflow & Running Balance Ledger</p>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
                   <tr>
-                    <th className="py-3 px-4 w-12 text-center">Sr.</th>
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4">Item Code</th>
-                    <th className="py-3 px-4">Item Name</th>
-                    <th className="py-3 px-4 text-right">Stock Quantity</th>
-                    <th className="py-3 px-4 text-right">Purchase (Inflow)</th>
-                    <th className="py-3 px-4 text-right font-bold text-slate-900 bg-emerald-50/50">
-                      Balance (Stock + Purchase)
+                    <th className="py-3 px-3 w-12 text-center">Sr.</th>
+                    <th className="py-3 px-3">Date</th>
+                    <th className="py-3 px-3">Item Code</th>
+                    <th className="py-3 px-3">Item Name</th>
+                    <th className="py-3 px-3 text-right bg-amber-50/50 text-amber-900">Opening Stock</th>
+                    <th className="py-3 px-3 text-right">Inflow Qty</th>
+                    <th className="py-3 px-3 text-right">Purchase (Inflow)</th>
+                    <th className="py-3 px-3 text-right font-bold text-slate-900 bg-emerald-50/50">
+                      Inflow Total
                     </th>
-                    <th className="py-3 px-4">Vendor / Inv</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3 px-3 text-right font-bold text-blue-950 bg-blue-50/70">
+                      Stock Ledger (Running Balance)
+                    </th>
+                    <th className="py-3 px-3">Vendor / Inv</th>
+                    <th className="py-3 px-3 text-right no-print">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-800">
                   {filteredStockList.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-10 text-center text-slate-400">
+                      <td colSpan={11} className="py-10 text-center text-slate-400">
                         No stock entries found. Click "Add Stock / Inflow" to log deliveries.
                       </td>
                     </tr>
                   ) : (
                     filteredStockList.map((entry, idx) => {
-                      const balance = (entry.stockQuantity ?? 0) + (entry.purchase ?? 0);
+                      const inflowTotal = (entry.stockQuantity ?? 0) + (entry.purchase ?? 0);
                       return (
                         <tr key={entry.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="py-3 px-4 text-center font-mono text-slate-400">{idx + 1}</td>
-                          <td className="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">{entry.date}</td>
-                          <td className="py-3 px-4 font-mono font-bold text-slate-900">{entry.itemCode}</td>
-                          <td className="py-3 px-4 font-semibold text-slate-900">{entry.itemName}</td>
-                          <td className="py-3 px-4 text-right font-mono tabular-nums">
+                          <td className="py-3 px-3 text-center font-mono text-slate-400">{idx + 1}</td>
+                          <td className="py-3 px-3 font-mono text-slate-600 whitespace-nowrap">{entry.date}</td>
+                          <td className="py-3 px-3 font-mono font-bold text-slate-900">{entry.itemCode}</td>
+                          <td className="py-3 px-3 font-semibold text-slate-900">{entry.itemName}</td>
+                          <td className="py-3 px-3 text-right font-mono text-amber-900 bg-amber-50/30 tabular-nums">
+                            {formatWholeNumber(entry.itemOpeningBalance ?? 0)} <span className="text-[10px] text-slate-400">{entry.unit}</span>
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono tabular-nums">
                             {formatWholeNumber(entry.stockQuantity)} <span className="text-[10px] text-slate-400">{entry.unit}</span>
                           </td>
-                          <td className="py-3 px-4 text-right font-mono text-emerald-700 font-semibold tabular-nums">
+                          <td className="py-3 px-3 text-right font-mono text-emerald-700 font-semibold tabular-nums">
                             +{formatWholeNumber(entry.purchase)} <span className="text-[10px] text-slate-400">{entry.unit}</span>
                           </td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-emerald-950 bg-emerald-50/40 tabular-nums">
-                            {formatWholeNumber(balance)} <span className="text-[10px] text-slate-500 font-normal">{entry.unit}</span>
+                          <td className="py-3 px-3 text-right font-mono font-bold text-emerald-950 bg-emerald-50/40 tabular-nums">
+                            {formatWholeNumber(inflowTotal)} <span className="text-[10px] text-slate-500 font-normal">{entry.unit}</span>
                           </td>
-                          <td className="py-3 px-4 text-slate-500">
+                          <td className="py-3 px-3 text-right font-mono font-extrabold text-blue-950 bg-blue-50/50 tabular-nums">
+                            {formatWholeNumber(entry.runningBalance)} <span className="text-[10px] text-blue-600 font-normal">{entry.unit}</span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-500">
                             {entry.vendorName || entry.invoiceNo ? (
                               <div className="truncate max-w-xs">
                                 <span className="font-medium text-slate-700">{entry.vendorName || '—'}</span>
@@ -735,7 +839,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                               </div>
                             ) : '—'}
                           </td>
-                          <td className="py-3 px-4 text-right">
+                          <td className="py-3 px-3 text-right no-print">
                             <div className="inline-flex items-center gap-1.5">
                               <button
                                 type="button"
@@ -763,19 +867,19 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                 {filteredStockList.length > 0 && (
                   <tfoot className="bg-slate-100 border-t-2 border-slate-300 font-bold text-slate-900 text-xs">
                     <tr>
-                      <td colSpan={4} className="py-3 px-4 text-right uppercase tracking-wider font-extrabold">
-                        Total Quantities:
+                      <td colSpan={5} className="py-3 px-3 text-right uppercase tracking-wider font-extrabold">
+                        Total Inflow Quantities:
                       </td>
-                      <td className="py-3 px-4 text-right font-mono tabular-nums">
+                      <td className="py-3 px-3 text-right font-mono tabular-nums">
                         {formatWholeNumber(viewStockTotals.stockQty)}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-emerald-800 tabular-nums">
+                      <td className="py-3 px-3 text-right font-mono text-emerald-800 tabular-nums">
                         +{formatWholeNumber(viewStockTotals.purchase)}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-emerald-950 bg-emerald-100 font-extrabold tabular-nums">
+                      <td className="py-3 px-3 text-right font-mono text-emerald-950 bg-emerald-100 font-extrabold tabular-nums">
                         {formatWholeNumber(viewStockTotals.stockQty + viewStockTotals.purchase)}
                       </td>
-                      <td colSpan={2} className="py-3 px-4 text-center font-mono text-slate-400">—</td>
+                      <td colSpan={3} className="py-3 px-3 text-center font-mono text-slate-400">—</td>
                     </tr>
                   </tfoot>
                 )}

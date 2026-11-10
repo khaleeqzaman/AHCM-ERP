@@ -173,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           },
           {
             id: 'treasury' as NavModule,
-            label: 'Treasury Module',
+            label: 'Cashier Module',
             icon: <Vault className="w-4 h-4" />,
             badge: 'Cashier',
             hasSubmenu: true,
@@ -243,8 +243,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           },
           {
             id: 'treasury' as NavModule,
-            label: 'Treasury Desk',
+            label: 'Cashier Desk',
             icon: <Vault className="w-4 h-4" />,
+            badge: 'Cashier',
             hasSubmenu: true,
           },
           {

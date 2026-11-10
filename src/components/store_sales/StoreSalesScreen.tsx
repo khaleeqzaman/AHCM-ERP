@@ -347,6 +347,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
               onAddStockEntry={onAddStockEntry}
               onUpdateStockEntry={onUpdateStockEntry || (() => {})}
               onDeleteStockEntry={onDeleteStockEntry || (() => {})}
+              onUpdateItem={onUpdateItem}
             />
           )}
 

@@ -2002,6 +2002,7 @@ export default function App() {
               stockEntries={stockEntries}
               vehicles={vehicles}
               consumptions={itemConsumptions}
+              mines={mines}
               companySettings={companySettings}
               users={users}
               onNavigate={setCurrentModule}

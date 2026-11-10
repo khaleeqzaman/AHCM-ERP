@@ -70,6 +70,7 @@ export interface StoreItem {
   unitTypeName?: string;
   unitSymbol?: string;
   unit?: string;
+  openingStock?: number; // Configurable initial opening balance of the item
   reorderLevel?: number;
   remarks?: string;
   category?: string;
