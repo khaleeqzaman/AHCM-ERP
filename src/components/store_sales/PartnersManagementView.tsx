@@ -140,6 +140,7 @@ export const PartnersManagementView: React.FC<PartnersManagementViewProps> = ({
           notes: '',
           isActive: true,
         });
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
         setActiveTab('list');
       },
     });
@@ -159,6 +160,7 @@ export const PartnersManagementView: React.FC<PartnersManagementViewProps> = ({
       onConfirm: () => {
         onUpdatePartner(editingPartner);
         setEditingPartner(null);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
       },
     });
   };
@@ -181,6 +183,7 @@ export const PartnersManagementView: React.FC<PartnersManagementViewProps> = ({
       variant: 'danger',
       onConfirm: () => {
         onDeletePartner(partner.id);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
       },
     });
   };
@@ -627,8 +630,10 @@ export const PartnersManagementView: React.FC<PartnersManagementViewProps> = ({
         title={confirmModal.title}
         message={confirmModal.message}
         confirmLabel={confirmModal.confirmLabel}
-        variant={confirmModal.variant}
-        onConfirm={confirmModal.onConfirm}
+        onConfirm={() => {
+          confirmModal.onConfirm();
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>

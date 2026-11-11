@@ -226,6 +226,7 @@ export const CoalSellView: React.FC<CoalSellViewProps> = ({
           remarks: '',
         });
 
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
         setActiveTab('date_wise_report');
       },
     });
@@ -265,6 +266,7 @@ export const CoalSellView: React.FC<CoalSellViewProps> = ({
           totalValue,
         });
         setEditingSell(null);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
       },
     });
   };
@@ -279,6 +281,7 @@ export const CoalSellView: React.FC<CoalSellViewProps> = ({
       variant: 'danger',
       onConfirm: () => {
         onDeleteCoalSell(sell.id);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
       },
     });
   };
@@ -1282,8 +1285,10 @@ export const CoalSellView: React.FC<CoalSellViewProps> = ({
         title={confirmModal.title}
         message={confirmModal.message}
         confirmLabel={confirmModal.confirmLabel}
-        variant={confirmModal.variant}
-        onConfirm={confirmModal.onConfirm}
+        onConfirm={() => {
+          confirmModal.onConfirm();
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>

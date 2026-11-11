@@ -17,8 +17,8 @@ export type StoreManagementSection =
 
 export type ItemSettingSubTab = 'categories' | 'units';
 export type ItemsSubTab = 'add_item' | 'view_items';
-export type ItemStockSubTab = 'add_stock' | 'view_stock' | 'stock_report' | 'add_inventory' | 'view_inventory' | 'inventory_report';
-export type ItemInventorySubTab = 'add_inventory' | 'view_inventory' | 'inventory_report' | 'add_stock' | 'view_stock' | 'stock_report';
+export type ItemStockSubTab = 'consolidated_inventory' | 'add_stock' | 'view_stock' | 'stock_report' | 'add_inventory' | 'view_inventory' | 'inventory_report';
+export type ItemInventorySubTab = 'consolidated_inventory' | 'add_inventory' | 'view_inventory' | 'inventory_report' | 'add_stock' | 'view_stock' | 'stock_report';
 export type ItemConsumptionSubTab = 'add_consumption' | 'view_consumption' | 'consumption_report' | 'vehicles' | 'mines';
 export type ItemInventoryEntry = ItemStockEntry;
 

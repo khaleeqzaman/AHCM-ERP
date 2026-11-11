@@ -137,6 +137,7 @@ export const BuyerManagementView: React.FC<BuyerManagementViewProps> = ({
           city: '',
           address: '',
         });
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
         setActiveTab('list');
       },
     });
@@ -156,6 +157,7 @@ export const BuyerManagementView: React.FC<BuyerManagementViewProps> = ({
       onConfirm: () => {
         onUpdateBuyer(editingBuyer);
         setEditingBuyer(null);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
       },
     });
   };
@@ -179,6 +181,7 @@ export const BuyerManagementView: React.FC<BuyerManagementViewProps> = ({
       variant: 'danger',
       onConfirm: () => {
         onDeleteBuyer(buyer.id);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
       },
     });
   };
@@ -677,8 +680,10 @@ export const BuyerManagementView: React.FC<BuyerManagementViewProps> = ({
         title={confirmModal.title}
         message={confirmModal.message}
         confirmLabel={confirmModal.confirmLabel}
-        variant={confirmModal.variant}
-        onConfirm={confirmModal.onConfirm}
+        onConfirm={() => {
+          confirmModal.onConfirm();
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>

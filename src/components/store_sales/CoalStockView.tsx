@@ -149,6 +149,7 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
           vehicleRef: '',
           remarks: '',
         });
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
         setActiveTab('register');
       },
     });
@@ -173,6 +174,7 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
       onConfirm: () => {
         onUpdateCoalStock(editingStock);
         setEditingStock(null);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
       },
     });
   };
@@ -187,6 +189,7 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
       variant: 'danger',
       onConfirm: () => {
         onDeleteCoalStock(stock.id);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
       },
     });
   };
@@ -210,6 +213,7 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
           ...companySettings,
           openingCoalStock: val,
         });
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
         setActiveTab('register');
       },
     });
@@ -808,8 +812,10 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
         title={confirmModal.title}
         message={confirmModal.message}
         confirmLabel={confirmModal.confirmLabel}
-        variant={confirmModal.variant}
-        onConfirm={confirmModal.onConfirm}
+        onConfirm={() => {
+          confirmModal.onConfirm();
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
