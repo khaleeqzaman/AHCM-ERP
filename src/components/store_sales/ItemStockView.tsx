@@ -43,11 +43,27 @@ const parseDateTs = (dateStr?: string): number => {
     const month = parseInt(parts[1], 10) - 1;
     const year = parseInt(parts[2], 10);
     if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-      return new Date(year, month, day).getTime();
+      return new Date(year, month, day, 0, 0, 0, 0).getTime();
     }
   }
   const fallback = new Date(dateStr).getTime();
   return isNaN(fallback) ? 0 : fallback;
+};
+
+// Helper to check whether a DD-MM-YYYY date falls between start and end (inclusive)
+const isDateInRange = (dateStr?: string, startStr?: string, endStr?: string): boolean => {
+  if (!dateStr || dateStr.trim() === '') return false;
+  const ts = parseDateTs(dateStr);
+  if (!ts) return false;
+  if (startStr && startStr.trim() !== '') {
+    const startTs = parseDateTs(startStr);
+    if (startTs && ts < startTs) return false;
+  }
+  if (endStr && endStr.trim() !== '') {
+    const endTs = parseDateTs(endStr);
+    if (endTs && ts > endTs) return false;
+  }
+  return true;
 };
 
 interface ItemStockViewProps {
@@ -93,6 +109,9 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   const [consolidatedSearchTerm, setConsolidatedSearchTerm] = useState('');
   const [consolidatedCategoryFilter, setConsolidatedCategoryFilter] = useState('all');
   const [consolidatedStatusFilter, setConsolidatedStatusFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
+  const [consolidatedStartDate, setConsolidatedStartDate] = useState('');
+  const [consolidatedEndDate, setConsolidatedEndDate] = useState('');
+  const [consolidatedOnlyActiveInRange, setConsolidatedOnlyActiveInRange] = useState(false);
   const [consolidatedSortField, setConsolidatedSortField] = useState<
     'itemName' | 'itemCode' | 'category' | 'date' | 'totalInflow' | 'vehicleConsumption' | 'mineConsumption' | 'totalConsumption' | 'availableQty'
   >('availableQty');
@@ -355,14 +374,13 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
         (entry.invoiceNo || '').toLowerCase().includes(q);
 
       const matchItem = selectedItemFilter === 'all' || entry.itemId === selectedItemFilter;
-      const matchStart = !startDateFilter || entry.date >= startDateFilter;
-      const matchEnd = !endDateFilter || entry.date <= endDateFilter;
+      const matchDate = isDateInRange(entry.date, startDateFilter, endDateFilter);
 
-      return matchSearch && matchItem && matchStart && matchEnd;
+      return matchSearch && matchItem && matchDate;
     });
 
     // Sort chronologically ascending to compute progressive running balance ledger per item
-    const sortedChronological = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+    const sortedChronological = [...filtered].sort((a, b) => parseDateTs(a.date) - parseDateTs(b.date));
     
     // Track cumulative balance per item: progressive stockQuantity additions
     const runningPerItem = new Map<string, number>();
@@ -582,9 +600,18 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   }, [items]);
 
   const consolidatedInventoryData = useMemo(() => {
+    // If a date filter is applied, filter inflows and consumptions by date range
+    const filteredEntries = (consolidatedStartDate || consolidatedEndDate)
+      ? stockEntries.filter(entry => isDateInRange(entry.date, consolidatedStartDate, consolidatedEndDate))
+      : stockEntries;
+
+    const filteredConsumptions = (consolidatedStartDate || consolidatedEndDate)
+      ? consumptions.filter(c => isDateInRange(c.date, consolidatedStartDate, consolidatedEndDate))
+      : consumptions;
+
     // Inflows aggregation: itemId -> { totalInflow, count, latestDate, latestTs }
     const inflowMap = new Map<string, { totalInflow: number; count: number; latestDate: string; latestTs: number }>();
-    stockEntries.forEach((entry) => {
+    filteredEntries.forEach((entry) => {
       const cur = inflowMap.get(entry.itemId) || { totalInflow: 0, count: 0, latestDate: '', latestTs: 0 };
       const qty = Number(entry.stockQuantity ?? entry.stockQty ?? 0);
       cur.totalInflow += qty;
@@ -599,7 +626,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
 
     // Consumptions aggregation: itemId -> { totalVehicle, totalMine, totalAll, latestDate, latestTs }
     const consMap = new Map<string, { totalVehicle: number; totalMine: number; totalAll: number; latestDate: string; latestTs: number }>();
-    consumptions.forEach((c) => {
+    filteredConsumptions.forEach((c) => {
       const cur = consMap.get(c.itemId) || { totalVehicle: 0, totalMine: 0, totalAll: 0, latestDate: '', latestTs: 0 };
       const qty = Number(c.quantity || 0);
       if (c.consumptionType === 'vehicle') {
@@ -642,6 +669,8 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
         statusLabel = 'Low Stock';
       }
 
+      const hasTransactionsInRange = inflow.count > 0 || cons.totalAll > 0;
+
       return {
         id: item.id,
         itemCode: item.itemCode || '—',
@@ -658,13 +687,19 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
         lastTransactionTs,
         status,
         statusLabel,
+        hasTransactionsInRange,
       };
     });
-  }, [items, stockEntries, consumptions]);
+  }, [items, stockEntries, consumptions, consolidatedStartDate, consolidatedEndDate]);
 
   // Filtering for Consolidated Items
   const filteredConsolidatedItems = useMemo(() => {
+    const hasDateFilter = Boolean(consolidatedStartDate || consolidatedEndDate);
     return consolidatedInventoryData.filter((item) => {
+      // If user enabled "only items with transactions in date range"
+      if (hasDateFilter && consolidatedOnlyActiveInRange && !item.hasTransactionsInRange) {
+        return false;
+      }
       // Category filter
       if (consolidatedCategoryFilter !== 'all' && item.categoryName !== consolidatedCategoryFilter) {
         return false;
@@ -686,9 +721,17 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
       }
       return true;
     });
-  }, [consolidatedInventoryData, consolidatedCategoryFilter, consolidatedStatusFilter, consolidatedSearchTerm]);
+  }, [
+    consolidatedInventoryData, 
+    consolidatedCategoryFilter, 
+    consolidatedStatusFilter, 
+    consolidatedSearchTerm, 
+    consolidatedStartDate, 
+    consolidatedEndDate, 
+    consolidatedOnlyActiveInRange
+  ]);
 
-  // Sorting for Consolidated Items
+  // Sorting for Consolidated Items (supports item-wise, date-wise, quantity-wise)
   const sortedConsolidatedItems = useMemo(() => {
     return [...filteredConsolidatedItems].sort((a, b) => {
       let comparison = 0;
@@ -702,9 +745,18 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
         case 'category':
           comparison = a.categoryName.localeCompare(b.categoryName);
           break;
-        case 'date':
-          comparison = a.lastTransactionTs - b.lastTransactionTs;
+        case 'date': {
+          if (a.lastTransactionTs === 0 && b.lastTransactionTs === 0) {
+            comparison = a.itemName.localeCompare(b.itemName);
+          } else if (a.lastTransactionTs === 0) {
+            return 1; // items without dates pushed to the end
+          } else if (b.lastTransactionTs === 0) {
+            return -1;
+          } else {
+            comparison = a.lastTransactionTs - b.lastTransactionTs;
+          }
           break;
+        }
         case 'totalInflow':
           comparison = a.totalInflow - b.totalInflow;
           break;
@@ -777,20 +829,77 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     );
   };
 
+  // Quick Date Range Presets for Consolidated View
+  const handleSetConsolidatedToday = () => {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dStr = `${dd}-${mm}-${today.getFullYear()}`;
+    setConsolidatedStartDate(dStr);
+    setConsolidatedEndDate(dStr);
+  };
+
+  const handleSetConsolidatedYesterday = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dStr = `${dd}-${mm}-${d.getFullYear()}`;
+    setConsolidatedStartDate(dStr);
+    setConsolidatedEndDate(dStr);
+  };
+
+  const handleSetConsolidatedThisMonth = () => {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const startStr = `01-${mm}-${yyyy}`;
+    const todayDd = String(now.getDate()).padStart(2, '0');
+    const endStr = `${todayDd}-${mm}-${yyyy}`;
+    setConsolidatedStartDate(startStr);
+    setConsolidatedEndDate(endStr);
+  };
+
+  const handleSetConsolidatedLast30Days = () => {
+    const now = new Date();
+    const todayDd = String(now.getDate()).padStart(2, '0');
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const endStr = `${todayDd}-${mm}-${now.getFullYear()}`;
+
+    const past = new Date();
+    past.setDate(past.getDate() - 30);
+    const pastDd = String(past.getDate()).padStart(2, '0');
+    const pastMm = String(past.getMonth() + 1).padStart(2, '0');
+    const startStr = `${pastDd}-${pastMm}-${past.getFullYear()}`;
+
+    setConsolidatedStartDate(startStr);
+    setConsolidatedEndDate(endStr);
+  };
+
+  const handleClearConsolidatedDates = () => {
+    setConsolidatedStartDate('');
+    setConsolidatedEndDate('');
+    setConsolidatedOnlyActiveInRange(false);
+  };
+
   // CSV Export for Consolidated Items
   const handleExportConsolidatedCSV = () => {
+    const dateRangeLabel = (consolidatedStartDate || consolidatedEndDate)
+      ? ` [${consolidatedStartDate || 'Start'} to ${consolidatedEndDate || 'Present'}]`
+      : ' [All Time]';
+
     const headers = [
       'Sr.',
       'Item Code',
       'Item Name',
       'Category',
       'Unit',
-      'Total Inflow (Quantity Added)',
+      `Total Inflow (Quantity Added)${dateRangeLabel}`,
       'Inflow Entries Count',
-      'Vehicle Consumption',
-      'Mines Consumption',
-      'Total Consumption',
-      'Available Running Stock',
+      `Vehicle Consumption${dateRangeLabel}`,
+      `Mines Consumption${dateRangeLabel}`,
+      `Total Consumption${dateRangeLabel}`,
+      `Available Running Stock${dateRangeLabel}`,
       'Stock Status',
       'Last Transaction Date'
     ];
@@ -816,7 +925,10 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Consolidated_Item_Inventory_${new Date().toISOString().slice(0, 10)}.csv`;
+    const dateSlug = (consolidatedStartDate || consolidatedEndDate)
+      ? `_from_${consolidatedStartDate || 'start'}_to_${consolidatedEndDate || 'end'}`
+      : `_${new Date().toISOString().slice(0, 10)}`;
+    link.download = `Consolidated_Item_Inventory${dateSlug}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     showToast('Consolidated Item Inventory exported to CSV.');
@@ -1001,8 +1113,9 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
             </div>
           </div>
 
-          {/* Controls: Search, Category Filter, Stock Status Filter, Sort By, Reset, Export & Print */}
+          {/* Controls: Search, Category Filter, Stock Status Filter, Sort By, Date Filter, Reset, Export & Print */}
           <div className="bg-white p-3.5 border border-slate-200 rounded-xl shadow-xs space-y-3 no-print">
+            {/* Row 1: Search, Category, Status, Sort By, Reset, and Action Buttons */}
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
               <div className="relative flex-1">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -1058,6 +1171,8 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                     }}
                     className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white font-medium"
                   >
+                    <option value="date-desc">Date (Newest Transaction First)</option>
+                    <option value="date-asc">Date (Oldest Transaction First)</option>
                     <option value="availableQty-desc">Available Stock (High to Low)</option>
                     <option value="availableQty-asc">Available Stock (Low to High)</option>
                     <option value="itemName-asc">Item Name (A → Z)</option>
@@ -1065,24 +1180,25 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                     <option value="itemCode-asc">Item Code (A → Z)</option>
                     <option value="itemCode-desc">Item Code (Z → A)</option>
                     <option value="category-asc">Category (A → Z)</option>
-                    <option value="date-desc">Last Transaction (Newest First)</option>
-                    <option value="date-asc">Last Transaction (Oldest First)</option>
                     <option value="totalConsumption-desc">Total Consumed (High to Low)</option>
                     <option value="totalInflow-desc">Total Inflow (High to Low)</option>
                   </select>
                 </div>
 
-                {(consolidatedSearchTerm || consolidatedCategoryFilter !== 'all' || consolidatedStatusFilter !== 'all') && (
+                {(consolidatedSearchTerm || consolidatedCategoryFilter !== 'all' || consolidatedStatusFilter !== 'all' || consolidatedStartDate || consolidatedEndDate || consolidatedOnlyActiveInRange) && (
                   <button
                     type="button"
                     onClick={() => {
                       setConsolidatedSearchTerm('');
                       setConsolidatedCategoryFilter('all');
                       setConsolidatedStatusFilter('all');
+                      setConsolidatedStartDate('');
+                      setConsolidatedEndDate('');
+                      setConsolidatedOnlyActiveInRange(false);
                     }}
                     className="px-2.5 py-1.5 text-xs text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer font-medium"
                   >
-                    Reset Filters
+                    Reset All Filters
                   </button>
                 )}
 
@@ -1107,7 +1223,114 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Row 2: Date-wise Filter (From Date to To Date) with Quick Presets */}
+            <div className="pt-2.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs text-slate-700 font-semibold">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Date Filter:</span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-slate-500 font-medium">From</span>
+                  <DatePickerInput
+                    value={consolidatedStartDate}
+                    onChange={setConsolidatedStartDate}
+                    placeholder="DD-MM-YYYY"
+                    className="w-32 text-xs"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-slate-500 font-medium">To</span>
+                  <DatePickerInput
+                    value={consolidatedEndDate}
+                    onChange={setConsolidatedEndDate}
+                    placeholder="DD-MM-YYYY"
+                    className="w-32 text-xs"
+                  />
+                </div>
+
+                {/* Quick Date Presets */}
+                <div className="flex items-center gap-1 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleSetConsolidatedToday}
+                    className="px-2 py-1 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md cursor-pointer transition-colors"
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSetConsolidatedYesterday}
+                    className="px-2 py-1 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md cursor-pointer transition-colors"
+                  >
+                    Yesterday
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSetConsolidatedThisMonth}
+                    className="px-2 py-1 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md cursor-pointer transition-colors"
+                  >
+                    This Month
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSetConsolidatedLast30Days}
+                    className="px-2 py-1 text-[11px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md cursor-pointer transition-colors"
+                  >
+                    Last 30 Days
+                  </button>
+                  {(consolidatedStartDate || consolidatedEndDate) && (
+                    <button
+                      type="button"
+                      onClick={handleClearConsolidatedDates}
+                      className="px-2 py-1 text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md cursor-pointer transition-colors"
+                    >
+                      Clear Dates
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Checkbox: Only show items with activity in date range */}
+              {(consolidatedStartDate || consolidatedEndDate) && (
+                <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer select-none bg-emerald-50/70 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                  <input
+                    type="checkbox"
+                    checked={consolidatedOnlyActiveInRange}
+                    onChange={(e) => setConsolidatedOnlyActiveInRange(e.target.checked)}
+                    className="rounded text-emerald-700 focus:ring-emerald-500 w-3.5 h-3.5"
+                  />
+                  <span className="font-medium text-emerald-900 text-[11px]">
+                    Only show items with transactions in this date range
+                  </span>
+                </label>
+              )}
+            </div>
           </div>
+
+          {/* Active Date Range Indicator Banner */}
+          {(consolidatedStartDate || consolidatedEndDate) && (
+            <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-950 no-print">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>
+                  <strong>Date Filter Applied:</strong> Showing inflows, consumptions, and available running quantities from{' '}
+                  <span className="font-bold underline text-emerald-900">{consolidatedStartDate || 'Beginning'}</span> to{' '}
+                  <span className="font-bold underline text-emerald-900">{consolidatedEndDate || 'Present'}</span>.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearConsolidatedDates}
+                className="text-[11px] font-semibold text-rose-700 hover:text-rose-900 underline cursor-pointer"
+              >
+                Clear Date Filter (Show All Time)
+              </button>
+            </div>
+          )}
 
           {/* Consolidated Table Container with print isolation */}
           <div
@@ -1117,7 +1340,9 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
             {/* Print-Only Header */}
             <div className="hidden print:block print-only-header p-4 border-b border-slate-200 text-center">
               <h1 className="text-lg font-bold text-slate-900">Store Management - Consolidated Item Inventory & Available Running Stock</h1>
-              <p className="text-xs text-slate-600">Generated on {new Date().toLocaleDateString('en-GB')} · Official Consolidated Store Catalog & Running Stock Summary</p>
+              <p className="text-xs text-slate-600">
+                Generated on {new Date().toLocaleDateString('en-GB')} · {consolidatedStartDate || consolidatedEndDate ? `Filtered Period: ${consolidatedStartDate || 'Beginning'} to ${consolidatedEndDate || 'Present'}` : 'All Time Historical Inventory'}
+              </p>
             </div>
 
             <div className="overflow-x-auto">
