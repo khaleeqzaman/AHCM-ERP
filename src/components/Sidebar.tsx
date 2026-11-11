@@ -181,7 +181,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             id: 'treasury' as NavModule,
             label: 'Cashier Module',
             icon: <Banknote className="w-4 h-4" />,
-            badge: 'Cashier',
             hasSubmenu: true,
           },
         ];
@@ -251,7 +250,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             id: 'treasury' as NavModule,
             label: 'Cashier Desk',
             icon: <Banknote className="w-4 h-4" />,
-            badge: 'Cashier',
             hasSubmenu: true,
           },
           {
