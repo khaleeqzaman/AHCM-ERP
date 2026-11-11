@@ -174,21 +174,20 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   }, [itemStockMap, formItemId]);
 
   // Date-wise available inventory up to formDate for the selected item:
-  // (Base opening + inflows on or prior to formDate) - prior consumptions on or prior to formDate
+  // Inflows on or prior to formDate - prior consumptions on or prior to formDate
   const dateWiseAvailableInventory = useMemo(() => {
     if (!formItemId || !selectedItem) return 0;
     const formTs = parseDateTs(formDate);
-    const opening = Number(selectedItem.openingStock ?? 0);
 
     const inflowsUpToDate = (stockEntries || [])
       .filter(s => (s.itemId === formItemId || (s.itemCode && s.itemCode === selectedItem.itemCode)) && parseDateTs(s.date) <= formTs)
-      .reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0) + Number(s.purchase || s.purchaseQty || 0), 0);
+      .reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0), 0);
 
     const consumptionsUpToDate = (consumptions || [])
       .filter(c => (c.itemId === formItemId || (c.itemCode && c.itemCode === selectedItem.itemCode)) && parseDateTs(c.date) <= formTs)
       .reduce((sum, c) => sum + Number(c.quantity || 0), 0);
 
-    return (opening + inflowsUpToDate) - consumptionsUpToDate;
+    return inflowsUpToDate - consumptionsUpToDate;
   }, [formItemId, selectedItem, formDate, stockEntries, consumptions]);
 
   // Maximum allowed consumption: must not exceed total inventory nor date-wise available inventory
@@ -361,16 +360,15 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     const effectiveTotal = (itemStockMap[editingRecord.itemId] ?? 0) + (editingRecord.quantity || 0);
 
     const editTs = parseDateTs(editDate);
-    const opening = Number(recItem?.openingStock ?? 0);
     const inflowsUpToDate = (stockEntries || [])
       .filter(s => (s.itemId === editingRecord.itemId || (s.itemCode && s.itemCode === editingRecord.itemCode)) && parseDateTs(s.date) <= editTs)
-      .reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0) + Number(s.purchase || s.purchaseQty || 0), 0);
+      .reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0), 0);
 
     const otherConsUpToDate = (consumptions || [])
       .filter(c => c.id !== editingRecord.id && (c.itemId === editingRecord.itemId || (c.itemCode && c.itemCode === editingRecord.itemCode)) && parseDateTs(c.date) <= editTs)
       .reduce((sum, c) => sum + Number(c.quantity || 0), 0);
 
-    const effectiveDateWise = (opening + inflowsUpToDate) - otherConsUpToDate;
+    const effectiveDateWise = inflowsUpToDate - otherConsUpToDate;
     const effectiveMax = Math.max(0, Math.min(effectiveTotal, effectiveDateWise));
 
     if (qty > effectiveMax) {

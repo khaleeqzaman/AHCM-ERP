@@ -210,17 +210,15 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   const totalCoalSold = coalSells.reduce((sum, s) => sum + Number(s.quantity || 0), 0);
   const liveCoalBalance = (openingCoal + totalCoalInflow) - totalCoalSold;
 
-  // Compute live item inventory map (including configurable opening stock + inflows - consumptions)
+  // Compute live item inventory map (strictly inventory additions minus consumptions)
   const itemStockMap = React.useMemo(() => {
     const map: Record<string, number> = {};
     items.forEach((it) => {
-      const opening = Number(it.openingStock) || 0;
       const itStock = stockEntries.filter((s) => s.itemId === it.id || (s.itemCode && s.itemCode === it.itemCode));
       const stockQty = itStock.reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0), 0);
-      const purchaseQty = itStock.reduce((sum, s) => sum + Number(s.purchase || s.purchaseQty || 0), 0);
       const itConsumptions = consumptions.filter((c) => c.itemId === it.id || (c.itemCode && c.itemCode === it.itemCode));
       const used = itConsumptions.reduce((sum, c) => sum + Number(c.quantity || 0), 0);
-      map[it.id] = (opening + stockQty + purchaseQty) - used;
+      map[it.id] = stockQty - used;
     });
     return map;
   }, [items, stockEntries, consumptions]);

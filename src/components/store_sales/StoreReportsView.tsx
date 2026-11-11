@@ -38,12 +38,11 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Per-item consolidated balance calculations
-  // Balance formula: (stockQuantity + purchase) - (vehicle consumption + mine consumption)
+  // Balance formula: totalStockQty (inventory additions) - (vehicle consumption + mine consumption)
   const itemReportData = useMemo(() => {
     return items.map(item => {
       const itemStockList = stockEntries.filter(s => s.itemId === item.id);
       const totalStockQty = itemStockList.reduce((sum, s) => sum + Number(s.stockQuantity || 0), 0);
-      const totalPurchases = itemStockList.reduce((sum, s) => sum + Number(s.purchase || 0), 0);
 
       const itemConsumptions = consumptions.filter(c => c.itemId === item.id);
       const vehicleUsage = itemConsumptions
@@ -54,14 +53,12 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
         .reduce((sum, c) => sum + Number(c.quantity || 0), 0);
 
       const totalUsage = vehicleUsage + mineUsage;
-      const balance = (totalStockQty + totalPurchases) - totalUsage;
+      const balance = totalStockQty - totalUsage;
       const isLowStock = item.reorderLevel ? balance <= item.reorderLevel : balance <= 10;
 
       return {
         item,
         totalStockQty,
-        totalPurchases,
-        totalInflow: totalStockQty + totalPurchases,
         vehicleUsage,
         mineUsage,
         totalUsage,
@@ -73,7 +70,7 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
 
   // Overall KPI stats
   const totalItemsCount = items.length;
-  const totalStockInflows = itemReportData.reduce((sum, r) => sum + r.totalInflow, 0);
+  const totalStockInflows = itemReportData.reduce((sum, r) => sum + r.totalStockQty, 0);
   const totalConsumptionsAll = itemReportData.reduce((sum, r) => sum + r.totalUsage, 0);
   const lowStockCount = itemReportData.filter(r => r.isLowStock).length;
 
@@ -96,7 +93,7 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
   const handleExportCSV = () => {
     const headers = [
       'Item Code', 'Item Name', 'Category', 'Unit', 
-      'Base Stock', 'Purchases (Inflow)', 'Total Inflow', 
+      'Inventory Added', 
       'Vehicle Usage', 'Mine Usage', 'Total Consumed', 
       'Current Balance', 'Reorder Level', 'Status'
     ];
@@ -107,8 +104,6 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
       `"${r.item.categoryName}"`,
       r.item.unitSymbol,
       r.totalStockQty,
-      r.totalPurchases,
-      r.totalInflow,
       r.vehicleUsage,
       r.mineUsage,
       r.totalUsage,
@@ -152,11 +147,11 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
 
         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
           <div className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">
-            Total Inflow Recorded
+            Total Inventory Added
           </div>
           <div className="text-2xl font-bold text-emerald-700">{totalStockInflows.toLocaleString()}</div>
           <div className="mt-2 text-xs text-slate-500">
-            Base stock + received purchases
+            Cumulative date-wise item additions
           </div>
         </div>
 
@@ -282,9 +277,7 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
                 <th className="px-4 py-3 text-left">Item Name</th>
                 <th className="px-4 py-3 text-left">Category</th>
                 <th className="px-4 py-3 text-center">Unit</th>
-                <th className="px-4 py-3 text-right">Base Stock</th>
-                <th className="px-4 py-3 text-right">Purchases</th>
-                <th className="px-4 py-3 text-right bg-slate-200/50">Total Inflow</th>
+                <th className="px-4 py-3 text-right">Inventory Added</th>
                 <th className="px-4 py-3 text-right text-blue-800">Vehicle Usage</th>
                 <th className="px-4 py-3 text-right text-amber-800">Mine Usage</th>
                 <th className="px-4 py-3 text-right bg-red-50 text-red-900">Total Used</th>
@@ -295,7 +288,7 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
             <tbody className="divide-y divide-slate-200 bg-white">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={10} className="px-4 py-8 text-center text-slate-400">
                     No items found matching the selected report criteria.
                   </td>
                 </tr>
@@ -306,11 +299,7 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
                     <td className="px-4 py-3 font-semibold text-slate-900">{row.item.itemName}</td>
                     <td className="px-4 py-3 text-slate-600">{row.item.categoryName}</td>
                     <td className="px-4 py-3 text-center font-mono text-slate-500">{row.item.unitSymbol}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-600">{row.totalStockQty.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-600">{row.totalPurchases.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right font-mono font-medium text-slate-800 bg-slate-50">
-                      {row.totalInflow.toLocaleString()}
-                    </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-emerald-800">{row.totalStockQty.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right font-mono text-blue-700">{row.vehicleUsage.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right font-mono text-amber-700">{row.mineUsage.toLocaleString()}</td>
                     <td className="px-4 py-3 text-right font-mono font-semibold text-red-700 bg-red-50/50">
@@ -336,14 +325,8 @@ export const StoreReportsView: React.FC<StoreReportsViewProps> = ({
               <tfoot className="bg-slate-50 border-t-2 border-slate-200 font-bold text-slate-800">
                 <tr>
                   <td colSpan={4} className="px-4 py-3 text-right">Grand Totals:</td>
-                  <td className="px-4 py-3 text-right font-mono">
+                  <td className="px-4 py-3 text-right font-mono text-emerald-900">
                     {filteredRows.reduce((sum, r) => sum + r.totalStockQty, 0).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono">
-                    {filteredRows.reduce((sum, r) => sum + r.totalPurchases, 0).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono bg-slate-100">
-                    {filteredRows.reduce((sum, r) => sum + r.totalInflow, 0).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-blue-800">
                     {filteredRows.reduce((sum, r) => sum + r.vehicleUsage, 0).toLocaleString()}

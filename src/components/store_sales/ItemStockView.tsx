@@ -8,18 +8,12 @@ import {
   Trash2, 
   Edit2, 
   Calendar, 
-  TrendingUp, 
   CheckCircle2, 
   AlertCircle,
   X,
   FileSpreadsheet,
   Filter,
-  ArrowUpDown,
-  Pickaxe,
-  Truck,
-  Table,
-  Layers,
-  History
+  Layers
 } from 'lucide-react';
 import type { 
   StoreItem, 
@@ -53,7 +47,6 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   onAddStockEntry,
   onUpdateStockEntry,
   onDeleteStockEntry,
-  onUpdateItem,
   initialSubTab = 'view_stock',
 }) => {
   // Sub-tabs: 'view_stock' (View Inventory), 'stock_report' (Inventory Report), 'add_stock' (Add Item Inventory)
@@ -73,7 +66,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   const [endDateFilter, setEndDateFilter] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Form State for Add Item Inventory
+  // Form State for Add Item Inventory (Direct Date-wise Quantity only)
   const [formDate, setFormDate] = useState(() => {
     const today = new Date();
     const dd = String(today.getDate()).padStart(2, '0');
@@ -81,9 +74,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     return `${dd}-${mm}-${today.getFullYear()}`;
   });
   const [formItemId, setFormItemId] = useState(items[0]?.id || '');
-  const [formItemOpeningBalance, setFormItemOpeningBalance] = useState<number | ''>(() => items[0]?.openingStock ?? 0);
   const [formStockQty, setFormStockQty] = useState<number | ''>('');
-  const [formPurchaseQty, setFormPurchaseQty] = useState<number | ''>('');
   const [formVendor, setFormVendor] = useState('');
   const [formInvoiceNo, setFormInvoiceNo] = useState('');
   const [formRemarks, setFormRemarks] = useState('');
@@ -115,33 +106,25 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   React.useEffect(() => {
     if (!formItemId && items.length > 0) {
       setFormItemId(items[0].id);
-      setFormItemOpeningBalance(items[0].openingStock ?? 0);
     }
   }, [items, formItemId]);
-
-  const handleSelectItemChange = (id: string) => {
-    setFormItemId(id);
-    const it = items.find(i => i.id === id);
-    setFormItemOpeningBalance(it?.openingStock ?? 0);
-  };
 
   const selectedItemObj = useMemo(() => {
     return items.find(i => i.id === formItemId);
   }, [items, formItemId]);
 
-  // Current live inventory of selected item before this addition
+  // Current live inventory of selected item (purely total inventory added minus consumptions)
   const selectedItemCurrentInventory = useMemo(() => {
     if (!formItemId) return 0;
     const it = items.find(i => i.id === formItemId);
-    const opening = Number(it?.openingStock ?? 0);
     const itEntries = stockEntries.filter(s => s.itemId === formItemId || (s.itemCode && s.itemCode === it?.itemCode));
-    const totalInflow = itEntries.reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0) + Number(s.purchase || s.purchaseQty || 0), 0);
+    const totalInflow = itEntries.reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0), 0);
     const itCons = consumptions.filter(c => c.itemId === formItemId || (c.itemCode && c.itemCode === it?.itemCode));
     const totalUsed = itCons.reduce((sum, c) => sum + Number(c.quantity || 0), 0);
-    return (opening + totalInflow) - totalUsed;
+    return totalInflow - totalUsed;
   }, [formItemId, items, stockEntries, consumptions]);
 
-  // Set date quick presets
+  // Quick date presets
   const handleSetToday = () => {
     const today = new Date();
     const dd = String(today.getDate()).padStart(2, '0');
@@ -174,9 +157,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     printConcernedTable(tableId, title);
   };
 
-  // -------------------------------------------------------------
   // Consumption Aggregations per Item
-  // -------------------------------------------------------------
   const itemConsumptionMap = useMemo(() => {
     const map = new Map<string, { totalVehicle: number; totalMine: number; totalAll: number; mineWise: Record<string, number> }>();
     consumptions.forEach(c => {
@@ -212,32 +193,21 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     }
 
     const stockQty = Number(formStockQty) || 0;
-    const purchaseQty = Number(formPurchaseQty) || 0;
-    const newOpeningBal = formItemOpeningBalance === '' ? 0 : Number(formItemOpeningBalance);
-    const totalAdded = stockQty + purchaseQty;
 
-    if (totalAdded <= 0 && newOpeningBal === (item.openingStock ?? 0)) {
-      setFormError('Please enter Inventory Quantity to add, or enter Purchase Inflow quantity.');
+    if (stockQty <= 0) {
+      setFormError('Please enter a valid Inventory Quantity to add (must be greater than 0).');
       return;
     }
 
-    const previewNewBalance = selectedItemCurrentInventory + totalAdded;
+    const previewNewBalance = selectedItemCurrentInventory + stockQty;
 
     setConfirmModal({
       isOpen: true,
       title: 'Confirm Add Item Inventory',
-      message: `Are you sure you want to add inventory for:\n\n• Item: ${item.itemName} (${item.itemCode})\n• Date: ${formDate}\n• Inventory Addition: +${formatWholeNumber(stockQty)} ${item.unitSymbol}\n• Purchase Inflow: +${formatWholeNumber(purchaseQty)} ${item.unitSymbol}\n• Total Added for Date: +${formatWholeNumber(totalAdded)} ${item.unitSymbol}\n• Resulting Total Inventory Balance: ${formatWholeNumber(previewNewBalance)} ${item.unitSymbol}`,
+      message: `Are you sure you want to add inventory for:\n\n• Item: ${item.itemName} (${item.itemCode})\n• Date: ${formDate}\n• Quantity to Add: +${formatWholeNumber(stockQty)} ${item.unitSymbol}\n• Resulting Total Inventory Balance: ${formatWholeNumber(previewNewBalance)} ${item.unitSymbol}`,
       confirmText: 'Save Inventory Entry',
       variant: 'primary',
       action: () => {
-        // Update item's opening balance if changed and onUpdateItem is available
-        if (onUpdateItem && newOpeningBal !== (item.openingStock ?? 0)) {
-          onUpdateItem({
-            ...item,
-            openingStock: newOpeningBal,
-          });
-        }
-
         const newEntry: ItemStockEntry = {
           id: `inv-${Date.now()}`,
           date: formDate,
@@ -246,7 +216,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
           itemName: item.itemName,
           unit: item.unitSymbol,
           stockQuantity: stockQty,
-          purchase: purchaseQty,
+          purchase: 0,
           vendorName: formVendor.trim(),
           invoiceNo: formInvoiceNo.trim(),
           remarks: formRemarks.trim(),
@@ -254,9 +224,8 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
         };
 
         onAddStockEntry(newEntry);
-        showToast(`Item inventory added for ${item.itemName} (+${formatWholeNumber(totalAdded)} ${item.unitSymbol}). Available inventory increased.`);
+        showToast(`Item inventory added for ${item.itemName} (+${formatWholeNumber(stockQty)} ${item.unitSymbol}). Available inventory increased.`);
         setFormStockQty('');
-        setFormPurchaseQty('');
         setFormVendor('');
         setFormInvoiceNo('');
         setFormRemarks('');
@@ -280,12 +249,15 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     };
 
     const stockQty = Number(formStockQty) || 0;
-    const purchaseQty = Number(formPurchaseQty) || 0;
+    if (stockQty <= 0) {
+      setFormError('Inventory quantity must be greater than 0.');
+      return;
+    }
 
     setConfirmModal({
       isOpen: true,
       title: 'Confirm Inventory Update',
-      message: `Are you sure you want to update inventory entry for ${item.itemName} (${item.itemCode})?`,
+      message: `Are you sure you want to update inventory entry for ${item.itemName} (${item.itemCode}) to ${formatWholeNumber(stockQty)} ${item.unitSymbol}?`,
       confirmText: 'Update Entry',
       variant: 'primary',
       action: () => {
@@ -297,7 +269,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
           itemName: item.itemName,
           unit: item.unitSymbol,
           stockQuantity: stockQty,
-          purchase: purchaseQty,
+          purchase: 0,
           vendorName: formVendor.trim(),
           invoiceNo: formInvoiceNo.trim(),
           remarks: formRemarks.trim(),
@@ -313,7 +285,6 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     setFormDate(stk.date);
     setFormItemId(stk.itemId);
     setFormStockQty(stk.stockQuantity ?? 0);
-    setFormPurchaseQty(stk.purchase ?? 0);
     setFormVendor(stk.vendorName || '');
     setFormInvoiceNo(stk.invoiceNo || '');
     setFormRemarks(stk.remarks || '');
@@ -335,16 +306,10 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   };
 
   // -------------------------------------------------------------
-  // View Inventory Rows with Item Opening Balance and Running Ledger Balance
+  // View Inventory Rows with Running Ledger Balance
   // -------------------------------------------------------------
   const filteredStockList = useMemo(() => {
     const q = searchTerm.toLowerCase();
-
-    // Map item opening balances
-    const itemOpeningMap = new Map<string, number>();
-    items.forEach(i => {
-      itemOpeningMap.set(i.id, Number(i.openingStock) || 0);
-    });
 
     const filtered = stockEntries.filter(entry => {
       const matchSearch = entry.itemCode.toLowerCase().includes(q) ||
@@ -363,18 +328,16 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     // Sort chronologically ascending to compute progressive running balance ledger per item
     const sortedChronological = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
     
-    // Track cumulative balance per item: item's opening balance + progressive (stockQuantity + purchase)
+    // Track cumulative balance per item: progressive stockQuantity additions
     const runningPerItem = new Map<string, number>();
     const withRunningBalance = sortedChronological.map(entry => {
-      const baseOpening = itemOpeningMap.get(entry.itemId) || 0;
-      const prevBal = runningPerItem.has(entry.itemId) ? runningPerItem.get(entry.itemId)! : baseOpening;
-      const inflow = (entry.stockQuantity ?? 0) + (entry.purchase ?? 0);
+      const prevBal = runningPerItem.has(entry.itemId) ? runningPerItem.get(entry.itemId)! : 0;
+      const inflow = entry.stockQuantity ?? 0;
       const newBal = prevBal + inflow;
       runningPerItem.set(entry.itemId, newBal);
 
       return {
         ...entry,
-        itemOpeningBalance: baseOpening,
         entryInflow: inflow,
         runningBalance: newBal,
       };
@@ -382,7 +345,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
 
     // Return descending for display (most recent first)
     return withRunningBalance.sort((a, b) => b.date.localeCompare(a.date));
-  }, [stockEntries, items, searchTerm, selectedItemFilter, startDateFilter, endDateFilter]);
+  }, [stockEntries, searchTerm, selectedItemFilter, startDateFilter, endDateFilter]);
 
   // -------------------------------------------------------------
   // Date-wise Aggregated Summary: User can view item quantity date-wise
@@ -396,8 +359,6 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
       unit: string;
       entriesCount: number;
       totalStockQty: number;
-      totalPurchaseQty: number;
-      totalDayInflow: number;
       vendors: string[];
     }>();
 
@@ -405,14 +366,11 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
       const key = `${entry.date}__${entry.itemId}`;
       const existing = map.get(key);
       const sQty = entry.stockQuantity ?? 0;
-      const pQty = entry.purchase ?? 0;
       const vName = entry.vendorName?.trim();
 
       if (existing) {
         existing.entriesCount += 1;
         existing.totalStockQty += sQty;
-        existing.totalPurchaseQty += pQty;
-        existing.totalDayInflow += (sQty + pQty);
         if (vName && !existing.vendors.includes(vName)) {
           existing.vendors.push(vName);
         }
@@ -425,8 +383,6 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
           unit: entry.unit || 'Units',
           entriesCount: 1,
           totalStockQty: sQty,
-          totalPurchaseQty: pQty,
-          totalDayInflow: sQty + pQty,
           vendors: vName ? [vName] : [],
         });
       }
@@ -437,12 +393,12 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
 
   // -------------------------------------------------------------
   // INVENTORY REPORT CALCULATIONS: Date-wise & Item-wise
-  // Formula: (Inventory Inflow + Purchase) - (Vehicle Consumption + Mines Consumption) = Balance
+  // Formula: Quantity Added - (Vehicle Consumption + Mines Consumption) = Balance
   // -------------------------------------------------------------
   const stockReportData = useMemo(() => {
     return filteredStockList.map((entry) => {
       const cons = itemConsumptionMap.get(entry.itemId) || { totalVehicle: 0, totalMine: 0, totalAll: 0, mineWise: {} };
-      const balance = ((entry.stockQuantity ?? 0) + (entry.purchase ?? 0)) - cons.totalAll;
+      const balance = (entry.stockQuantity ?? 0) - cons.totalAll;
 
       return {
         ...entry,
@@ -459,37 +415,33 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
   const viewStockTotals = useMemo(() => {
     return filteredStockList.reduce((acc, row) => {
       acc.stockQty += row.stockQuantity ?? 0;
-      acc.purchase += row.purchase ?? 0;
       return acc;
-    }, { stockQty: 0, purchase: 0 });
+    }, { stockQty: 0 });
   }, [filteredStockList]);
 
   // Totals for Date-wise Summary
   const dateWiseSummaryTotals = useMemo(() => {
     return dateWiseSummaryData.reduce((acc, row) => {
       acc.stockQty += row.totalStockQty;
-      acc.purchase += row.totalPurchaseQty;
-      acc.totalInflow += row.totalDayInflow;
       return acc;
-    }, { stockQty: 0, purchase: 0, totalInflow: 0 });
+    }, { stockQty: 0 });
   }, [dateWiseSummaryData]);
 
   // Totals for Inventory Report
   const stockReportTotals = useMemo(() => {
     return stockReportData.reduce((acc, row) => {
       acc.stockQty += row.stockQuantity ?? 0;
-      acc.purchase += row.purchase ?? 0;
       acc.vehicleUsage += row.vehicleUsage ?? 0;
       acc.mineUsage += row.mineUsage ?? 0;
       acc.balance += row.balance ?? 0;
       return acc;
-    }, { stockQty: 0, purchase: 0, vehicleUsage: 0, mineUsage: 0, balance: 0 });
+    }, { stockQty: 0, vehicleUsage: 0, mineUsage: 0, balance: 0 });
   }, [stockReportData]);
 
   // CSV Export for View Inventory
   const handleExportViewStockCSV = () => {
     if (inventoryViewMode === 'date_wise_summary') {
-      const headers = ['Sr.', 'Date', 'Item Code', 'Item Name', 'Unit', 'Daily Inventory Added', 'Purchase Inflow', 'Total Day Inflow', 'Entries Count', 'Suppliers'];
+      const headers = ['Sr.', 'Date', 'Item Code', 'Item Name', 'Unit', 'Total Quantity Added', 'Entries Count', 'Suppliers'];
       const rows = dateWiseSummaryData.map((s, idx) => [
         idx + 1,
         `"${s.date}"`,
@@ -497,8 +449,6 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
         `"${s.itemName.replace(/"/g, '""')}"`,
         `"${s.unit}"`,
         s.totalStockQty,
-        s.totalPurchaseQty,
-        s.totalDayInflow,
         s.entriesCount,
         `"${s.vendors.join(', ').replace(/"/g, '""')}"`,
       ]);
@@ -515,17 +465,14 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
       return;
     }
 
-    const headers = ['Sr.', 'Date', 'Item Code', 'Item Name', 'Unit', 'Opening Stock', 'Inventory Added', 'Purchase (Inflow)', 'Total Inflow', 'Running Inventory Balance', 'Vendor', 'Invoice No', 'Remarks'];
+    const headers = ['Sr.', 'Date', 'Item Code', 'Item Name', 'Unit', 'Quantity Added', 'Running Inventory Balance', 'Vendor', 'Invoice No', 'Remarks'];
     const rows = filteredStockList.map((s, idx) => [
       idx + 1,
       `"${s.date}"`,
       `"${s.itemCode}"`,
       `"${s.itemName.replace(/"/g, '""')}"`,
       `"${s.unit}"`,
-      s.itemOpeningBalance ?? 0,
       s.stockQuantity ?? 0,
-      s.purchase ?? 0,
-      (s.stockQuantity ?? 0) + (s.purchase ?? 0),
       s.runningBalance ?? 0,
       `"${(s.vendorName || '').replace(/"/g, '""')}"`,
       `"${(s.invoiceNo || '').replace(/"/g, '""')}"`,
@@ -543,7 +490,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     showToast('Item Inventory Ledger exported to CSV.');
   };
 
-  // CSV Export for Inventory Report with dynamic mine columns
+  // CSV Export for Inventory Report
   const handleExportStockReportCSV = () => {
     const dynamicMineHeaders = mines.map(m => `"${m.name} Usage"`);
     const headers = [
@@ -552,12 +499,11 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
       'Item Code', 
       'Item Name', 
       'Unit', 
-      'Inventory Added', 
-      'Purchase', 
+      'Quantity Added', 
       'Vehicle Consumption', 
       'Total Mines Consumption',
       ...dynamicMineHeaders,
-      'Balance (Inventory + Purchase - Consumption)'
+      'Balance (Quantity Added - Consumption)'
     ];
 
     const rows = stockReportData.map((r, idx) => {
@@ -569,7 +515,6 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
         `"${r.itemName.replace(/"/g, '""')}"`,
         `"${r.unit}"`,
         r.stockQuantity,
-        r.purchase,
         r.vehicleUsage,
         r.mineUsage,
         ...mineCols,
@@ -611,7 +556,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
               Store Management
             </span>
             <span className="text-slate-300">/</span>
-            <span className="text-xs text-slate-500 font-medium">Inventory & Date-wise Inflows</span>
+            <span className="text-xs text-slate-500 font-medium">Item Inventory</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 mt-1 flex items-center gap-2">
             <Boxes className="w-5 h-5 text-emerald-700" />
@@ -690,10 +635,10 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
           SUB-TAB 1: ADD ITEM INVENTORY FORM (DATE-WISE / DAY-BY-DAY)
           ------------------------------------------------------------- */}
       {(activeSubTab === 'add_stock' || activeSubTab === 'add_inventory') && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs max-w-3xl">
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs max-w-2xl">
           <div className="pb-4 mb-4 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Add Item Inventory (Date-wise Quantity)</h3>
+              <h3 className="text-sm font-bold text-slate-900">Add Item Inventory</h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Add inventory item quantity day by day or date wise to increase available balance for vehicle & mine consumption.
               </p>
@@ -746,7 +691,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                 <select
                   required
                   value={formItemId}
-                  onChange={(e) => handleSelectItemChange(e.target.value)}
+                  onChange={(e) => setFormItemId(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white"
                 >
                   <option value="" disabled>-- Select Store Item --</option>
@@ -779,99 +724,44 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                     <span className="text-sm font-mono font-black text-emerald-950 bg-white border border-emerald-300 px-3 py-1 rounded-lg shadow-2xs">
                       {formatWholeNumber(selectedItemCurrentInventory)} {selectedItemObj?.unitSymbol || 'Units'}
                     </span>
-                    {((Number(formStockQty) || 0) + (Number(formPurchaseQty) || 0)) > 0 && (
+                    {(Number(formStockQty) || 0) > 0 && (
                       <span className="text-xs font-mono font-bold text-emerald-900 bg-emerald-200 px-2.5 py-1 rounded-lg">
-                        +{(Number(formStockQty) || 0) + (Number(formPurchaseQty) || 0)} → New Total: {formatWholeNumber(selectedItemCurrentInventory + (Number(formStockQty) || 0) + (Number(formPurchaseQty) || 0))} {selectedItemObj?.unitSymbol}
+                        +{Number(formStockQty) || 0} → New Total: {formatWholeNumber(selectedItemCurrentInventory + (Number(formStockQty) || 0))} {selectedItemObj?.unitSymbol}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Inventory Quantity Added (Date-wise Quantity) */}
-              <div>
+              {/* Inventory Quantity to Add */}
+              <div className="sm:col-span-2">
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Add Inventory Quantity (Date-wise Inflow) <span className="text-rose-500">*</span>
+                  Inventory Quantity to Add <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
+                    min="0.01"
                     required
                     value={formStockQty}
                     onChange={(e) => setFormStockQty(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="e.g. 100"
-                    className="w-full pl-3 pr-14 py-2 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white"
+                    placeholder="e.g. 50"
+                    className="w-full pl-3 pr-14 py-2.5 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
                     {selectedItemObj?.unitSymbol || 'Units'}
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-500 mt-0.5 block">
-                  Quantity added for {formDate}. Increases available inventory.
+                <span className="text-[11px] text-slate-500 mt-1 block">
+                  Quantity added on {formDate}. Increases available inventory balance for vehicle and mine consumptions.
                 </span>
-              </div>
-
-              {/* Purchase (Inflow Quantity from Vendor) */}
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Purchase Inflow Quantity (Optional)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formPurchaseQty}
-                    onChange={(e) => setFormPurchaseQty(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="e.g. 500"
-                    className="w-full pl-3 pr-14 py-2 border border-slate-300 rounded-lg font-mono font-bold text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
-                    {selectedItemObj?.unitSymbol || 'Units'}
-                  </span>
-                </div>
-                <span className="text-[11px] text-slate-500 mt-0.5 block">
-                  Vendor delivery inflow, added to inventory total.
-                </span>
-              </div>
-
-              {/* Item Opening Balance Option */}
-              <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 sm:col-span-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                  <div>
-                    <label className="block font-bold text-amber-900 text-xs">
-                      Item Base Opening Balance
-                    </label>
-                    <p className="text-[11px] text-amber-700">
-                      Configured initial starting balance for {selectedItemObj?.itemName || 'this item'}. Formula: Opening Balance + Date-wise Inflows − Consumptions = Available Balance.
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-amber-200 text-amber-900 self-start sm:self-auto">
-                    Base Opening Balance
-                  </span>
-                </div>
-                <div className="relative max-w-xs">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formItemOpeningBalance}
-                    onChange={(e) => setFormItemOpeningBalance(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="e.g. 500"
-                    className="w-full pl-3 pr-14 py-2 border border-amber-300 rounded-lg font-mono font-bold text-amber-950 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-xs"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-700 font-mono text-xs">
-                    {selectedItemObj?.unitSymbol || 'Units'}
-                  </span>
-                </div>
               </div>
 
               {/* Vendor */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Supplier / Vendor Name
+                  Supplier / Vendor Name (Optional)
                 </label>
                 <input
                   type="text"
@@ -885,7 +775,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
               {/* Invoice / Bilty No */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Invoice / Delivery Challan No
+                  Invoice / Delivery Challan No (Optional)
                 </label>
                 <input
                   type="text"
@@ -1043,99 +933,80 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                       <th className="py-3 px-3">Date</th>
                       <th className="py-3 px-3">Item Code</th>
                       <th className="py-3 px-3">Item Name</th>
-                      <th className="py-3 px-3 text-right bg-amber-50/50 text-amber-900">Opening Stock</th>
-                      <th className="py-3 px-3 text-right">Inventory Added</th>
-                      <th className="py-3 px-3 text-right">Purchase (Inflow)</th>
-                      <th className="py-3 px-3 text-right font-bold text-slate-900 bg-emerald-50/50">
-                        Inflow Total
-                      </th>
+                      <th className="py-3 px-3 text-right">Quantity Added</th>
                       <th className="py-3 px-3 text-right font-bold text-emerald-950 bg-emerald-100/60">
-                        Inventory Ledger (Running Balance)
+                        Available Inventory (Running Balance)
                       </th>
                       <th className="py-3 px-3">Vendor / Inv</th>
+                      <th className="py-3 px-3">Remarks</th>
                       <th className="py-3 px-3 text-right no-print">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-800">
                     {filteredStockList.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="py-10 text-center text-slate-400">
-                          No inventory entries found. Click "Add Item Inventory" to record day-by-day deliveries.
+                        <td colSpan={9} className="py-10 text-center text-slate-400">
+                          No inventory entries found. Click "Add Item Inventory" to record day-by-day additions.
                         </td>
                       </tr>
                     ) : (
-                      filteredStockList.map((entry, idx) => {
-                        const inflowTotal = (entry.stockQuantity ?? 0) + (entry.purchase ?? 0);
-                        return (
-                          <tr key={entry.id} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="py-3 px-3 text-center font-mono text-slate-400">{idx + 1}</td>
-                            <td className="py-3 px-3 font-mono text-slate-600 whitespace-nowrap">{entry.date}</td>
-                            <td className="py-3 px-3 font-mono font-bold text-slate-900">{entry.itemCode}</td>
-                            <td className="py-3 px-3 font-semibold text-slate-900">{entry.itemName}</td>
-                            <td className="py-3 px-3 text-right font-mono text-amber-900 bg-amber-50/30 tabular-nums">
-                              {formatWholeNumber(entry.itemOpeningBalance ?? 0)} <span className="text-[10px] text-slate-400">{entry.unit}</span>
-                            </td>
-                            <td className="py-3 px-3 text-right font-mono tabular-nums">
-                              {formatWholeNumber(entry.stockQuantity)} <span className="text-[10px] text-slate-400">{entry.unit}</span>
-                            </td>
-                            <td className="py-3 px-3 text-right font-mono text-emerald-700 font-semibold tabular-nums">
-                              +{formatWholeNumber(entry.purchase)} <span className="text-[10px] text-slate-400">{entry.unit}</span>
-                            </td>
-                            <td className="py-3 px-3 text-right font-mono font-bold text-emerald-950 bg-emerald-50/40 tabular-nums">
-                              {formatWholeNumber(inflowTotal)} <span className="text-[10px] text-slate-500 font-normal">{entry.unit}</span>
-                            </td>
-                            <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-950 bg-emerald-100/40 tabular-nums">
-                              {formatWholeNumber(entry.runningBalance)} <span className="text-[10px] text-emerald-700 font-normal">{entry.unit}</span>
-                            </td>
-                            <td className="py-3 px-3 text-slate-500">
-                              {entry.vendorName || entry.invoiceNo ? (
-                                <div className="truncate max-w-xs">
-                                  <span className="font-medium text-slate-700">{entry.vendorName || '—'}</span>
-                                  {entry.invoiceNo && <span className="font-mono text-[10px] text-slate-400 block">{entry.invoiceNo}</span>}
-                                </div>
-                              ) : '—'}
-                            </td>
-                            <td className="py-3 px-3 text-right no-print">
-                              <div className="inline-flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEdit(entry)}
-                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Edit Inventory Entry"
-                                >
-                                  <Edit2 className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeletePrompt(entry)}
-                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                                  title="Delete Entry"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                      filteredStockList.map((entry, idx) => (
+                        <tr key={entry.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3 px-3 text-center font-mono text-slate-400">{idx + 1}</td>
+                          <td className="py-3 px-3 font-mono text-slate-600 whitespace-nowrap">{entry.date}</td>
+                          <td className="py-3 px-3 font-mono font-bold text-slate-900">{entry.itemCode}</td>
+                          <td className="py-3 px-3 font-semibold text-slate-900">{entry.itemName}</td>
+                          <td className="py-3 px-3 text-right font-mono font-bold text-emerald-800 tabular-nums">
+                            +{formatWholeNumber(entry.stockQuantity)} <span className="text-[10px] text-slate-400">{entry.unit}</span>
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-950 bg-emerald-100/40 tabular-nums">
+                            {formatWholeNumber(entry.runningBalance)} <span className="text-[10px] text-emerald-700 font-normal">{entry.unit}</span>
+                          </td>
+                          <td className="py-3 px-3 text-slate-500">
+                            {entry.vendorName || entry.invoiceNo ? (
+                              <div className="truncate max-w-xs">
+                                <span className="font-medium text-slate-700">{entry.vendorName || '—'}</span>
+                                {entry.invoiceNo && <span className="font-mono text-[10px] text-slate-400 block">{entry.invoiceNo}</span>}
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })
+                            ) : '—'}
+                          </td>
+                          <td className="py-3 px-3 text-slate-500 truncate max-w-xs">
+                            {entry.remarks || '—'}
+                          </td>
+                          <td className="py-3 px-3 text-right no-print">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(entry)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Inventory Entry"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePrompt(entry)}
+                                className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Entry"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                   {filteredStockList.length > 0 && (
                     <tfoot className="bg-slate-100 border-t-2 border-slate-300 font-bold text-slate-900 text-xs">
                       <tr>
-                        <td colSpan={5} className="py-3 px-3 text-right uppercase tracking-wider font-extrabold">
-                          Total Inflow Quantities:
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono tabular-nums">
-                          {formatWholeNumber(viewStockTotals.stockQty)}
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono text-emerald-800 tabular-nums">
-                          +{formatWholeNumber(viewStockTotals.purchase)}
+                        <td colSpan={4} className="py-3 px-3 text-right uppercase tracking-wider font-extrabold">
+                          Total Quantity Added:
                         </td>
                         <td className="py-3 px-3 text-right font-mono text-emerald-950 bg-emerald-100 font-extrabold tabular-nums">
-                          {formatWholeNumber(viewStockTotals.stockQty + viewStockTotals.purchase)}
+                          +{formatWholeNumber(viewStockTotals.stockQty)}
                         </td>
-                        <td colSpan={3} className="py-3 px-3 text-center font-mono text-slate-400">—</td>
+                        <td colSpan={4} className="py-3 px-3 text-center font-mono text-slate-400">—</td>
                       </tr>
                     </tfoot>
                   )}
@@ -1160,10 +1031,8 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                       <th className="py-3 px-3">Item Code</th>
                       <th className="py-3 px-3">Item Name</th>
                       <th className="py-3 px-3 text-center">Entries</th>
-                      <th className="py-3 px-3 text-right">Daily Inventory Added</th>
-                      <th className="py-3 px-3 text-right">Purchase Inflow</th>
                       <th className="py-3 px-3 text-right font-bold text-emerald-950 bg-emerald-100/60">
-                        Total Day Inflow
+                        Total Quantity Added
                       </th>
                       <th className="py-3 px-3">Suppliers / Vendors</th>
                     </tr>
@@ -1171,7 +1040,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                   <tbody className="divide-y divide-slate-100 text-slate-800">
                     {dateWiseSummaryData.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="py-10 text-center text-slate-400">
+                        <td colSpan={7} className="py-10 text-center text-slate-400">
                           No date-wise summary data matching your filters.
                         </td>
                       </tr>
@@ -1187,14 +1056,8 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                               {row.entriesCount} {row.entriesCount === 1 ? 'entry' : 'entries'}
                             </span>
                           </td>
-                          <td className="py-3 px-3 text-right font-mono tabular-nums">
-                            {formatWholeNumber(row.totalStockQty)} <span className="text-[10px] text-slate-400">{row.unit}</span>
-                          </td>
-                          <td className="py-3 px-3 text-right font-mono text-emerald-700 font-semibold tabular-nums">
-                            +{formatWholeNumber(row.totalPurchaseQty)} <span className="text-[10px] text-slate-400">{row.unit}</span>
-                          </td>
                           <td className="py-3 px-3 text-right font-mono font-extrabold text-emerald-950 bg-emerald-50 tabular-nums">
-                            +{formatWholeNumber(row.totalDayInflow)} <span className="text-[10px] text-emerald-700 font-normal">{row.unit}</span>
+                            +{formatWholeNumber(row.totalStockQty)} <span className="text-[10px] text-emerald-700 font-normal">{row.unit}</span>
                           </td>
                           <td className="py-3 px-3 text-slate-600">
                             {row.vendors.length > 0 ? row.vendors.join(', ') : '—'}
@@ -1207,16 +1070,10 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                     <tfoot className="bg-slate-100 border-t-2 border-slate-300 font-bold text-slate-900 text-xs">
                       <tr>
                         <td colSpan={5} className="py-3 px-3 text-right uppercase tracking-wider font-extrabold">
-                          Total Day Inflows:
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono tabular-nums">
-                          {formatWholeNumber(dateWiseSummaryTotals.stockQty)}
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono text-emerald-800 tabular-nums">
-                          +{formatWholeNumber(dateWiseSummaryTotals.purchase)}
+                          Total Added:
                         </td>
                         <td className="py-3 px-3 text-right font-mono text-emerald-950 bg-emerald-100 font-extrabold tabular-nums">
-                          +{formatWholeNumber(dateWiseSummaryTotals.totalInflow)}
+                          +{formatWholeNumber(dateWiseSummaryTotals.stockQty)}
                         </td>
                         <td className="py-3 px-3 font-mono text-slate-400">—</td>
                       </tr>
@@ -1231,7 +1088,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
 
       {/* -------------------------------------------------------------
           SUB-TAB 3: INVENTORY REPORT (USAGE & DYNAMIC MINES BREAKDOWN MATRIX)
-          Formula: (Inventory Added + Purchase) - (Vehicle Usage + Mines Usage) = Balance
+          Formula: Quantity Added - (Vehicle Usage + Mines Usage) = Balance
           ------------------------------------------------------------- */}
       {(activeSubTab === 'stock_report' || activeSubTab === 'inventory_report') && (
         <div className="space-y-4">
@@ -1240,7 +1097,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-emerald-700 shrink-0" />
               <span>
-                <strong>Comprehensive Inventory Balance Formula:</strong> Balance = (Inventory Added + Purchase) − (Vehicle Usage + Mines Usage).
+                <strong>Comprehensive Inventory Balance Formula:</strong> Balance = Quantity Added − (Vehicle Usage + Mines Usage).
               </span>
             </div>
             <span className="font-mono text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
@@ -1262,8 +1119,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                     <th className="py-3 px-3">Date</th>
                     <th className="py-3 px-3">Item Code</th>
                     <th className="py-3 px-3 min-w-[140px]">Item Name</th>
-                    <th className="py-3 px-3 text-right">Inventory Added</th>
-                    <th className="py-3 px-3 text-right">Purchase</th>
+                    <th className="py-3 px-3 text-right">Quantity Added</th>
                     <th className="py-3 px-3 text-right text-teal-800 bg-teal-50/50">Vehicle Usage</th>
                     <th className="py-3 px-3 text-right text-emerald-800 bg-emerald-50/50">Mines Usage</th>
                     {/* Dynamic Columns for each listed mine */}
@@ -1282,7 +1138,7 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                 <tbody className="divide-y divide-slate-100 text-slate-800">
                   {stockReportData.length === 0 ? (
                     <tr>
-                      <td colSpan={9 + mines.length} className="py-10 text-center text-slate-400">
+                      <td colSpan={8 + mines.length} className="py-10 text-center text-slate-400">
                         No inventory records found for reporting.
                       </td>
                     </tr>
@@ -1293,11 +1149,8 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                         <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">{row.date}</td>
                         <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{row.itemCode}</td>
                         <td className="py-2.5 px-3 font-semibold text-slate-900">{row.itemName}</td>
-                        <td className="py-2.5 px-3 text-right font-mono tabular-nums">
-                          {formatWholeNumber(row.stockQuantity)} <span className="text-[10px] text-slate-400">{row.unit}</span>
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono text-emerald-700 tabular-nums">
-                          +{formatWholeNumber(row.purchase)} <span className="text-[10px] text-slate-400">{row.unit}</span>
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-800 tabular-nums">
+                          +{formatWholeNumber(row.stockQuantity)} <span className="text-[10px] text-slate-400">{row.unit}</span>
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-teal-800 bg-teal-50/30 tabular-nums">
                           {formatWholeNumber(row.vehicleUsage)} <span className="text-[10px] text-slate-400">{row.unit}</span>
@@ -1333,11 +1186,8 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                       <td colSpan={4} className="py-3 px-3 text-right uppercase tracking-wider font-extrabold">
                         Total Sum:
                       </td>
-                      <td className="py-3 px-3 text-right font-mono tabular-nums">
-                        {formatWholeNumber(stockReportTotals.stockQty)}
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono text-emerald-800 tabular-nums">
-                        +{formatWholeNumber(stockReportTotals.purchase)}
+                      <td className="py-3 px-3 text-right font-mono text-emerald-950 bg-emerald-100 font-extrabold tabular-nums">
+                        +{formatWholeNumber(stockReportTotals.stockQty)}
                       </td>
                       <td className="py-3 px-3 text-right font-mono text-teal-900 bg-teal-100/60 tabular-nums">
                         {formatWholeNumber(stockReportTotals.vehicleUsage)}
@@ -1400,29 +1250,17 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Inventory Added</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formStockQty}
-                    onChange={(e) => setFormStockQty(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full px-3 py-2 font-mono font-bold border border-slate-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Purchase Inflow</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formPurchaseQty}
-                    onChange={(e) => setFormPurchaseQty(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full px-3 py-2 font-mono font-bold text-emerald-800 border border-slate-300 rounded-lg"
-                  />
-                </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Inventory Quantity Added</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={formStockQty}
+                  onChange={(e) => setFormStockQty(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-3 py-2 font-mono font-bold border border-slate-300 rounded-lg text-slate-900"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
