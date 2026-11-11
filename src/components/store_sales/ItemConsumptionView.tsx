@@ -20,11 +20,13 @@ import {
   ArrowUpDown,
   Building2,
   Calendar,
-  Package
+  Package,
+  Boxes
 } from 'lucide-react';
 import type { 
   ItemConsumptionRecord, 
   StoreItem, 
+  ItemStockEntry,
   VehicleRecord, 
   MineRecord, 
   ItemConsumptionSubTab,
@@ -35,12 +37,23 @@ import ConfirmModal from './ConfirmModal.tsx';
 import { formatWholeNumber } from '../../utils/formatters.ts';
 import { printConcernedTable } from '../../utils/printTable.ts';
 
+// Helper to convert DD-MM-YYYY to timestamp for chronological comparisons
+const parseDateTs = (d?: string): number => {
+  if (!d) return 0;
+  const parts = d.split('-');
+  if (parts.length === 3) {
+    return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+  }
+  return new Date(d).getTime() || 0;
+};
+
 interface ItemConsumptionViewProps {
   consumptions: ItemConsumptionRecord[];
+  stockEntries?: ItemStockEntry[];
   items: StoreItem[];
   vehicles: VehicleRecord[];
   mines: MineRecord[];
-  itemStockMap: Record<string, number>; // itemId -> current live stock quantity
+  itemStockMap: Record<string, number>; // itemId -> current live inventory quantity
   onAddConsumption: (record: ItemConsumptionRecord) => void;
   onUpdateConsumption: (record: ItemConsumptionRecord) => void;
   onDeleteConsumption: (id: string) => void;
@@ -49,6 +62,7 @@ interface ItemConsumptionViewProps {
 
 export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   consumptions = [],
+  stockEntries = [],
   items = [],
   vehicles = [],
   mines = [],
@@ -153,11 +167,37 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     return items.find(i => i.id === formItemId);
   }, [items, formItemId]);
 
-  // Current live stock quantity for the currently selected item
-  const currentAvailableStock = useMemo(() => {
+  // Current total live inventory for the currently selected item
+  const currentTotalInventory = useMemo(() => {
     if (!formItemId) return 0;
     return itemStockMap[formItemId] ?? 0;
   }, [itemStockMap, formItemId]);
+
+  // Date-wise available inventory up to formDate for the selected item:
+  // (Base opening + inflows on or prior to formDate) - prior consumptions on or prior to formDate
+  const dateWiseAvailableInventory = useMemo(() => {
+    if (!formItemId || !selectedItem) return 0;
+    const formTs = parseDateTs(formDate);
+    const opening = Number(selectedItem.openingStock ?? 0);
+
+    const inflowsUpToDate = (stockEntries || [])
+      .filter(s => (s.itemId === formItemId || (s.itemCode && s.itemCode === selectedItem.itemCode)) && parseDateTs(s.date) <= formTs)
+      .reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0) + Number(s.purchase || s.purchaseQty || 0), 0);
+
+    const consumptionsUpToDate = (consumptions || [])
+      .filter(c => (c.itemId === formItemId || (c.itemCode && c.itemCode === selectedItem.itemCode)) && parseDateTs(c.date) <= formTs)
+      .reduce((sum, c) => sum + Number(c.quantity || 0), 0);
+
+    return (opening + inflowsUpToDate) - consumptionsUpToDate;
+  }, [formItemId, selectedItem, formDate, stockEntries, consumptions]);
+
+  // Maximum allowed consumption: must not exceed total inventory nor date-wise available inventory
+  const maxAllowedConsumption = useMemo(() => {
+    return Math.max(0, Math.min(currentTotalInventory, dateWiseAvailableInventory));
+  }, [currentTotalInventory, dateWiseAvailableInventory]);
+
+  // Backward compatibility alias
+  const currentAvailableStock = maxAllowedConsumption;
 
   // Safe sanitization of consumption records to prevent any runtime undefined errors
   const safeConsumptions = useMemo(() => {
@@ -189,7 +229,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   }, [consumptions, mines, vehicles, items]);
 
   // -------------------------------------------------------------
-  // Add Consumption Submit
+  // Add Consumption Submit (Enforces Date-wise and Total Inventory Ceilings)
   // -------------------------------------------------------------
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,10 +246,32 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
       return;
     }
 
-    // Strict validation: cannot consume more than available stock!
-    if (qty > currentAvailableStock) {
+    // 1. Total available inventory ceiling check
+    if (currentTotalInventory <= 0) {
       setFormError(
-        `Insufficient Stock! Available stock for "${selectedItem.itemName}" is only ${formatWholeNumber(currentAvailableStock)} ${selectedItem.unitSymbol}. You cannot issue ${formatWholeNumber(qty)} ${selectedItem.unitSymbol}.`
+        `Zero Inventory! "${selectedItem.itemName}" has 0 available inventory in the store. Please add item inventory in Item Inventory before logging consumption.`
+      );
+      return;
+    }
+
+    if (qty > currentTotalInventory) {
+      setFormError(
+        `Insufficient Total Inventory! Total available quantity for "${selectedItem.itemName}" is ${formatWholeNumber(currentTotalInventory)} ${selectedItem.unitSymbol}. You cannot consume ${formatWholeNumber(qty)} ${selectedItem.unitSymbol}.`
+      );
+      return;
+    }
+
+    // 2. Date-wise available inventory ceiling check
+    if (dateWiseAvailableInventory <= 0) {
+      setFormError(
+        `Insufficient Date-wise Inventory! Available inventory for "${selectedItem.itemName}" on or prior to ${formDate} is 0 ${selectedItem.unitSymbol}. Please log date-wise inventory additions on or before ${formDate}.`
+      );
+      return;
+    }
+
+    if (qty > dateWiseAvailableInventory) {
+      setFormError(
+        `Date-wise Inventory Limit Exceeded! Available inventory for "${selectedItem.itemName}" up to ${formDate} is only ${formatWholeNumber(dateWiseAvailableInventory)} ${selectedItem.unitSymbol}. You cannot consume ${formatWholeNumber(qty)} ${selectedItem.unitSymbol} on this date.`
       );
       return;
     }
@@ -236,11 +298,12 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     }
 
     const item = selectedItem;
+    const remainingAfter = currentTotalInventory - qty;
 
     setConfirmModal({
       isOpen: true,
       title: 'Confirm Item Consumption Issue',
-      message: `Are you sure you want to record this consumption?\n\n• Type: ${formConsumptionType === 'vehicle' ? 'Vehicle Consumption' : 'Mine Consumption'}\n• Target: ${targetName}\n• Item: ${item.itemName} (${item.itemCode})\n• Quantity: ${formatWholeNumber(qty)} ${item.unitSymbol}\n• Remaining Stock After Issue: ${formatWholeNumber(currentAvailableStock - qty)} ${item.unitSymbol}\n• Date: ${formDate}`,
+      message: `Are you sure you want to record this consumption within item inventory limits?\n\n• Type: ${formConsumptionType === 'vehicle' ? 'Vehicle Consumption' : 'Mine Consumption'}\n• Target: ${targetName}\n• Item: ${item.itemName} (${item.itemCode})\n• Quantity: ${formatWholeNumber(qty)} ${item.unitSymbol}\n• Remaining Inventory After Issue: ${formatWholeNumber(remainingAfter)} ${item.unitSymbol}\n• Date: ${formDate}`,
       confirmText: 'Confirm & Issue',
       variant: 'primary',
       action: () => {
@@ -261,7 +324,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
         };
 
         onAddConsumption(newRecord);
-        showToast(`Successfully issued ${formatWholeNumber(qty)} ${item.unitSymbol} of ${item.itemName} to ${targetName}. Stock decreased.`);
+        showToast(`Successfully issued ${formatWholeNumber(qty)} ${item.unitSymbol} of ${item.itemName} to ${targetName}. Inventory decreased.`);
         setFormQuantity('');
         setFormRemarks('');
         setFormOperator('');
@@ -271,7 +334,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   };
 
   // -------------------------------------------------------------
-  // Edit Consumption Submit
+  // Edit Consumption Submit (Enforces Inventory Limits)
   // -------------------------------------------------------------
   const handleOpenEdit = (rec: ItemConsumptionRecord) => {
     setEditingRecord(rec);
@@ -293,12 +356,25 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
       return;
     }
 
-    // Available stock + previous quantity since we are editing
-    const currentBal = itemStockMap[editingRecord.itemId] ?? 0;
-    const effectiveStock = currentBal + (editingRecord.quantity || 0);
+    const recItem = items.find(i => i.id === editingRecord.itemId);
+    const unitSym = editingRecord.unit || recItem?.unitSymbol || 'Units';
+    const effectiveTotal = (itemStockMap[editingRecord.itemId] ?? 0) + (editingRecord.quantity || 0);
 
-    if (qty > effectiveStock) {
-      setEditError(`Insufficient stock! Maximum allowed is ${formatWholeNumber(effectiveStock)} ${editingRecord.unit}.`);
+    const editTs = parseDateTs(editDate);
+    const opening = Number(recItem?.openingStock ?? 0);
+    const inflowsUpToDate = (stockEntries || [])
+      .filter(s => (s.itemId === editingRecord.itemId || (s.itemCode && s.itemCode === editingRecord.itemCode)) && parseDateTs(s.date) <= editTs)
+      .reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0) + Number(s.purchase || s.purchaseQty || 0), 0);
+
+    const otherConsUpToDate = (consumptions || [])
+      .filter(c => c.id !== editingRecord.id && (c.itemId === editingRecord.itemId || (c.itemCode && c.itemCode === editingRecord.itemCode)) && parseDateTs(c.date) <= editTs)
+      .reduce((sum, c) => sum + Number(c.quantity || 0), 0);
+
+    const effectiveDateWise = (opening + inflowsUpToDate) - otherConsUpToDate;
+    const effectiveMax = Math.max(0, Math.min(effectiveTotal, effectiveDateWise));
+
+    if (qty > effectiveMax) {
+      setEditError(`Insufficient inventory on ${editDate}! Maximum allowed is ${formatWholeNumber(effectiveMax)} ${unitSym}.`);
       return;
     }
 
@@ -327,12 +403,12 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     setConfirmModal({
       isOpen: true,
       title: 'Delete Consumption Entry',
-      message: `Are you sure you want to delete this consumption record (${formatWholeNumber(rec.quantity)} ${rec.unit} for ${rec.targetName})?\n\nThis quantity will be restored to available store stock balance.`,
+      message: `Are you sure you want to delete this consumption record (${formatWholeNumber(rec.quantity)} ${rec.unit} for ${rec.targetName})?\n\nThis quantity will be restored to available store inventory balance.`,
       confirmText: 'Delete Entry',
       variant: 'danger',
       action: () => {
         onDeleteConsumption(rec.id);
-        showToast(`Consumption record deleted. Stock restored.`);
+        showToast(`Consumption record deleted. Inventory restored.`);
       },
     });
   };
@@ -747,11 +823,11 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 </div>
               )}
 
-              {/* Item Dropdown WITH CURRENT LIVE STOCK QUANTITY */}
+              {/* Item Dropdown WITH CURRENT LIVE INVENTORY QUANTITY */}
               <div className="sm:col-span-2">
                 <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
                   <span>
-                    Item Selection (With Current Available Stock) <span className="text-rose-500">*</span>
+                    Item Selection (Linked to Item Inventory) <span className="text-rose-500">*</span>
                   </span>
                   {selectedItem && (
                     <span className="text-[11px] font-normal text-slate-500">
@@ -763,16 +839,16 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                   required
                   value={formItemId}
                   onChange={(e) => setFormItemId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white font-medium"
                 >
                   {items.length === 0 ? (
                     <option value="" disabled>No store items found in catalog</option>
                   ) : (
                     items.map((item) => {
-                      const stock = itemStockMap[item.id] ?? 0;
+                      const totalInv = itemStockMap[item.id] ?? 0;
                       return (
                         <option key={item.id} value={item.id}>
-                          {item.itemName} ({item.itemCode}) — [Available Stock: {formatWholeNumber(stock)} {item.unitSymbol}]
+                          {item.itemName} ({item.itemCode}) — [Available Inventory: {formatWholeNumber(totalInv)} {item.unitSymbol}]
                         </option>
                       );
                     })
@@ -780,63 +856,74 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 </select>
               </div>
 
-              {/* Live Stock Indicator Banner */}
+              {/* Live Inventory Ceiling & Date-wise Balance Banner */}
               {selectedItem && (
-                <div className={`sm:col-span-2 p-3 rounded-lg border flex items-center justify-between text-xs ${
-                  currentAvailableStock > 0 
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
-                    : 'bg-rose-50 border-rose-200 text-rose-900'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {currentAvailableStock > 0 ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-                    )}
-                    <span>
-                      Live Available Stock for <strong>{selectedItem.itemName}</strong>:
-                    </span>
-                  </div>
-                  <span className="font-mono font-bold text-sm">
-                    {formatWholeNumber(currentAvailableStock)} {selectedItem.unitSymbol}
-                  </span>
-                </div>
-              )}
+                <div className="sm:col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <Boxes className="w-4 h-4 text-emerald-700 shrink-0" />
+                        <span className="font-bold text-slate-900 text-xs">
+                          Item Inventory Balance: {selectedItem.itemName} ({selectedItem.itemCode})
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Consumption is strictly limited within the item's available total inventory and date-wise cumulative balance.
+                      </p>
+                    </div>
 
-              {/* Zero Stock Warning */}
-              {selectedItem && currentAvailableStock <= 0 && (
-                <div className="sm:col-span-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>
-                    Warning: <strong>{selectedItem.itemName}</strong> currently has zero stock in inventory. Please add stock in <strong>Item Stock</strong> before recording consumption.
-                  </span>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Inventory</span>
+                        <span className="font-mono font-bold text-xs text-slate-900">
+                          {formatWholeNumber(currentTotalInventory)} {selectedItem.unitSymbol}
+                        </span>
+                      </div>
+                      <div className="h-6 w-px bg-slate-200" />
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase font-bold text-emerald-700 block">Available on {formDate}</span>
+                        <span className={`font-mono font-black text-sm ${dateWiseAvailableInventory > 0 ? 'text-emerald-800' : 'text-rose-600'}`}>
+                          {formatWholeNumber(dateWiseAvailableInventory)} {selectedItem.unitSymbol}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {maxAllowedConsumption <= 0 && (
+                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>
+                        <strong>Out of Available Inventory:</strong> Zero quantity is available for <strong>{selectedItem.itemName}</strong> on or prior to {formDate}. Please add date-wise inventory in <strong>Item Inventory</strong> first.
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Consumption Quantity */}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Consumption Quantity (Deducted from Stock) <span className="text-rose-500">*</span>
+                  Consumption Quantity (Deducted from Inventory) <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="number"
                     step="any"
                     min="0.01"
-                    max={currentAvailableStock > 0 ? currentAvailableStock : undefined}
+                    max={maxAllowedConsumption > 0 ? maxAllowedConsumption : undefined}
                     required
                     value={formQuantity}
                     onChange={(e) => setFormQuantity(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder={currentAvailableStock > 0 ? `Max ${formatWholeNumber(currentAvailableStock)}` : '0'}
-                    className="w-full pl-3 pr-16 py-2 border border-slate-300 rounded-lg font-mono font-bold text-rose-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    placeholder={maxAllowedConsumption > 0 ? `Max ${formatWholeNumber(maxAllowedConsumption)}` : '0'}
+                    className="w-full pl-3 pr-16 py-2 border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">
                     {selectedItem?.unitSymbol || 'Units'}
                   </span>
                 </div>
-                {Number(formQuantity) > currentAvailableStock && currentAvailableStock > 0 && (
+                {Number(formQuantity) > maxAllowedConsumption && (
                   <p className="text-[11px] text-rose-600 font-semibold mt-1">
-                    Cannot issue more than {formatWholeNumber(currentAvailableStock)} {selectedItem?.unitSymbol}!
+                    Cannot issue more than {formatWholeNumber(maxAllowedConsumption)} {selectedItem?.unitSymbol} on {formDate}!
                   </p>
                 )}
               </div>
@@ -881,7 +968,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
               </button>
               <button
                 type="submit"
-                disabled={currentAvailableStock <= 0 || (Number(formQuantity) > currentAvailableStock)}
+                disabled={maxAllowedConsumption <= 0 || (Number(formQuantity) > maxAllowedConsumption)}
                 className="px-5 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors shadow-xs cursor-pointer"
               >
                 Issue Consumption

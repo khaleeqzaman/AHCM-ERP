@@ -10,14 +10,18 @@ export type StoreCoalModuleTab = 'store_management' | 'coal_management';
 export type StoreManagementSection = 
   | 'items' 
   | 'item_stock' 
+  | 'item_inventory'
   | 'item_consumption' 
   | 'item_setting' 
   | 'reports';
 
 export type ItemSettingSubTab = 'categories' | 'units' | 'mines' | 'vehicles';
 export type ItemsSubTab = 'add_item' | 'view_items';
-export type ItemStockSubTab = 'add_stock' | 'view_stock' | 'stock_report';
+export type ItemStockSubTab = 'add_stock' | 'view_stock' | 'stock_report' | 'add_inventory' | 'view_inventory' | 'inventory_report';
+export type ItemInventorySubTab = 'add_inventory' | 'view_inventory' | 'inventory_report' | 'add_stock' | 'view_stock' | 'stock_report';
 export type ItemConsumptionSubTab = 'add_consumption' | 'view_consumption' | 'consumption_report';
+export type ItemInventoryEntry = ItemStockEntry;
+
 
 // Item Settings: Categories
 export interface ItemCategory {

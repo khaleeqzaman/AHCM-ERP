@@ -908,18 +908,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <span>Items (Add / View)</span>
                               </button>
 
-                              {/* Item Stock */}
+                              {/* Item Inventory */}
                               <button
                                 type="button"
                                 onClick={() => handleOperationClick('store_sales', 'store_management', 'item_stock')}
                                 className={`w-full text-left px-2 py-1 rounded text-[11px] transition-colors flex items-center gap-1.5 cursor-pointer ${
-                                  isOpActive('store_sales', 'store_management', 'item_stock')
+                                  isOpActive('store_sales', 'store_management', 'item_stock') || isOpActive('store_sales', 'store_management', 'item_inventory')
                                     ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-2 border-emerald-600'
                                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                 }`}
                               >
                                 <Layers className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>Item Stock & Report</span>
+                                <span>Item Inventory (Add / View)</span>
                               </button>
 
                               {/* Item Consumption */}

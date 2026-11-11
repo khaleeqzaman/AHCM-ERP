@@ -177,8 +177,9 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
 
     if (navTarget.section === 'store_management') {
       setMainTab('store_management');
-      if (['items', 'item_stock', 'item_consumption', 'item_setting', 'reports'].includes(navTarget.subPage || '')) {
-        setStoreSection(navTarget.subPage as StoreManagementSection);
+      if (['items', 'item_stock', 'item_inventory', 'item_consumption', 'item_setting', 'reports'].includes(navTarget.subPage || '')) {
+        const targetSec = navTarget.subPage === 'item_inventory' ? 'item_stock' : navTarget.subPage as StoreManagementSection;
+        setStoreSection(targetSec);
       }
     } else if (navTarget.section === 'coal_management' || navTarget.section === 'sale') {
       setMainTab('coal_management');
@@ -191,11 +192,11 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
       } else {
         setCoalSection('coal_stock');
       }
-    } else if (navTarget.section === 'stock_report') {
+    } else if (navTarget.section === 'stock_report' || navTarget.section === 'inventory_report') {
       setMainTab('store_management');
       if (navTarget.subPage === 'add_item' || navTarget.subPage === 'view_items') {
         setStoreSection('items');
-      } else if (navTarget.subPage === 'add_stock' || navTarget.subPage === 'view_stock') {
+      } else if (navTarget.subPage === 'add_stock' || navTarget.subPage === 'view_stock' || navTarget.subPage === 'add_inventory' || navTarget.subPage === 'view_inventory') {
         setStoreSection('item_stock');
       } else {
         setStoreSection('reports');
@@ -209,16 +210,17 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   const totalCoalSold = coalSells.reduce((sum, s) => sum + Number(s.quantity || 0), 0);
   const liveCoalBalance = (openingCoal + totalCoalInflow) - totalCoalSold;
 
-  // Compute live item stock map
+  // Compute live item inventory map (including configurable opening stock + inflows - consumptions)
   const itemStockMap = React.useMemo(() => {
     const map: Record<string, number> = {};
     items.forEach((it) => {
+      const opening = Number(it.openingStock) || 0;
       const itStock = stockEntries.filter((s) => s.itemId === it.id || (s.itemCode && s.itemCode === it.itemCode));
       const stockQty = itStock.reduce((sum, s) => sum + Number(s.stockQuantity || s.stockQty || 0), 0);
       const purchaseQty = itStock.reduce((sum, s) => sum + Number(s.purchase || s.purchaseQty || 0), 0);
       const itConsumptions = consumptions.filter((c) => c.itemId === it.id || (c.itemCode && c.itemCode === it.itemCode));
       const used = itConsumptions.reduce((sum, c) => sum + Number(c.quantity || 0), 0);
-      map[it.id] = (stockQty + purchaseQty) - used;
+      map[it.id] = (opening + stockQty + purchaseQty) - used;
     });
     return map;
   }, [items, stockEntries, consumptions]);
@@ -293,13 +295,13 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             <button
               onClick={() => setStoreSection('item_stock')}
               className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-colors ${
-                storeSection === 'item_stock'
+                storeSection === 'item_stock' || (storeSection as string) === 'item_inventory'
                   ? 'bg-slate-900 text-white shadow-sm'
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
               <Layers className="w-3.5 h-3.5 shrink-0" />
-              <span>Item Stock ({stockEntries.length})</span>
+              <span>Item Inventory ({stockEntries.length})</span>
             </button>
 
             <button
@@ -352,7 +354,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             />
           )}
 
-          {storeSection === 'item_stock' && (
+          {(storeSection === 'item_stock' || (storeSection as string) === 'item_inventory') && (
             <ItemStockView
               stockEntries={stockEntries}
               items={items}
@@ -368,6 +370,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
           {storeSection === 'item_consumption' && (
             <ItemConsumptionView
               consumptions={consumptions}
+              stockEntries={stockEntries}
               items={items}
               mines={mines}
               vehicles={vehicles}
