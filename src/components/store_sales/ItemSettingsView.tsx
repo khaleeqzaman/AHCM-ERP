@@ -3,8 +3,6 @@ import {
   Settings, 
   Layers, 
   Scale, 
-  Pickaxe, 
-  Truck, 
   Plus, 
   Trash2, 
   Edit2, 
@@ -12,54 +10,46 @@ import {
   Download, 
   Printer, 
   CheckCircle2, 
-  AlertCircle,
   X
 } from 'lucide-react';
 import { 
   ItemCategory, 
   ItemUnitType, 
-  MineRecord, 
-  VehicleRecord, 
-  ItemSettingSubTab 
+  ItemSettingSubTab,
+  MineRecord,
+  VehicleRecord
 } from '../../types/storeSales';
 import { ConfirmModal } from './ConfirmModal';
+import { printConcernedTable } from '../../utils/printTable';
 
 interface ItemSettingsViewProps {
   categories: ItemCategory[];
   unitTypes: ItemUnitType[];
-  mines: MineRecord[];
-  vehicles: VehicleRecord[];
+  mines?: MineRecord[];
+  vehicles?: VehicleRecord[];
   onAddCategory: (cat: ItemCategory) => void;
   onUpdateCategory: (cat: ItemCategory) => void;
   onDeleteCategory: (id: string) => void;
   onAddUnit: (unit: ItemUnitType) => void;
   onUpdateUnit: (unit: ItemUnitType) => void;
   onDeleteUnit: (id: string) => void;
-  onAddMine: (mine: MineRecord) => void;
-  onUpdateMine: (mine: MineRecord) => void;
-  onDeleteMine: (id: string) => void;
-  onAddVehicle: (veh: VehicleRecord) => void;
-  onUpdateVehicle: (veh: VehicleRecord) => void;
-  onDeleteVehicle: (id: string) => void;
+  onAddMine?: (mine: MineRecord) => void;
+  onUpdateMine?: (mine: MineRecord) => void;
+  onDeleteMine?: (id: string) => void;
+  onAddVehicle?: (veh: VehicleRecord) => void;
+  onUpdateVehicle?: (veh: VehicleRecord) => void;
+  onDeleteVehicle?: (id: string) => void;
 }
 
 export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
-  categories,
-  unitTypes,
-  mines,
-  vehicles,
+  categories = [],
+  unitTypes = [],
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
   onAddUnit,
   onUpdateUnit,
   onDeleteUnit,
-  onAddMine,
-  onUpdateMine,
-  onDeleteMine,
-  onAddVehicle,
-  onUpdateVehicle,
-  onDeleteVehicle,
 }) => {
   const [activeTab, setActiveTab] = useState<ItemSettingSubTab>('categories');
   const [searchTerm, setSearchTerm] = useState('');
@@ -76,20 +66,6 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
   const [unitName, setUnitName] = useState('');
   const [unitSymbol, setUnitSymbol] = useState('');
   const [unitDesc, setUnitDesc] = useState('');
-
-  const [isMineModalOpen, setIsMineModalOpen] = useState(false);
-  const [editingMine, setEditingMine] = useState<MineRecord | null>(null);
-  const [mineName, setMineName] = useState('');
-  const [mineLocation, setMineLocation] = useState('');
-  const [mineIncharge, setMineIncharge] = useState('');
-  const [mineStatus, setMineStatus] = useState<'Active' | 'Inactive'>('Active');
-
-  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
-  const [editingVehicle, setEditingVehicle] = useState<VehicleRecord | null>(null);
-  const [vehNo, setVehNo] = useState('');
-  const [vehType, setVehType] = useState('Dump Truck');
-  const [vehDriver, setVehDriver] = useState('');
-  const [vehStatus, setVehStatus] = useState<'Active' | 'Under Maintenance'>('Active');
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{
@@ -124,20 +100,9 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
     return unitTypes.filter(u => u.name.toLowerCase().includes(q) || u.symbol.toLowerCase().includes(q));
   }, [unitTypes, searchTerm]);
 
-  const filteredMines = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return mines.filter(m => m.name.toLowerCase().includes(q) || (m.location || '').toLowerCase().includes(q) || (m.incharge || '').toLowerCase().includes(q));
-  }, [mines, searchTerm]);
-
-  const filteredVehicles = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return vehicles.filter(v => v.vehicleNo.toLowerCase().includes(q) || v.vehicleType.toLowerCase().includes(q) || v.driverName.toLowerCase().includes(q));
-  }, [vehicles, searchTerm]);
-
-  // -------------------------------------------------------------
-  // Handlers with User Confirmation
   // -------------------------------------------------------------
   // Category CRUD
+  // -------------------------------------------------------------
   const handleOpenAddCategory = () => {
     setEditingCategory(null);
     setCatName('');
@@ -201,7 +166,9 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
     });
   };
 
+  // -------------------------------------------------------------
   // Unit Types CRUD
+  // -------------------------------------------------------------
   const handleOpenAddUnit = () => {
     setEditingUnit(null);
     setUnitName('');
@@ -269,151 +236,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
     });
   };
 
-  // Mine CRUD
-  const handleOpenAddMine = () => {
-    setEditingMine(null);
-    setMineName('');
-    setMineLocation('');
-    setMineIncharge('');
-    setMineStatus('Active');
-    setIsMineModalOpen(true);
-  };
-
-  const handleOpenEditMine = (mine: MineRecord) => {
-    setEditingMine(mine);
-    setMineName(mine.name);
-    setMineLocation(mine.location || '');
-    setMineIncharge(mine.incharge || '');
-    setMineStatus(mine.status);
-    setIsMineModalOpen(true);
-  };
-
-  const submitMineForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!mineName.trim()) return;
-
-    const isEdit = !!editingMine;
-    setConfirmModal({
-      isOpen: true,
-      title: isEdit ? 'Confirm Mine Update' : 'Confirm New Mine',
-      message: isEdit
-        ? `Are you sure you want to save changes to mine "${mineName.trim()}"?`
-        : `Are you sure you want to register new mine "${mineName.trim()}" for consumption tracking?`,
-      confirmText: isEdit ? 'Update Mine' : 'Save Mine',
-      variant: 'primary',
-      action: () => {
-        if (isEdit && editingMine) {
-          onUpdateMine({
-            ...editingMine,
-            name: mineName.trim(),
-            location: mineLocation.trim(),
-            incharge: mineIncharge.trim(),
-            status: mineStatus,
-          });
-          showToast(`Mine "${mineName.trim()}" updated.`);
-        } else {
-          onAddMine({
-            id: `mine-${Date.now()}`,
-            name: mineName.trim(),
-            location: mineLocation.trim(),
-            incharge: mineIncharge.trim(),
-            status: mineStatus,
-            createdAt: new Date().toISOString(),
-          });
-          showToast(`Mine "${mineName.trim()}" registered.`);
-        }
-        setIsMineModalOpen(false);
-      },
-    });
-  };
-
-  const handleDeleteMinePrompt = (mine: MineRecord) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Delete Mine',
-      message: `Are you sure you want to remove mine "${mine.name}"? Past consumption records for this mine will remain intact.`,
-      confirmText: 'Delete Mine',
-      variant: 'danger',
-      action: () => {
-        onDeleteMine(mine.id);
-        showToast(`Mine "${mine.name}" deleted.`);
-      },
-    });
-  };
-
-  // Vehicle CRUD
-  const handleOpenAddVehicle = () => {
-    setEditingVehicle(null);
-    setVehNo('');
-    setVehType('Dump Truck');
-    setVehDriver('');
-    setVehStatus('Active');
-    setIsVehicleModalOpen(true);
-  };
-
-  const handleOpenEditVehicle = (veh: VehicleRecord) => {
-    setEditingVehicle(veh);
-    setVehNo(veh.vehicleNo);
-    setVehType(veh.vehicleType);
-    setVehDriver(veh.driverName);
-    setVehStatus(veh.status);
-    setIsVehicleModalOpen(true);
-  };
-
-  const submitVehicleForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!vehNo.trim()) return;
-
-    const isEdit = !!editingVehicle;
-    setConfirmModal({
-      isOpen: true,
-      title: isEdit ? 'Confirm Vehicle Update' : 'Confirm New Vehicle',
-      message: isEdit
-        ? `Are you sure you want to update vehicle "${vehNo.trim()}"?`
-        : `Are you sure you want to add vehicle "${vehNo.trim()} (${vehType})"?`,
-      confirmText: isEdit ? 'Update Vehicle' : 'Save Vehicle',
-      variant: 'primary',
-      action: () => {
-        if (isEdit && editingVehicle) {
-          onUpdateVehicle({
-            ...editingVehicle,
-            vehicleNo: vehNo.trim().toUpperCase(),
-            vehicleType: vehType,
-            driverName: vehDriver.trim(),
-            status: vehStatus,
-          });
-          showToast(`Vehicle "${vehNo.trim().toUpperCase()}" updated.`);
-        } else {
-          onAddVehicle({
-            id: `veh-${Date.now()}`,
-            vehicleNo: vehNo.trim().toUpperCase(),
-            vehicleType: vehType,
-            driverName: vehDriver.trim(),
-            status: vehStatus,
-            createdAt: new Date().toISOString(),
-          });
-          showToast(`Vehicle "${vehNo.trim().toUpperCase()}" added.`);
-        }
-        setIsVehicleModalOpen(false);
-      },
-    });
-  };
-
-  const handleDeleteVehiclePrompt = (veh: VehicleRecord) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Delete Vehicle',
-      message: `Are you sure you want to delete vehicle "${veh.vehicleNo}" (${veh.vehicleType})?`,
-      confirmText: 'Delete Vehicle',
-      variant: 'danger',
-      action: () => {
-        onDeleteVehicle(veh.id);
-        showToast(`Vehicle "${veh.vehicleNo}" removed.`);
-      },
-    });
-  };
-
-  // CSV Export for settings
+  // CSV Export
   const handleExportCSV = () => {
     let headers: string[] = [];
     let rows: (string | number)[][] = [];
@@ -423,18 +246,10 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
       headers = ['ID', 'Category Name', 'Description'];
       rows = filteredCategories.map(c => [c.id, `"${c.name}"`, `"${c.description || ''}"`]);
       filename = 'Item_Categories.csv';
-    } else if (activeTab === 'units') {
+    } else {
       headers = ['ID', 'Unit Name', 'Symbol', 'Description'];
       rows = filteredUnits.map(u => [u.id, `"${u.name}"`, `"${u.symbol}"`, `"${u.description || ''}"`]);
       filename = 'Item_Unit_Types.csv';
-    } else if (activeTab === 'mines') {
-      headers = ['ID', 'Mine Name', 'Location', 'Incharge', 'Status'];
-      rows = filteredMines.map(m => [m.id, `"${m.name}"`, `"${m.location || ''}"`, `"${m.incharge || ''}"`, m.status]);
-      filename = 'Mines_Register.csv';
-    } else {
-      headers = ['ID', 'Vehicle No', 'Type', 'Driver Name', 'Status'];
-      rows = filteredVehicles.map(v => [v.id, `"${v.vehicleNo}"`, `"${v.vehicleType}"`, `"${v.driverName}"`, v.status]);
-      filename = 'Vehicles_Register.csv';
     }
 
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
@@ -478,7 +293,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
             <span>Item Settings & Master References</span>
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
-            Configure Item Categories, Measurement Units, Mines, and Fleet Vehicles linked to item inventory & consumption.
+            Configure Item Categories and Measurement Units linked to the item catalog & inventory.
           </p>
         </div>
 
@@ -493,11 +308,15 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => {
+              const tableId = activeTab === 'categories' ? 'printable-categories-table' : 'printable-units-table';
+              const title = activeTab === 'categories' ? 'Item Categories Master' : 'Measurement Unit Types Master';
+              printConcernedTable(tableId, title);
+            }}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-xs cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5 text-slate-600" />
-            <span>Print View</span>
+            <span>Print View (Table Only)</span>
           </button>
         </div>
       </div>
@@ -532,39 +351,11 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
             <span>Measurement Units</span>
             <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{unitTypes.length}</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => { setActiveTab('mines'); setSearchTerm(''); }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'mines'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <Pickaxe className="w-3.5 h-3.5" />
-            <span>Mines (Consumption)</span>
-            <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{mines.length}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setActiveTab('vehicles'); setSearchTerm(''); }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'vehicles'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <Truck className="w-3.5 h-3.5" />
-            <span>Vehicles (Consumption)</span>
-            <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{vehicles.length}</span>
-          </button>
         </div>
 
         {/* Action Button based on Tab */}
         <div>
-          {activeTab === 'categories' && (
+          {activeTab === 'categories' ? (
             <button
               type="button"
               onClick={handleOpenAddCategory}
@@ -573,8 +364,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
               <Plus className="w-3.5 h-3.5" />
               <span>Add Category</span>
             </button>
-          )}
-          {activeTab === 'units' && (
+          ) : (
             <button
               type="button"
               onClick={handleOpenAddUnit}
@@ -582,26 +372,6 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Measurement Unit</span>
-            </button>
-          )}
-          {activeTab === 'mines' && (
-            <button
-              type="button"
-              onClick={handleOpenAddMine}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Mine</span>
-            </button>
-          )}
-          {activeTab === 'vehicles' && (
-            <button
-              type="button"
-              onClick={handleOpenAddVehicle}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Vehicle</span>
             </button>
           )}
         </div>
@@ -614,7 +384,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder={`Search ${activeTab.replace('_', ' ')}...`}
+          placeholder={`Search ${activeTab === 'categories' ? 'categories' : 'units'}...`}
           className="w-full pl-9 pr-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
@@ -623,13 +393,13 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
       {activeTab === 'categories' && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+            <table id="printable-categories-table" className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
                 <tr>
                   <th className="py-3 px-4 w-12 text-center">Sr.</th>
                   <th className="py-3 px-4">Category Name</th>
                   <th className="py-3 px-4">Description</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 text-right no-print">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
@@ -648,7 +418,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
                         <span>{cat.name}</span>
                       </td>
                       <td className="py-3 px-4 text-slate-600 max-w-md">{cat.description || '—'}</td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right no-print">
                         <div className="inline-flex items-center gap-1.5">
                           <button
                             type="button"
@@ -681,14 +451,14 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
       {activeTab === 'units' && (
         <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+            <table id="printable-units-table" className="w-full text-left text-xs border-collapse">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
                 <tr>
                   <th className="py-3 px-4 w-12 text-center">Sr.</th>
                   <th className="py-3 px-4">Unit Name</th>
                   <th className="py-3 px-4">Symbol / Abbreviation</th>
                   <th className="py-3 px-4">Description</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 text-right no-print">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-800">
@@ -707,7 +477,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
                         {unit.symbol}
                       </td>
                       <td className="py-3 px-4 text-slate-600">{unit.description || '—'}</td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right no-print">
                         <div className="inline-flex items-center gap-1.5">
                           <button
                             type="button"
@@ -736,142 +506,6 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
         </div>
       )}
 
-      {/* TAB CONTENT: 3. MINES */}
-      {activeTab === 'mines' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-4 w-12 text-center">Sr.</th>
-                  <th className="py-3 px-4">Mine Name</th>
-                  <th className="py-3 px-4">Location / Ridge</th>
-                  <th className="py-3 px-4">Incharge / Mining Officer</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-800">
-                {filteredMines.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-400">
-                      No mines registered. Click "Add Mine" to register production sites.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredMines.map((m, idx) => (
-                    <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-4 text-center font-mono text-slate-400">{idx + 1}</td>
-                      <td className="py-3 px-4 font-semibold text-slate-900 flex items-center gap-2">
-                        <Pickaxe className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{m.name}</span>
-                      </td>
-                      <td className="py-3 px-4 text-slate-600">{m.location || '—'}</td>
-                      <td className="py-3 px-4 text-slate-700 font-medium">{m.incharge || '—'}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                          m.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {m.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditMine(m)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Mine"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMinePrompt(m)}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Delete Mine"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* TAB CONTENT: 4. VEHICLES */}
-      {activeTab === 'vehicles' && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-4 w-12 text-center">Sr.</th>
-                  <th className="py-3 px-4">Vehicle No / Reg</th>
-                  <th className="py-3 px-4">Machinery Type</th>
-                  <th className="py-3 px-4">Assigned Driver / Operator</th>
-                  <th className="py-3 px-4 text-center">Operational Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-800">
-                {filteredVehicles.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-10 text-center text-slate-400">
-                      No vehicles or machinery registered. Click "Add Vehicle" to register units.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredVehicles.map((v, idx) => (
-                    <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-4 text-center font-mono text-slate-400">{idx + 1}</td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900 flex items-center gap-2">
-                        <Truck className="w-3.5 h-3.5 text-teal-600" />
-                        <span>{v.vehicleNo}</span>
-                      </td>
-                      <td className="py-3 px-4 font-medium text-slate-700">{v.vehicleType}</td>
-                      <td className="py-3 px-4 text-slate-600">{v.driverName}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                          v.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {v.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditVehicle(v)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                            title="Edit Vehicle"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteVehiclePrompt(v)}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Delete Vehicle"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* =========================================================
           MODAL: ADD/EDIT CATEGORY
           ========================================================= */}
@@ -886,7 +520,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCategoryModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -921,13 +555,13 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsCategoryModalOpen(false)}
-                  className="px-3.5 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
+                  className="px-3.5 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs"
+                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
                 >
                   {editingCategory ? 'Save Changes' : 'Create Category'}
                 </button>
@@ -951,7 +585,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsUnitModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -999,200 +633,15 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsUnitModalOpen(false)}
-                  className="px-3.5 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
+                  className="px-3.5 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs"
+                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
                 >
                   {editingUnit ? 'Save Changes' : 'Create Unit'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================
-          MODAL: ADD/EDIT MINE
-          ========================================================= */}
-      {isMineModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Pickaxe className="w-4 h-4 text-emerald-600" />
-                <span>{editingMine ? 'Edit Mine Site' : 'Register Mine Site'}</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsMineModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <form onSubmit={submitMineForm} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Mine Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={mineName}
-                  onChange={(e) => setMineName(e.target.value)}
-                  placeholder="e.g. Mine #01 - North Pit, Deep Shaft 02"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Geographic Location / Valley
-                </label>
-                <input
-                  type="text"
-                  value={mineLocation}
-                  onChange={(e) => setMineLocation(e.target.value)}
-                  placeholder="e.g. Degari Valley Sector A, Sor-Range"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Mine Incharge / Supervisor
-                </label>
-                <input
-                  type="text"
-                  value={mineIncharge}
-                  onChange={(e) => setMineIncharge(e.target.value)}
-                  placeholder="e.g. Engr. Tariq Khan"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Operating Status
-                </label>
-                <select
-                  value={mineStatus}
-                  onChange={(e) => setMineStatus(e.target.value as 'Active' | 'Inactive')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  <option value="Active">Active Operations</option>
-                  <option value="Inactive">Inactive / Suspended</option>
-                </select>
-              </div>
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsMineModalOpen(false)}
-                  className="px-3.5 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs"
-                >
-                  {editingMine ? 'Save Changes' : 'Register Mine'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* =========================================================
-          MODAL: ADD/EDIT VEHICLE
-          ========================================================= */}
-      {isVehicleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Truck className="w-4 h-4 text-teal-600" />
-                <span>{editingVehicle ? 'Edit Machinery / Vehicle' : 'Register Machinery / Vehicle'}</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsVehicleModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <form onSubmit={submitVehicleForm} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Vehicle No / Equipment Code <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={vehNo}
-                  onChange={(e) => setVehNo(e.target.value)}
-                  placeholder="e.g. DT-104, CAT-320, FL-07"
-                  className="w-full px-3 py-2 font-mono uppercase border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Machinery / Equipment Type <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={vehType}
-                  onChange={(e) => setVehType(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  <option value="Dump Truck">Dump Truck (Heavy Haulage)</option>
-                  <option value="Excavator">Excavator (Heavy Excavation)</option>
-                  <option value="Front Loader">Front Loader (Pithead Stockpile)</option>
-                  <option value="Pickup / Support">Pickup / Support Vehicle</option>
-                  <option value="Heavy Generator">Heavy Diesel Generator</option>
-                  <option value="Tunnel Compressor">Tunnel Compressor / Drill Rig</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Assigned Driver / Operator
-                </label>
-                <input
-                  type="text"
-                  value={vehDriver}
-                  onChange={(e) => setVehDriver(e.target.value)}
-                  placeholder="e.g. Abdul Rasheed"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Status
-                </label>
-                <select
-                  value={vehStatus}
-                  onChange={(e) => setVehStatus(e.target.value as 'Active' | 'Under Maintenance')}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  <option value="Active">Active Operational</option>
-                  <option value="Under Maintenance">Under Maintenance / Workshop</option>
-                </select>
-              </div>
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsVehicleModalOpen(false)}
-                  className="px-3.5 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs"
-                >
-                  {editingVehicle ? 'Save Changes' : 'Register Vehicle'}
                 </button>
               </div>
             </form>

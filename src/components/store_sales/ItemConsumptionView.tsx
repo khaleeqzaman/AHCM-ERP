@@ -57,6 +57,12 @@ interface ItemConsumptionViewProps {
   onAddConsumption: (record: ItemConsumptionRecord) => void;
   onUpdateConsumption: (record: ItemConsumptionRecord) => void;
   onDeleteConsumption: (id: string) => void;
+  onAddMine?: (mine: MineRecord) => void;
+  onUpdateMine?: (mine: MineRecord) => void;
+  onDeleteMine?: (id: string) => void;
+  onAddVehicle?: (veh: VehicleRecord) => void;
+  onUpdateVehicle?: (veh: VehicleRecord) => void;
+  onDeleteVehicle?: (id: string) => void;
   initialSubTab?: ItemConsumptionSubTab;
 }
 
@@ -70,6 +76,12 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   onAddConsumption,
   onUpdateConsumption,
   onDeleteConsumption,
+  onAddMine,
+  onUpdateMine,
+  onDeleteMine,
+  onAddVehicle,
+  onUpdateVehicle,
+  onDeleteVehicle,
   initialSubTab = 'view_consumption',
 }) => {
   // Navigation tabs: Add Consumption | View Item Consumption | Item Consumption Report
@@ -112,6 +124,22 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   const [editOperator, setEditOperator] = useState('');
   const [editRemarks, setEditRemarks] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Vehicle Modal State
+  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<VehicleRecord | null>(null);
+  const [vehNo, setVehNo] = useState('');
+  const [vehType, setVehType] = useState('Dump Truck');
+  const [vehDriver, setVehDriver] = useState('');
+  const [vehStatus, setVehStatus] = useState<'Active' | 'Under Maintenance'>('Active');
+
+  // Mine Modal State
+  const [isMineModalOpen, setIsMineModalOpen] = useState(false);
+  const [editingMine, setEditingMine] = useState<MineRecord | null>(null);
+  const [mineName, setMineName] = useState('');
+  const [mineLocation, setMineLocation] = useState('');
+  const [mineIncharge, setMineIncharge] = useState('');
+  const [mineStatus, setMineStatus] = useState<'Active' | 'Inactive'>('Active');
 
   // Report Item Visibility Filter (allow user to add/remove items from report table)
   const [selectedReportItemIds, setSelectedReportItemIds] = useState<string[]>(() => items.map(i => i.id));
@@ -226,6 +254,176 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
       };
     });
   }, [consumptions, mines, vehicles, items]);
+
+  // Filtered Vehicles for Vehicles Sub-Tab
+  const filteredVehicles = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return vehicles.filter(
+      v =>
+        v.vehicleNo.toLowerCase().includes(q) ||
+        v.vehicleType.toLowerCase().includes(q) ||
+        v.driverName.toLowerCase().includes(q)
+    );
+  }, [vehicles, searchTerm]);
+
+  // Filtered Mines for Mines Sub-Tab
+  const filteredMines = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return mines.filter(
+      m =>
+        m.name.toLowerCase().includes(q) ||
+        (m.location || '').toLowerCase().includes(q) ||
+        (m.incharge || '').toLowerCase().includes(q)
+    );
+  }, [mines, searchTerm]);
+
+  // Vehicle CRUD Handlers
+  const handleOpenAddVehicle = () => {
+    setEditingVehicle(null);
+    setVehNo('');
+    setVehType('Dump Truck');
+    setVehDriver('');
+    setVehStatus('Active');
+    setIsVehicleModalOpen(true);
+  };
+
+  const handleOpenEditVehicle = (veh: VehicleRecord) => {
+    setEditingVehicle(veh);
+    setVehNo(veh.vehicleNo);
+    setVehType(veh.vehicleType);
+    setVehDriver(veh.driverName);
+    setVehStatus(veh.status);
+    setIsVehicleModalOpen(true);
+  };
+
+  const submitVehicleForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vehNo.trim()) return;
+
+    const isEdit = !!editingVehicle;
+    setConfirmModal({
+      isOpen: true,
+      title: isEdit ? 'Confirm Vehicle Update' : 'Confirm New Vehicle',
+      message: isEdit
+        ? `Are you sure you want to update vehicle "${vehNo.trim()}"?`
+        : `Are you sure you want to add vehicle "${vehNo.trim()} (${vehType})"?`,
+      confirmText: isEdit ? 'Update Vehicle' : 'Save Vehicle',
+      variant: 'primary',
+      action: () => {
+        if (isEdit && editingVehicle) {
+          onUpdateVehicle?.({
+            ...editingVehicle,
+            vehicleNo: vehNo.trim().toUpperCase(),
+            vehicleType: vehType,
+            driverName: vehDriver.trim(),
+            status: vehStatus,
+          });
+          showToast(`Vehicle "${vehNo.trim().toUpperCase()}" updated.`);
+        } else {
+          const newVeh: VehicleRecord = {
+            id: `veh-${Date.now()}`,
+            vehicleNo: vehNo.trim().toUpperCase(),
+            vehicleType: vehType,
+            driverName: vehDriver.trim(),
+            status: vehStatus,
+            createdAt: new Date().toISOString(),
+          };
+          onAddVehicle?.(newVeh);
+          setFormVehicleId(newVeh.id);
+          showToast(`Vehicle "${vehNo.trim().toUpperCase()}" added.`);
+        }
+        setIsVehicleModalOpen(false);
+      },
+    });
+  };
+
+  const handleDeleteVehiclePrompt = (veh: VehicleRecord) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Vehicle',
+      message: `Are you sure you want to delete vehicle "${veh.vehicleNo}" (${veh.vehicleType})?`,
+      confirmText: 'Delete Vehicle',
+      variant: 'danger',
+      action: () => {
+        onDeleteVehicle?.(veh.id);
+        showToast(`Vehicle "${veh.vehicleNo}" removed.`);
+      },
+    });
+  };
+
+  // Mine CRUD Handlers
+  const handleOpenAddMine = () => {
+    setEditingMine(null);
+    setMineName('');
+    setMineLocation('');
+    setMineIncharge('');
+    setMineStatus('Active');
+    setIsMineModalOpen(true);
+  };
+
+  const handleOpenEditMine = (mine: MineRecord) => {
+    setEditingMine(mine);
+    setMineName(mine.name);
+    setMineLocation(mine.location || '');
+    setMineIncharge(mine.incharge || '');
+    setMineStatus(mine.status);
+    setIsMineModalOpen(true);
+  };
+
+  const submitMineForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mineName.trim()) return;
+
+    const isEdit = !!editingMine;
+    setConfirmModal({
+      isOpen: true,
+      title: isEdit ? 'Confirm Mine Update' : 'Confirm New Mine',
+      message: isEdit
+        ? `Are you sure you want to save changes to mine "${mineName.trim()}"?`
+        : `Are you sure you want to register new mine "${mineName.trim()}" for consumption tracking?`,
+      confirmText: isEdit ? 'Update Mine' : 'Save Mine',
+      variant: 'primary',
+      action: () => {
+        if (isEdit && editingMine) {
+          onUpdateMine?.({
+            ...editingMine,
+            name: mineName.trim(),
+            location: mineLocation.trim(),
+            incharge: mineIncharge.trim(),
+            status: mineStatus,
+          });
+          showToast(`Mine "${mineName.trim()}" updated.`);
+        } else {
+          const newMine: MineRecord = {
+            id: `mine-${Date.now()}`,
+            name: mineName.trim(),
+            location: mineLocation.trim(),
+            incharge: mineIncharge.trim(),
+            status: mineStatus,
+            createdAt: new Date().toISOString(),
+          };
+          onAddMine?.(newMine);
+          setFormMineId(newMine.id);
+          showToast(`Mine "${mineName.trim()}" registered.`);
+        }
+        setIsMineModalOpen(false);
+      },
+    });
+  };
+
+  const handleDeleteMinePrompt = (mine: MineRecord) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Mine',
+      message: `Are you sure you want to remove mine "${mine.name}"? Past consumption records for this mine will remain intact.`,
+      confirmText: 'Delete Mine',
+      variant: 'danger',
+      action: () => {
+        onDeleteMine?.(mine.id);
+        showToast(`Mine "${mine.name}" deleted.`);
+      },
+    });
+  };
 
   // -------------------------------------------------------------
   // Add Consumption Submit (Enforces Date-wise and Total Inventory Ceilings)
@@ -580,6 +778,36 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
   // CSV Export
   const handleExportCSV = () => {
+    if (activeSubTab === 'vehicles') {
+      const headers = ['Sr', 'Vehicle No', 'Equipment Type', 'Driver / Operator', 'Status'];
+      const rows = filteredVehicles.map((v, i) => [i + 1, `"${v.vehicleNo}"`, `"${v.vehicleType}"`, `"${v.driverName}"`, v.status]);
+      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Vehicles_Fleet_Register_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast('Vehicles register exported to CSV.');
+      return;
+    }
+
+    if (activeSubTab === 'mines') {
+      const headers = ['Sr', 'Mine Name', 'Location / Ridge', 'Incharge / Mining Officer', 'Status'];
+      const rows = filteredMines.map((m, i) => [i + 1, `"${m.name}"`, `"${m.location || ''}"`, `"${m.incharge || ''}"`, m.status]);
+      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Mines_Sites_Register_${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast('Mines register exported to CSV.');
+      return;
+    }
+
     const headers = ['Sr.', 'Date', 'Type', 'Target (Vehicle/Mine)', 'Item Code', 'Item Name', 'Unit', 'Quantity Consumed', 'Operator / Incharge', 'Remarks'];
     const rows = filteredConsumptions.map((c, idx) => [
       idx + 1,
@@ -651,13 +879,19 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              let tableId = 'printable-consumption-all-logs-table';
-              let title = 'Store Item Consumption Register';
-              if (viewGrouping === 'item_wise') {
-                tableId = 'printable-consumption-item-wise-table';
-                title = 'Store Item-wise Consumption Summary';
+              if (activeSubTab === 'vehicles') {
+                printConcernedTable('printable-vehicles-table', 'Fleet Machinery & Vehicles Register');
+              } else if (activeSubTab === 'mines') {
+                printConcernedTable('printable-mines-table', 'Mines & Mining Sites Register');
+              } else {
+                let tableId = 'printable-consumption-all-logs-table';
+                let title = 'Store Item Consumption Register';
+                if (viewGrouping === 'item_wise') {
+                  tableId = 'printable-consumption-item-wise-table';
+                  title = 'Store Item-wise Consumption Summary';
+                }
+                printConcernedTable(tableId, title);
               }
-              printConcernedTable(tableId, title);
             }}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-xs cursor-pointer"
           >
@@ -667,47 +901,101 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
         </div>
       </div>
 
-      {/* Sub-Tabs: View Item Consumption, Item Consumption Report, Add Consumption */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('view_consumption')}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeSubTab === 'view_consumption'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
-        >
-          <Eye className="w-3.5 h-3.5" />
-          <span>View Item Consumption</span>
-          <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{safeConsumptions.length}</span>
-        </button>
+      {/* Sub-Tabs: View Item Consumption, Item Consumption Report, Add Consumption, Vehicles, Mines */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2 border border-slate-200 rounded-xl shadow-xs">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => { setActiveSubTab('view_consumption'); setSearchTerm(''); }}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeSubTab === 'view_consumption'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>View Item Consumption</span>
+            <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{safeConsumptions.length}</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('consumption_report')}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeSubTab === 'consumption_report'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5" />
-          <span>Item Consumption Report</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => { setActiveSubTab('consumption_report'); setSearchTerm(''); }}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeSubTab === 'consumption_report'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Item Consumption Report</span>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('add_consumption')}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-            activeSubTab === 'add_consumption'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add Consumption</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => { setActiveSubTab('add_consumption'); setSearchTerm(''); }}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeSubTab === 'add_consumption'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Consumption</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setActiveSubTab('vehicles'); setSearchTerm(''); }}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeSubTab === 'vehicles'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Truck className="w-3.5 h-3.5 text-teal-600" />
+            <span>Vehicles (Consumption)</span>
+            <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{vehicles.length}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setActiveSubTab('mines'); setSearchTerm(''); }}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeSubTab === 'mines'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Pickaxe className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Mines (Consumption)</span>
+            <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{mines.length}</span>
+          </button>
+        </div>
+
+        {/* Action Button based on Sub-Tab */}
+        <div>
+          {activeSubTab === 'vehicles' && (
+            <button
+              type="button"
+              onClick={handleOpenAddVehicle}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Vehicle</span>
+            </button>
+          )}
+          {activeSubTab === 'mines' && (
+            <button
+              type="button"
+              onClick={handleOpenAddMine}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Mine</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* -------------------------------------------------------------
@@ -775,10 +1063,20 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
               {/* Vehicle / Mine Selector */}
               {formConsumptionType === 'vehicle' ? (
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                    <Truck className="w-3.5 h-3.5 text-teal-600" />
-                    <span>Select Vehicle / Machinery <span className="text-rose-500">*</span></span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-slate-700 flex items-center gap-1.5 text-xs">
+                      <Truck className="w-3.5 h-3.5 text-teal-600" />
+                      <span>Select Vehicle / Machinery <span className="text-rose-500">*</span></span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleOpenAddVehicle}
+                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New Vehicle</span>
+                    </button>
+                  </div>
                   <select
                     required
                     value={formVehicleId}
@@ -786,7 +1084,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
                     {vehicles.length === 0 ? (
-                      <option value="" disabled>No vehicles registered in Item Settings</option>
+                      <option value="" disabled>No vehicles registered. Click "+ New Vehicle" or go to Vehicles tab.</option>
                     ) : (
                       vehicles.map((v) => (
                         <option key={v.id} value={v.id}>
@@ -798,10 +1096,20 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 </div>
               ) : (
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                    <Pickaxe className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Select Mine Site <span className="text-rose-500">*</span></span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-semibold text-slate-700 flex items-center gap-1.5 text-xs">
+                      <Pickaxe className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Select Mine Site <span className="text-rose-500">*</span></span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleOpenAddMine}
+                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>New Mine</span>
+                    </button>
+                  </div>
                   <select
                     required
                     value={formMineId}
@@ -809,7 +1117,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
                     {mines.length === 0 ? (
-                      <option value="" disabled>No mines registered in Item Settings</option>
+                      <option value="" disabled>No mines registered. Click "+ New Mine" or go to Mines tab.</option>
                     ) : (
                       mines.map((m) => (
                         <option key={m.id} value={m.id}>
@@ -1065,7 +1373,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 <div className="divide-y divide-slate-100">
                   {vehicleWiseSummary.length === 0 ? (
                     <div className="p-8 text-center text-xs text-slate-400">
-                      No vehicles found. Add vehicles in "Item Settings".
+                      No vehicles found. Add vehicles in "Vehicles (Consumption)" tab.
                     </div>
                   ) : (
                     vehicleWiseSummary.map((veh) => {
@@ -1123,7 +1431,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                 <div className="divide-y divide-slate-100">
                   {mineWiseSummary.length === 0 ? (
                     <div className="p-8 text-center text-xs text-slate-400">
-                      No mine sites found. Add mines in "Item Settings".
+                      No mine sites found. Add mines in "Mines (Consumption)" tab.
                     </div>
                   ) : (
                     mineWiseSummary.map((mine) => {
@@ -1537,6 +1845,192 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
         </div>
       )}
 
+      {/* -------------------------------------------------------------
+          SUB-TAB 4: VEHICLES (CONSUMPTION)
+          ------------------------------------------------------------- */}
+      {activeSubTab === 'vehicles' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 border border-slate-200 rounded-xl shadow-xs">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search vehicle number, machinery type, driver name..."
+                className="w-full pl-9 pr-3.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenAddVehicle}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Vehicle</span>
+            </button>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table id="printable-vehicles-table" className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="py-3 px-4 w-12 text-center">Sr.</th>
+                    <th className="py-3 px-4">Vehicle No / Reg</th>
+                    <th className="py-3 px-4">Machinery Type</th>
+                    <th className="py-3 px-4">Assigned Driver / Operator</th>
+                    <th className="py-3 px-4 text-center">Operational Status</th>
+                    <th className="py-3 px-4 text-right no-print">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-800">
+                  {filteredVehicles.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-slate-400">
+                        No vehicles or machinery registered. Click "Add Vehicle" to register units for consumption.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredVehicles.map((v, idx) => (
+                      <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3 px-4 text-center font-mono text-slate-400">{idx + 1}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-900 flex items-center gap-2">
+                          <Truck className="w-3.5 h-3.5 text-teal-600" />
+                          <span>{v.vehicleNo}</span>
+                        </td>
+                        <td className="py-3 px-4 font-medium text-slate-700">{v.vehicleType}</td>
+                        <td className="py-3 px-4 text-slate-600">{v.driverName}</td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            v.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {v.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right no-print">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditVehicle(v)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Vehicle"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteVehiclePrompt(v)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Vehicle"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          SUB-TAB 5: MINES (CONSUMPTION)
+          ------------------------------------------------------------- */}
+      {activeSubTab === 'mines' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 border border-slate-200 rounded-xl shadow-xs">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search mine name, location, incharge..."
+                className="w-full pl-9 pr-3.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenAddMine}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Mine</span>
+            </button>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table id="printable-mines-table" className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="py-3 px-4 w-12 text-center">Sr.</th>
+                    <th className="py-3 px-4">Mine Name</th>
+                    <th className="py-3 px-4">Location / Ridge</th>
+                    <th className="py-3 px-4">Incharge / Mining Officer</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4 text-right no-print">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-800">
+                  {filteredMines.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-slate-400">
+                        No mines registered. Click "Add Mine" to register production sites for consumption.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredMines.map((m, idx) => (
+                      <tr key={m.id} className="hover:bg-slate-50/70 transition-colors">
+                        <td className="py-3 px-4 text-center font-mono text-slate-400">{idx + 1}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-900 flex items-center gap-2">
+                          <Pickaxe className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{m.name}</span>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600">{m.location || '—'}</td>
+                        <td className="py-3 px-4 text-slate-700 font-medium">{m.incharge || '—'}</td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                            m.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            {m.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right no-print">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditMine(m)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Mine"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMinePrompt(m)}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete Mine"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* =========================================================
           EDIT CONSUMPTION MODAL
           ========================================================= */}
@@ -1627,6 +2121,191 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                   className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
                 >
                   Update Issue
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: ADD/EDIT VEHICLE
+          ========================================================= */}
+      {isVehicleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-teal-600" />
+                <span>{editingVehicle ? 'Edit Machinery / Vehicle' : 'Register Machinery / Vehicle'}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsVehicleModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={submitVehicleForm} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Vehicle No / Equipment Code <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={vehNo}
+                  onChange={(e) => setVehNo(e.target.value)}
+                  placeholder="e.g. DT-104, CAT-320, FL-07"
+                  className="w-full px-3 py-2 font-mono uppercase border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Machinery / Equipment Type <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={vehType}
+                  onChange={(e) => setVehType(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="Dump Truck">Dump Truck (Heavy Haulage)</option>
+                  <option value="Excavator">Excavator (Heavy Excavation)</option>
+                  <option value="Front Loader">Front Loader (Pithead Stockpile)</option>
+                  <option value="Pickup / Support">Pickup / Support Vehicle</option>
+                  <option value="Heavy Generator">Heavy Diesel Generator</option>
+                  <option value="Tunnel Compressor">Tunnel Compressor / Drill Rig</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Assigned Driver / Operator
+                </label>
+                <input
+                  type="text"
+                  value={vehDriver}
+                  onChange={(e) => setVehDriver(e.target.value)}
+                  placeholder="e.g. Abdul Rasheed"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={vehStatus}
+                  onChange={(e) => setVehStatus(e.target.value as 'Active' | 'Under Maintenance')}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="Active">Active Operational</option>
+                  <option value="Under Maintenance">Under Maintenance / Workshop</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsVehicleModalOpen(false)}
+                  className="px-3.5 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
+                >
+                  {editingVehicle ? 'Save Changes' : 'Register Vehicle'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: ADD/EDIT MINE
+          ========================================================= */}
+      {isMineModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Pickaxe className="w-4 h-4 text-emerald-600" />
+                <span>{editingMine ? 'Edit Mine Site' : 'Register Mine Site'}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsMineModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={submitMineForm} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Mine Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={mineName}
+                  onChange={(e) => setMineName(e.target.value)}
+                  placeholder="e.g. Mine #01 - North Pit, Deep Shaft 02"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Geographic Location / Valley
+                </label>
+                <input
+                  type="text"
+                  value={mineLocation}
+                  onChange={(e) => setMineLocation(e.target.value)}
+                  placeholder="e.g. Degari Valley Sector A, Sor-Range"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Mine Incharge / Supervisor
+                </label>
+                <input
+                  type="text"
+                  value={mineIncharge}
+                  onChange={(e) => setMineIncharge(e.target.value)}
+                  placeholder="e.g. Engr. Tariq Khan"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Operating Status
+                </label>
+                <select
+                  value={mineStatus}
+                  onChange={(e) => setMineStatus(e.target.value as 'Active' | 'Inactive')}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="Active">Active Operations</option>
+                  <option value="Inactive">Inactive / Suspended</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsMineModalOpen(false)}
+                  className="px-3.5 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
+                >
+                  {editingMine ? 'Save Changes' : 'Register Mine'}
                 </button>
               </div>
             </form>

@@ -376,6 +376,12 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
               onAddConsumption={onAddConsumption}
               onUpdateConsumption={onUpdateConsumption || (() => {})}
               onDeleteConsumption={onDeleteConsumption || (() => {})}
+              onAddMine={onAddMine}
+              onUpdateMine={onUpdateMine}
+              onDeleteMine={onDeleteMine}
+              onAddVehicle={onAddVehicle}
+              onUpdateVehicle={onUpdateVehicle}
+              onDeleteVehicle={onDeleteVehicle}
             />
           )}
 
@@ -383,20 +389,12 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             <ItemSettingsView
               categories={categories}
               unitTypes={unitTypes}
-              mines={mines}
-              vehicles={vehicles}
               onAddCategory={onAddCategory}
               onUpdateCategory={onUpdateCategory}
               onDeleteCategory={onDeleteCategory}
               onAddUnit={onAddUnitType}
               onUpdateUnit={onUpdateUnitType}
               onDeleteUnit={onDeleteUnitType}
-              onAddMine={onAddMine}
-              onUpdateMine={onUpdateMine}
-              onDeleteMine={onDeleteMine}
-              onAddVehicle={onAddVehicle}
-              onUpdateVehicle={onUpdateVehicle}
-              onDeleteVehicle={onDeleteVehicle}
             />
           )}
 

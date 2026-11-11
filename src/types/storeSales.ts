@@ -15,11 +15,11 @@ export type StoreManagementSection =
   | 'item_setting' 
   | 'reports';
 
-export type ItemSettingSubTab = 'categories' | 'units' | 'mines' | 'vehicles';
+export type ItemSettingSubTab = 'categories' | 'units';
 export type ItemsSubTab = 'add_item' | 'view_items';
 export type ItemStockSubTab = 'add_stock' | 'view_stock' | 'stock_report' | 'add_inventory' | 'view_inventory' | 'inventory_report';
 export type ItemInventorySubTab = 'add_inventory' | 'view_inventory' | 'inventory_report' | 'add_stock' | 'view_stock' | 'stock_report';
-export type ItemConsumptionSubTab = 'add_consumption' | 'view_consumption' | 'consumption_report';
+export type ItemConsumptionSubTab = 'add_consumption' | 'view_consumption' | 'consumption_report' | 'vehicles' | 'mines';
 export type ItemInventoryEntry = ItemStockEntry;
 
 

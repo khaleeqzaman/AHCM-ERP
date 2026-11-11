@@ -3,7 +3,6 @@ import {
   Menu, 
   BarChart3, 
   Settings as SettingsIcon,
-  LogOut, 
   RefreshCw, 
   Database, 
   Activity,
@@ -1851,31 +1850,6 @@ export default function App() {
                 Dashboard
               </button>
             </nav>
-          </div>
-
-          {/* Top Bar Right Actions */}
-          <div className="flex items-center gap-2.5">
-            {/* Profile & Password Button */}
-            <button
-              type="button"
-              onClick={() => setIsProfileModalOpen(true)}
-              title="Change profile name or password"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors cursor-pointer"
-            >
-              <SettingsIcon className="w-3.5 h-3.5 text-slate-600" />
-              <span>Profile</span>
-            </button>
-
-            {/* Sign Out Button */}
-            <button
-              type="button"
-              onClick={handleLogout}
-              title="Sign out of system"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors cursor-pointer"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Sign Out</span>
-            </button>
           </div>
         </header>
 
