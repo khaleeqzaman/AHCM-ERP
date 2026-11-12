@@ -153,8 +153,14 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
         else if (field === 'description') copy.description = String(value);
         else if (field === 'credit') {
           copy.credit = value === '' ? '' : Math.max(0, Math.round(Number(value) || 0));
+          if (copy.credit !== '' && Number(copy.credit) > 0) {
+            copy.debit = ''; // Mutually exclusive: clear debit if credit is entered
+          }
         } else if (field === 'debit') {
           copy.debit = value === '' ? '' : Math.max(0, Math.round(Number(value) || 0));
+          if (copy.debit !== '' && Number(copy.debit) > 0) {
+            copy.credit = ''; // Mutually exclusive: clear credit if debit is entered
+          }
         }
         return copy;
       })
@@ -558,6 +564,8 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                     const rowDebit = Number(row.debit) || 0;
                     const rowBalance = rowCredit - rowDebit;
                     const isLastRow = index === draftRows.length - 1;
+                    const isCreditEntered = row.credit !== '' && Number(row.credit) > 0;
+                    const isDebitEntered = row.debit !== '' && Number(row.debit) > 0;
 
                     return (
                       <tr key={row.id} className="hover:bg-amber-50/20 transition-colors">
@@ -593,10 +601,23 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                             type="number"
                             step="1"
                             min="0"
+                            disabled={isDebitEntered}
                             value={row.credit}
-                            placeholder="0"
+                            placeholder={isDebitEntered ? '—' : '0'}
+                            title={isDebitEntered ? 'Credit is disabled because Debit (Outflow) is entered for this row' : 'Credit (Inflow amount)'}
                             onChange={(e) => handleDraftFieldChange(index, 'credit', e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 font-mono tabular-nums text-right font-semibold"
+                            onKeyDown={(e) => {
+                              // If Debit is disabled on the last row and user presses Tab on Credit, auto-add row!
+                              if (e.key === 'Tab' && !e.shiftKey && isLastRow && isCreditEntered) {
+                                e.preventDefault();
+                                handleAddDraftRow();
+                              }
+                            }}
+                            className={`w-full px-2.5 py-1.5 text-xs border rounded focus:outline-hidden focus:ring-1 focus:ring-amber-500 font-mono tabular-nums text-right font-semibold transition-colors ${
+                              isDebitEntered
+                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed select-none'
+                                : 'bg-slate-50 border-slate-300 focus:bg-white text-slate-900'
+                            }`}
                           />
                         </td>
 
@@ -606,8 +627,10 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                             type="number"
                             step="1"
                             min="0"
+                            disabled={isCreditEntered}
                             value={row.debit}
-                            placeholder="0"
+                            placeholder={isCreditEntered ? '—' : '0'}
+                            title={isCreditEntered ? 'Debit is disabled because Credit (Inflow) is entered for this row' : 'Debit (Outflow amount)'}
                             onChange={(e) => handleDraftFieldChange(index, 'debit', e.target.value)}
                             onKeyDown={(e) => {
                               // If user presses Tab key in the last form field of the last row, automatically add a row!
@@ -616,7 +639,11 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                                 handleAddDraftRow();
                               }
                             }}
-                            className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded focus:outline-hidden focus:ring-1 focus:ring-amber-500 focus:bg-white text-slate-900 font-mono tabular-nums text-right font-semibold"
+                            className={`w-full px-2.5 py-1.5 text-xs border rounded focus:outline-hidden focus:ring-1 focus:ring-amber-500 font-mono tabular-nums text-right font-semibold transition-colors ${
+                              isCreditEntered
+                                ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed select-none'
+                                : 'bg-slate-50 border-slate-300 focus:bg-white text-slate-900'
+                            }`}
                           />
                         </td>
 
@@ -1140,19 +1167,26 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                     type="number"
                     step="1"
                     min="0"
+                    disabled={Number(editingEntry.debit) > 0}
                     value={editingEntry.credit === 0 ? '' : Math.round(editingEntry.credit)}
-                    placeholder="0"
+                    placeholder={Number(editingEntry.debit) > 0 ? '—' : '0'}
+                    title={Number(editingEntry.debit) > 0 ? 'Credit is disabled because Debit (Outflow) is set' : 'Credit (Inflow amount)'}
                     onChange={(e) =>
                       setEditingEntry((prev) =>
                         prev
                           ? {
                               ...prev,
                               credit: e.target.value === '' ? 0 : Math.round(Number(e.target.value)),
+                              debit: e.target.value !== '' && Number(e.target.value) > 0 ? 0 : prev.debit,
                             }
                           : null
                       )
                     }
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 font-mono text-right font-semibold"
+                    className={`w-full px-3 py-2 text-xs border rounded-lg focus:ring-2 focus:ring-amber-500 font-mono text-right font-semibold transition-colors ${
+                      Number(editingEntry.debit) > 0
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed select-none'
+                        : 'bg-slate-50 border-slate-300'
+                    }`}
                   />
                 </div>
 
@@ -1162,19 +1196,26 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                     type="number"
                     step="1"
                     min="0"
+                    disabled={Number(editingEntry.credit) > 0}
                     value={editingEntry.debit === 0 ? '' : Math.round(editingEntry.debit)}
-                    placeholder="0"
+                    placeholder={Number(editingEntry.credit) > 0 ? '—' : '0'}
+                    title={Number(editingEntry.credit) > 0 ? 'Debit is disabled because Credit (Inflow) is set' : 'Debit (Outflow amount)'}
                     onChange={(e) =>
                       setEditingEntry((prev) =>
                         prev
                           ? {
                               ...prev,
                               debit: e.target.value === '' ? 0 : Math.round(Number(e.target.value)),
+                              credit: e.target.value !== '' && Number(e.target.value) > 0 ? 0 : prev.credit,
                             }
                           : null
                       )
                     }
-                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 font-mono text-right font-semibold"
+                    className={`w-full px-3 py-2 text-xs border rounded-lg focus:ring-2 focus:ring-amber-500 font-mono text-right font-semibold transition-colors ${
+                      Number(editingEntry.credit) > 0
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed select-none'
+                        : 'bg-slate-50 border-slate-300'
+                    }`}
                   />
                 </div>
               </div>
