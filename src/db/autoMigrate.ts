@@ -289,6 +289,49 @@ const TABLE_CREATION_STATEMENTS = [
     "cancelled_at" text,
     "cancel_reason" text
   );`,
+
+  `CREATE TABLE IF NOT EXISTS "mines" (
+    "id" text PRIMARY KEY NOT NULL,
+    "name" text NOT NULL,
+    "location" text,
+    "incharge" text,
+    "status" text DEFAULT 'Active' NOT NULL,
+    "notes" text,
+    "created_at" text
+  );`,
+
+  `CREATE TABLE IF NOT EXISTS "item_categories" (
+    "id" text PRIMARY KEY NOT NULL,
+    "name" text NOT NULL,
+    "description" text,
+    "created_at" text
+  );`,
+
+  `CREATE TABLE IF NOT EXISTS "item_units" (
+    "id" text PRIMARY KEY NOT NULL,
+    "name" text NOT NULL,
+    "symbol" text NOT NULL,
+    "description" text,
+    "created_at" text
+  );`,
+
+  `CREATE TABLE IF NOT EXISTS "item_consumptions" (
+    "id" text PRIMARY KEY NOT NULL,
+    "sr_no" integer,
+    "date" text NOT NULL,
+    "consumption_type" text NOT NULL,
+    "target_id" text NOT NULL,
+    "target_name" text NOT NULL,
+    "item_id" text NOT NULL,
+    "item_code" text NOT NULL,
+    "item_name" text NOT NULL,
+    "unit" text NOT NULL,
+    "quantity" double precision DEFAULT 0,
+    "operator_name" text,
+    "meter_reading" text,
+    "remarks" text,
+    "created_at" text
+  );`,
 ];
 
 const COLUMN_MIGRATION_STATEMENTS = [
@@ -307,6 +350,23 @@ const COLUMN_MIGRATION_STATEMENTS = [
   `ALTER TABLE "vouchers" ADD COLUMN IF NOT EXISTS "cancel_reason" text;`,
   `ALTER TABLE "pos_coal_sales" ADD COLUMN IF NOT EXISTS "partner_id" text;`,
   `ALTER TABLE "pos_coal_sales" ADD COLUMN IF NOT EXISTS "partner_name" text;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "category_name" text;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "category_id" text;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "unit_symbol" text;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "unit_type_id" text;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "unit_type_name" text;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "opening_stock" double precision DEFAULT 0;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "reorder_level" double precision DEFAULT 0;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "remarks" text;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "date" text;`,
+  `ALTER TABLE "stock_items" ADD COLUMN IF NOT EXISTS "created_at" text;`,
+  `ALTER TABLE "stock_entries" ADD COLUMN IF NOT EXISTS "vendor_name" text;`,
+  `ALTER TABLE "stock_entries" ADD COLUMN IF NOT EXISTS "invoice_no" text;`,
+  `ALTER TABLE "stock_entries" ADD COLUMN IF NOT EXISTS "remarks" text;`,
+  `ALTER TABLE "stock_entries" ADD COLUMN IF NOT EXISTS "unit" text;`,
+  `ALTER TABLE "stock_entries" ADD COLUMN IF NOT EXISTS "created_at" text;`,
+  `ALTER TABLE "vehicles" ADD COLUMN IF NOT EXISTS "notes" text;`,
+  `ALTER TABLE "vehicles" ADD COLUMN IF NOT EXISTS "created_at" text;`,
 ];
 
 /**

@@ -121,6 +121,14 @@ import {
   apiDeleteVehicle,
   apiSaveVehicleConsumption,
   apiDeleteVehicleConsumption,
+  apiSaveMine,
+  apiDeleteMine,
+  apiSaveItemCategory,
+  apiDeleteItemCategory,
+  apiSaveItemUnitType,
+  apiDeleteItemUnitType,
+  apiSaveItemConsumption,
+  apiDeleteItemConsumption,
 } from './api/client';
 
 // One-time client cache purge for operational mock data (guaranteeing users and active sessions are preserved)
@@ -642,11 +650,10 @@ export default function App() {
         setPartners(data.partners);
         saveCache('partners', data.partners);
       }
-      if (data.posEntries !== undefined) {
+      if (data.posEntries !== undefined && data.posEntries.length > 0) {
         setCoalSells(data.posEntries as any);
         saveCache('coal_sells', data.posEntries);
-      }
-      if (data.coalSellRecords !== undefined) {
+      } else if (data.coalSellRecords !== undefined) {
         setCoalSells(data.coalSellRecords as any);
         saveCache('coal_sells', data.coalSellRecords);
       }
@@ -666,7 +673,22 @@ export default function App() {
         setVehicles(data.vehicles);
         saveCache('vehicles', data.vehicles);
       }
-      if (data.vehicleConsumptions !== undefined) {
+      if (data.mines !== undefined) {
+        setMines(data.mines);
+        saveCache('item_mines', data.mines);
+      }
+      if (data.itemCategories !== undefined) {
+        setCategories(data.itemCategories);
+        saveCache('item_categories', data.itemCategories);
+      }
+      if (data.itemUnits !== undefined) {
+        setUnitTypes(data.itemUnits);
+        saveCache('item_units', data.itemUnits);
+      }
+      if (data.itemConsumptions !== undefined) {
+        setItemConsumptions(data.itemConsumptions);
+        saveCache('consumptions', data.itemConsumptions);
+      } else if (data.vehicleConsumptions !== undefined) {
         setItemConsumptions(data.vehicleConsumptions as any);
         saveCache('consumptions', data.vehicleConsumptions);
       }
@@ -1998,6 +2020,7 @@ export default function App() {
                   saveCache('item_categories', next);
                   return next;
                 });
+                apiSaveItemCategory(newCat);
               }}
               onUpdateCategory={(cat) => {
                 setCategories((prev) => {
@@ -2005,6 +2028,7 @@ export default function App() {
                   saveCache('item_categories', next);
                   return next;
                 });
+                apiSaveItemCategory(cat);
               }}
               onDeleteCategory={(id) => {
                 setCategories((prev) => {
@@ -2012,6 +2036,7 @@ export default function App() {
                   saveCache('item_categories', next);
                   return next;
                 });
+                apiDeleteItemCategory(id);
               }}
               onAddUnitType={(unit) => {
                 const newUnit: ItemUnitType = { ...unit, id: `unit-${Date.now()}` };
@@ -2020,6 +2045,7 @@ export default function App() {
                   saveCache('item_units', next);
                   return next;
                 });
+                apiSaveItemUnitType(newUnit);
               }}
               onUpdateUnitType={(unit) => {
                 setUnitTypes((prev) => {
@@ -2027,6 +2053,7 @@ export default function App() {
                   saveCache('item_units', next);
                   return next;
                 });
+                apiSaveItemUnitType(unit);
               }}
               onDeleteUnitType={(id) => {
                 setUnitTypes((prev) => {
@@ -2034,6 +2061,7 @@ export default function App() {
                   saveCache('item_units', next);
                   return next;
                 });
+                apiDeleteItemUnitType(id);
               }}
               onAddMine={(mine) => {
                 const newMine: MineRecord = { ...mine, id: `mine-${Date.now()}` };
@@ -2042,6 +2070,7 @@ export default function App() {
                   saveCache('item_mines', next);
                   return next;
                 });
+                apiSaveMine(newMine);
               }}
               onUpdateMine={(mine) => {
                 setMines((prev) => {
@@ -2049,6 +2078,7 @@ export default function App() {
                   saveCache('item_mines', next);
                   return next;
                 });
+                apiSaveMine(mine);
               }}
               onDeleteMine={(id) => {
                 setMines((prev) => {
@@ -2056,6 +2086,7 @@ export default function App() {
                   saveCache('item_mines', next);
                   return next;
                 });
+                apiDeleteMine(id);
               }}
               onAddVehicle={(veh) => {
                 const newVeh: VehicleRecord = { ...veh, id: `veh-${Date.now()}` };
@@ -2139,7 +2170,7 @@ export default function App() {
                   saveCache('consumptions', next);
                   return next;
                 });
-                apiSaveVehicleConsumption(newRec as any);
+                apiSaveItemConsumption(newRec as any);
               }}
               onUpdateConsumption={(record: any) => {
                 setItemConsumptions((prev) => {
@@ -2147,7 +2178,7 @@ export default function App() {
                   saveCache('consumptions', next);
                   return next;
                 });
-                apiSaveVehicleConsumption(record as any);
+                apiSaveItemConsumption(record as any);
               }}
               onDeleteConsumption={(id: string) => {
                 setItemConsumptions((prev) => {
@@ -2155,7 +2186,7 @@ export default function App() {
                   saveCache('consumptions', next);
                   return next;
                 });
-                apiDeleteVehicleConsumption(id);
+                apiDeleteItemConsumption(id);
               }}
               onAddCoalStock={(stock: any) => {
                 const newStk: CoalStockRecord = { ...stock, id: stock.id || `cstk-${Date.now()}` };

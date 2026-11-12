@@ -21,6 +21,8 @@ import {
   DiagnosticLogEntry,
   apiCheckDatabaseStatus,
   apiRunHealthPing,
+  apiAuditSupabaseTables,
+  TableAuditResult,
   DatabaseStatusResponse
 } from '../../api/client';
 import { 
@@ -30,7 +32,7 @@ import {
   setSupabaseCredentials,
   clearSupabaseCustomCredentials
 } from '../../lib/supabase';
-import { Key, ShieldCheck, Check } from 'lucide-react';
+import { Key, ShieldCheck, Check, Table, Layers, CheckCircle } from 'lucide-react';
 
 interface DatabaseDiagnosticsModalProps {
   isOpen: boolean;
@@ -46,6 +48,9 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
   isRefreshing,
 }) => {
   const [logs, setLogs] = useState<DiagnosticLogEntry[]>([]);
+  const [activeTab, setActiveTab] = useState<'logs' | 'tables'>('logs');
+  const [auditResults, setAuditResults] = useState<TableAuditResult[]>([]);
+  const [isAuditing, setIsAuditing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'errors' | 'success'>('all');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -55,6 +60,18 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
   const [anonKeyInput, setAnonKeyInput] = useState(() => getCurrentSupabaseAnonKey());
   const [keySavedMessage, setKeySavedMessage] = useState(false);
   const [sqlCopied, setSqlCopied] = useState<string | null>(null);
+
+  const runTableAudit = async () => {
+    setIsAuditing(true);
+    try {
+      const results = await apiAuditSupabaseTables();
+      setAuditResults(results);
+    } catch (e) {
+      console.warn('Failed to audit tables:', e);
+    } finally {
+      setIsAuditing(false);
+    }
+  };
 
   const fetchLiveStatus = async () => {
     try {
@@ -73,6 +90,7 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
     if (isOpen) {
       setLogs(getDbApiDiagnosticLogs());
       fetchLiveStatus();
+      runTableAudit();
     }
     const unsubscribe = subscribeDbApiDiagnostics(() => {
       setLogs(getDbApiDiagnosticLogs());
@@ -320,15 +338,202 @@ export const DatabaseDiagnosticsModal: React.FC<DatabaseDiagnosticsModalProps> =
         <div className="bg-slate-100 border-b border-slate-200 px-4 py-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-slate-800">Supabase SQL Schema:</span>
-            <span className="text-[11px] text-slate-500">Need to fix PGRST205 or create coal production table?</span>
+            <span className="text-[11px] text-slate-500">Need to create or fix tables in Supabase?</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => {
-                const sql = `-- Create coal_production_records table in Supabase
+                const sql = `-- ============================================================================
+-- COMPLETE AHCM SUPABASE POSTGRESQL SCHEMA (23 TABLES)
+-- Idempotent: Run in Supabase SQL Editor
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.app_users (
+    id TEXT PRIMARY KEY NOT NULL,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT,
+    role TEXT NOT NULL,
+    department TEXT,
+    status TEXT DEFAULT 'active' NOT NULL,
+    created_at TEXT,
+    last_login TEXT,
+    phone TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.demands (
+    id TEXT PRIMARY KEY NOT NULL,
+    demand_type TEXT NOT NULL,
+    category TEXT NOT NULL,
+    date TEXT NOT NULL,
+    reference_no TEXT NOT NULL,
+    items JSONB NOT NULL,
+    total_amount DOUBLE PRECISION NOT NULL,
+    status TEXT NOT NULL,
+    admin_remark TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.purchases (
+    id TEXT PRIMARY KEY NOT NULL,
+    payment_type TEXT NOT NULL,
+    date TEXT NOT NULL,
+    reference TEXT NOT NULL,
+    items JSONB NOT NULL,
+    total_amount DOUBLE PRECISION NOT NULL,
+    status TEXT NOT NULL,
+    admin_remark TEXT,
+    updated_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.chart_accounts (
+    id TEXT PRIMARY KEY NOT NULL,
+    code TEXT NOT NULL,
+    type_digit INTEGER,
+    class_digit INTEGER,
+    group_code TEXT,
+    sub_code TEXT,
+    name TEXT NOT NULL,
+    account_type TEXT NOT NULL,
+    classification TEXT,
+    group_name TEXT,
+    normal_balance TEXT,
+    opening_balance DOUBLE PRECISION DEFAULT 0,
+    current_balance DOUBLE PRECISION DEFAULT 0,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS public.vouchers (
+    id TEXT PRIMARY KEY NOT NULL,
+    voucher_no TEXT NOT NULL,
+    voucher_type TEXT NOT NULL,
+    type_code TEXT,
+    date TEXT NOT NULL,
+    reference_no TEXT,
+    narration TEXT,
+    lines JSONB NOT NULL,
+    total_debit DOUBLE PRECISION NOT NULL,
+    total_credit DOUBLE PRECISION NOT NULL,
+    status TEXT NOT NULL,
+    prepared_by TEXT,
+    approved_by TEXT,
+    approved_at TEXT,
+    posted_by TEXT,
+    posted_at TEXT,
+    reversed_by TEXT,
+    reversed_at TEXT,
+    reversal_reason TEXT,
+    reversal_voucher_no TEXT,
+    cancelled_by TEXT,
+    cancelled_at TEXT,
+    cancel_reason TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.cash_book_entries (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    date TEXT NOT NULL,
+    description TEXT NOT NULL,
+    credit DOUBLE PRECISION DEFAULT 0,
+    debit DOUBLE PRECISION DEFAULT 0,
+    balance DOUBLE PRECISION DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS public.credit_book_entries (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    date TEXT NOT NULL,
+    name TEXT NOT NULL,
+    purpose TEXT,
+    amount DOUBLE PRECISION DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS public.banks (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    bank_name TEXT NOT NULL,
+    branch_name TEXT,
+    branch_code TEXT,
+    address TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.bank_accounts (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    bank_id TEXT NOT NULL,
+    bank_name TEXT NOT NULL,
+    account_number TEXT NOT NULL,
+    account_title TEXT NOT NULL,
+    opening_balance DOUBLE PRECISION DEFAULT 0,
+    opening_balance_date TEXT,
+    transactions JSONB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.company_settings (
+    id TEXT PRIMARY KEY NOT NULL,
+    company_name TEXT NOT NULL,
+    address TEXT NOT NULL,
+    ntn_number TEXT,
+    contact_number TEXT,
+    email TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.buyers (
+    id TEXT PRIMARY KEY NOT NULL,
+    buyer_ntn TEXT,
+    buyer_cnic TEXT,
+    buyer_name TEXT NOT NULL,
+    buyer_type TEXT NOT NULL,
+    phone TEXT,
+    city TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.partners (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    show_in_report BOOLEAN DEFAULT true,
+    notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.pos_coal_sales (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    partner_id TEXT,
+    partner_name TEXT,
+    buyer_id TEXT,
+    buyer_ntn TEXT,
+    buyer_cnic TEXT,
+    buyer_name TEXT NOT NULL,
+    buyer_type TEXT,
+    sale_organization TEXT,
+    document_type TEXT,
+    document_number TEXT,
+    document_date TEXT NOT NULL,
+    quantity DOUBLE PRECISION DEFAULT 0,
+    value_excluding_tax DOUBLE PRECISION DEFAULT 0,
+    sales_tax_fed DOUBLE PRECISION DEFAULT 0,
+    further_tax DOUBLE PRECISION DEFAULT 0,
+    total_tax DOUBLE PRECISION DEFAULT 0,
+    total_value DOUBLE PRECISION DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS public.coal_sell_records (
+    id TEXT PRIMARY KEY NOT NULL,
+    date TEXT NOT NULL,
+    partner_id TEXT,
+    partner_name TEXT NOT NULL,
+    quantity_tons DOUBLE PRECISION DEFAULT 0,
+    vehicle_no TEXT,
+    remarks TEXT
+);
+
 CREATE TABLE IF NOT EXISTS public.coal_production_records (
-    id TEXT PRIMARY KEY,
+    id TEXT PRIMARY KEY NOT NULL,
     sr_no INTEGER,
     date TEXT NOT NULL,
     partner_id TEXT,
@@ -339,20 +544,300 @@ CREATE TABLE IF NOT EXISTS public.coal_production_records (
     remarks TEXT,
     created_at TEXT DEFAULT now()::text
 );
-CREATE INDEX IF NOT EXISTS idx_coal_prod_date ON public.coal_production_records(date);
-CREATE INDEX IF NOT EXISTS idx_coal_prod_partner ON public.coal_production_records(partner_id);
-GRANT ALL ON TABLE public.coal_production_records TO postgres, anon, authenticated, service_role;
+
+CREATE TABLE IF NOT EXISTS public.stock_items (
+    id TEXT PRIMARY KEY NOT NULL,
+    item_code TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    category TEXT,
+    category_name TEXT,
+    category_id TEXT,
+    unit TEXT NOT NULL,
+    unit_symbol TEXT,
+    unit_type_id TEXT,
+    unit_type_name TEXT,
+    opening_stock DOUBLE PRECISION DEFAULT 0,
+    reorder_level DOUBLE PRECISION DEFAULT 0,
+    remarks TEXT,
+    date TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.stock_entries (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    date TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    item_code TEXT NOT NULL,
+    stock_qty DOUBLE PRECISION DEFAULT 0,
+    purchase_qty DOUBLE PRECISION DEFAULT 0,
+    mine_qty DOUBLE PRECISION DEFAULT 0,
+    vehicles_qty DOUBLE PRECISION DEFAULT 0,
+    company_name TEXT,
+    balance DOUBLE PRECISION DEFAULT 0,
+    vendor_name TEXT,
+    invoice_no TEXT,
+    remarks TEXT,
+    unit TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.vehicles (
+    id TEXT PRIMARY KEY NOT NULL,
+    vehicle_no TEXT NOT NULL,
+    driver_name TEXT NOT NULL,
+    vehicle_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    notes TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.vehicle_consumptions (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    vehicle_id TEXT NOT NULL,
+    vehicle_no TEXT NOT NULL,
+    date TEXT NOT NULL,
+    diesel DOUBLE PRECISION DEFAULT 0,
+    m_oil DOUBLE PRECISION DEFAULT 0,
+    d_oil DOUBLE PRECISION DEFAULT 0,
+    o_fltr DOUBLE PRECISION DEFAULT 0,
+    d_fltr DOUBLE PRECISION DEFAULT 0,
+    k_oil DOUBLE PRECISION DEFAULT 0,
+    c_oil DOUBLE PRECISION DEFAULT 0,
+    b_oil DOUBLE PRECISION DEFAULT 0,
+    remarks TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.mines (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    location TEXT,
+    incharge TEXT,
+    status TEXT DEFAULT 'Active' NOT NULL,
+    notes TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.item_categories (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.item_units (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.item_consumptions (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    date TEXT NOT NULL,
+    consumption_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    target_name TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    item_code TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    unit TEXT NOT NULL,
+    quantity DOUBLE PRECISION DEFAULT 0,
+    operator_name TEXT,
+    meter_reading TEXT,
+    remarks TEXT,
+    created_at TEXT
+);
+
+-- Ensure all extended columns exist if tables were created previously
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS category_name TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS category_id TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS unit_symbol TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS unit_type_id TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS unit_type_name TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS opening_stock DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS reorder_level DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS remarks TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS date TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS created_at TEXT;
+
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS vendor_name TEXT;
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS invoice_no TEXT;
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS remarks TEXT;
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS unit TEXT;
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS created_at TEXT;
+
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS created_at TEXT;
+
+-- Grant permissions to public roles
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+
+-- Disable RLS across all tables
+ALTER TABLE IF EXISTS public.app_users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.demands DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.purchases DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.chart_accounts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.vouchers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.cash_book_entries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.credit_book_entries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.banks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.bank_accounts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.company_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.buyers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.partners DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.pos_coal_sales DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.coal_sell_records DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.coal_production_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.stock_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.stock_entries DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.vehicles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.vehicle_consumptions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.mines DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.item_categories DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.item_units DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.item_consumptions DISABLE ROW LEVEL SECURITY;
+
+-- Reload schema in PostgREST
 NOTIFY pgrst, 'reload schema';`;
                 navigator.clipboard.writeText(sql);
-                setSqlCopied('coal');
+                setSqlCopied('full');
+                setTimeout(() => setSqlCopied(null), 3000);
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-md cursor-pointer transition-colors"
+            >
+              <Copy className="w-3 h-3" />
+              <span>{sqlCopied === 'full' ? 'Copied Full 23-Table SQL!' : 'Copy Complete Database SQL (23 Tables)'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const sql = `-- ============================================================================
+-- STORE & INVENTORY POSTGRESQL TABLES (Mines, Categories, Units, Consumptions, Items, Entries)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS public.mines (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    location TEXT,
+    incharge TEXT,
+    status TEXT DEFAULT 'Active' NOT NULL,
+    notes TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.item_categories (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.item_units (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.item_consumptions (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    date TEXT NOT NULL,
+    consumption_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    target_name TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    item_code TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    unit TEXT NOT NULL,
+    quantity DOUBLE PRECISION DEFAULT 0,
+    operator_name TEXT,
+    meter_reading TEXT,
+    remarks TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.stock_items (
+    id TEXT PRIMARY KEY NOT NULL,
+    item_code TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    category TEXT,
+    category_name TEXT,
+    category_id TEXT,
+    unit TEXT NOT NULL,
+    unit_symbol TEXT,
+    unit_type_id TEXT,
+    unit_type_name TEXT,
+    opening_stock DOUBLE PRECISION DEFAULT 0,
+    reorder_level DOUBLE PRECISION DEFAULT 0,
+    remarks TEXT,
+    date TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.stock_entries (
+    id TEXT PRIMARY KEY NOT NULL,
+    sr_no INTEGER,
+    date TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    item_code TEXT NOT NULL,
+    stock_qty DOUBLE PRECISION DEFAULT 0,
+    purchase_qty DOUBLE PRECISION DEFAULT 0,
+    mine_qty DOUBLE PRECISION DEFAULT 0,
+    vehicles_qty DOUBLE PRECISION DEFAULT 0,
+    company_name TEXT,
+    balance DOUBLE PRECISION DEFAULT 0,
+    vendor_name TEXT,
+    invoice_no TEXT,
+    remarks TEXT,
+    unit TEXT,
+    created_at TEXT
+);
+
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS category_name TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS category_id TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS unit_symbol TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS unit_type_id TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS unit_type_name TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS opening_stock DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS reorder_level DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS remarks TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS date TEXT;
+ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS created_at TEXT;
+
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS vendor_name TEXT;
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS invoice_no TEXT;
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS remarks TEXT;
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS unit TEXT;
+ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS created_at TEXT;
+
+GRANT ALL ON public.mines, public.item_categories, public.item_units, public.item_consumptions, public.stock_items, public.stock_entries TO postgres, anon, authenticated, service_role;
+ALTER TABLE IF EXISTS public.mines DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.item_categories DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.item_units DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.item_consumptions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.stock_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.stock_entries DISABLE ROW LEVEL SECURITY;
+
+NOTIFY pgrst, 'reload schema';`;
+                navigator.clipboard.writeText(sql);
+                setSqlCopied('store');
                 setTimeout(() => setSqlCopied(null), 3000);
               }}
               className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md cursor-pointer transition-colors"
             >
               <Copy className="w-3 h-3" />
-              <span>{sqlCopied === 'coal' ? 'Copied SQL to Clipboard!' : 'Copy Coal Table SQL'}</span>
+              <span>{sqlCopied === 'store' ? 'Copied Store SQL!' : 'Copy Store Tables SQL'}</span>
             </button>
+
             <a
               href="https://supabase.com/dashboard"
               target="_blank"
@@ -366,11 +851,59 @@ NOTIFY pgrst, 'reload schema';`;
           </div>
         </div>
 
+        {/* View Switcher Tabs */}
+        <div className="bg-slate-50 px-4 pt-2 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('logs')}
+              className={`px-3 py-2 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'logs'
+                  ? 'border-blue-600 text-blue-700 bg-white rounded-t-md'
+                  : 'border-transparent text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>API Network Calls ({logs.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('tables');
+                if (auditResults.length === 0) runTableAudit();
+              }}
+              className={`px-3 py-2 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'tables'
+                  ? 'border-blue-600 text-blue-700 bg-white rounded-t-md'
+                  : 'border-transparent text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Table className="w-3.5 h-3.5" />
+              <span>Schema & Table Audit ({auditResults.length || 23})</span>
+              {auditResults.some((r) => r.status === 'missing' || r.status === 'error') && (
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              )}
+            </button>
+          </div>
+
+          {activeTab === 'tables' && (
+            <button
+              type="button"
+              onClick={runTableAudit}
+              disabled={isAuditing}
+              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded cursor-pointer disabled:opacity-50 mb-1"
+            >
+              <RefreshCw className={`w-3 h-3 ${isAuditing ? 'animate-spin' : ''}`} />
+              <span>{isAuditing ? 'Auditing...' : 'Re-audit Tables'}</span>
+            </button>
+          )}
+        </div>
+
         {/* Supabase Explanation Notice if errors present */}
-        {errorCount > 0 && (
+        {errorCount > 0 && activeTab === 'logs' && (
           <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-[11px] text-amber-800 flex items-center justify-between gap-2">
             <span className="font-sans">
-              <strong>Notice:</strong> If you see <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">PGRST205</code> (missing table), click <strong>Copy Coal Table SQL</strong> above and run it in Supabase SQL Editor. Click <strong>Purge Stale Errors</strong> after running.
+              <strong>Notice:</strong> If you see <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">PGRST205</code> (missing table), click <strong>Copy Complete Database SQL</strong> above and run it in Supabase SQL Editor.
             </span>
             <button
               type="button"
@@ -382,7 +915,89 @@ NOTIFY pgrst, 'reload schema';`;
           </div>
         )}
 
-        {/* Logs List Viewport */}
+        {/* Tab Content 1: Schema & Table Audit */}
+        {activeTab === 'tables' && (
+          <div className="flex-1 overflow-y-auto p-4 space-y-2.5 text-xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-bold text-slate-800">Supabase Table Verification Status:</span>
+              <span className="text-[11px] text-slate-500">
+                {auditResults.filter((r) => r.status === 'ok').length} of {auditResults.length || 23} Tables Verified Active
+              </span>
+            </div>
+
+            {isAuditing && auditResults.length === 0 ? (
+              <div className="py-12 text-center text-slate-500">
+                <RefreshCw className="w-8 h-8 mx-auto animate-spin text-blue-500 mb-2" />
+                <p>Auditing all 23 database tables via Supabase Client SDK...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2">
+                {auditResults.map((t) => (
+                  <div
+                    key={t.tableKey}
+                    className={`p-2.5 rounded-lg border flex items-center justify-between gap-3 ${
+                      t.status === 'ok'
+                        ? 'border-emerald-200 bg-emerald-50/30'
+                        : t.status === 'missing'
+                        ? 'border-red-300 bg-red-50/40'
+                        : t.status === 'unconfigured'
+                        ? 'border-amber-200 bg-amber-50/30'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="shrink-0">
+                        {t.status === 'ok' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        ) : t.status === 'missing' ? (
+                          <AlertTriangle className="w-4 h-4 text-red-600" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-slate-900">{t.tableName}</span>
+                          <span className="text-[10px] text-slate-400 font-sans">({t.tableKey})</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5 truncate">
+                          {t.status === 'ok' ? (
+                            <span className="text-emerald-700">
+                              ✓ Table exists in Supabase ({t.count ?? 0} rows, {t.latencyMs}ms)
+                            </span>
+                          ) : t.status === 'missing' ? (
+                            <span className="text-red-700 font-semibold">
+                              ✗ Table does not exist in Supabase (PGRST205) — click "Copy Complete Database SQL" to create
+                            </span>
+                          ) : (
+                            <span className="text-slate-600">{t.error}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          t.status === 'ok'
+                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                            : t.status === 'missing'
+                            ? 'bg-red-100 text-red-800 border border-red-300'
+                            : 'bg-amber-100 text-amber-800 border border-amber-300'
+                        }`}
+                      >
+                        {t.status === 'ok' ? 'Online' : t.status === 'missing' ? 'Missing' : t.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab Content 2: Logs List Viewport */}
+        {activeTab === 'logs' && (
         <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-xs">
           {filteredLogs.length === 0 ? (
             <div className="py-16 text-center text-slate-400 font-sans">
@@ -516,6 +1131,7 @@ NOTIFY pgrst, 'reload schema';`;
             })
           )}
         </div>
+        )}
 
         {/* Modal Footer */}
         <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">

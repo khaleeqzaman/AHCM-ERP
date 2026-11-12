@@ -24,6 +24,11 @@ import type {
   VehicleConsumptionRecord,
   VehicleConsumptionSummary,
   ItemWiseStockSummary,
+  MineRecord,
+  ItemCategory,
+  ItemUnitType,
+  ItemConsumptionRecord,
+  ConsumptionTargetType,
 } from '../types/storeSales';
 
 import { initialUsers } from '../data/mockUsers';
@@ -46,6 +51,10 @@ import {
   initialStockEntries,
   initialVehicles,
   initialVehicleConsumptions,
+  initialMines,
+  initialItemCategories,
+  initialItemUnits,
+  initialItemConsumptions,
 } from '../data/mockStoreSalesData';
 
 export interface BootstrapData {
@@ -68,6 +77,10 @@ export interface BootstrapData {
   stockEntries: StockEntry[];
   vehicles: VehicleRecord[];
   vehicleConsumptions: VehicleConsumptionRecord[];
+  mines: MineRecord[];
+  itemCategories: ItemCategory[];
+  itemUnits: ItemUnitType[];
+  itemConsumptions: ItemConsumptionRecord[];
   vehicleConsumptionSummary?: VehicleConsumptionSummary[];
   itemWiseStockSummary?: ItemWiseStockSummary[];
 }
@@ -676,16 +689,35 @@ const mapStockItemFromRow = (r: any): StockItem => ({
   id: r.id,
   itemCode: r.item_code,
   itemName: r.item_name,
-  category: r.category || '',
-  unit: r.unit,
+  category: r.category || r.category_name || '',
+  categoryName: r.category_name || r.category || '',
+  categoryId: r.category_id || undefined,
+  unit: r.unit || r.unit_symbol || r.unit_type_name || 'Units',
+  unitSymbol: r.unit_symbol || r.unit || 'Units',
+  unitTypeName: r.unit_type_name || r.unit || 'Units',
+  unitTypeId: r.unit_type_id || undefined,
+  openingStock: Number(r.opening_stock ?? 0),
+  reorderLevel: Number(r.reorder_level ?? 0),
+  remarks: r.remarks || '',
+  date: r.date || undefined,
+  createdAt: r.created_at || undefined,
 });
 
-const mapStockItemToRow = (i: StockItem) => ({
+const mapStockItemToRow = (i: any) => ({
   id: i.id,
   item_code: i.itemCode,
   item_name: i.itemName,
-  category: i.category || '',
-  unit: i.unit,
+  category: i.categoryName || i.category || '',
+  unit: i.unit || i.unitSymbol || i.unitTypeName || 'Units',
+  category_id: i.categoryId || null,
+  category_name: i.categoryName || i.category || null,
+  unit_type_id: i.unitTypeId || null,
+  unit_type_name: i.unitTypeName || null,
+  unit_symbol: i.unitSymbol || i.unit || null,
+  opening_stock: Number(i.openingStock || 0),
+  reorder_level: Number(i.reorderLevel || 0),
+  remarks: i.remarks || null,
+  date: i.date || null,
 });
 
 const mapStockEntryFromRow = (r: any): StockEntry => ({
@@ -696,26 +728,37 @@ const mapStockEntryFromRow = (r: any): StockEntry => ({
   itemName: r.item_name,
   itemCode: r.item_code,
   stockQty: Number(r.stock_qty || 0),
+  stockQuantity: Number(r.stock_qty || 0),
   purchaseQty: Number(r.purchase_qty || 0),
+  purchase: Number(r.purchase_qty || 0),
   mineQty: Number(r.mine_qty || 0),
   vehiclesQty: Number(r.vehicles_qty || 0),
   companyName: r.company_name || '',
   balance: Number(r.balance || 0),
+  vendorName: r.vendor_name || '',
+  invoiceNo: r.invoice_no || '',
+  remarks: r.remarks || '',
+  unit: r.unit || '',
+  createdAt: r.created_at || undefined,
 });
 
-const mapStockEntryToRow = (s: StockEntry) => ({
+const mapStockEntryToRow = (s: any) => ({
   id: s.id,
   sr_no: s.srNo || 1,
   date: s.date,
   item_id: s.itemId,
   item_name: s.itemName,
   item_code: s.itemCode,
-  stock_qty: s.stockQty || 0,
-  purchase_qty: s.purchaseQty || 0,
+  stock_qty: s.stockQuantity !== undefined ? s.stockQuantity : (s.stockQty !== undefined ? s.stockQty : 0),
+  purchase_qty: s.purchase !== undefined ? s.purchase : (s.purchaseQty !== undefined ? s.purchaseQty : 0),
   mine_qty: s.mineQty || 0,
   vehicles_qty: s.vehiclesQty || 0,
   company_name: s.companyName || '',
   balance: s.balance || 0,
+  vendor_name: s.vendorName || null,
+  invoice_no: s.invoiceNo || null,
+  remarks: s.remarks || null,
+  unit: s.unit || null,
 });
 
 const mapVehicleFromRow = (r: any): VehicleRecord => ({
@@ -724,6 +767,8 @@ const mapVehicleFromRow = (r: any): VehicleRecord => ({
   driverName: r.driver_name,
   vehicleType: r.vehicle_type,
   status: r.status as any,
+  notes: r.notes || '',
+  createdAt: r.created_at || '',
 });
 
 const mapVehicleToRow = (v: VehicleRecord) => ({
@@ -732,13 +777,15 @@ const mapVehicleToRow = (v: VehicleRecord) => ({
   driver_name: v.driverName,
   vehicle_type: v.vehicleType,
   status: v.status,
+  notes: v.notes || null,
+  created_at: v.createdAt || new Date().toISOString(),
 });
 
 const mapVehicleConsumptionFromRow = (r: any): VehicleConsumptionRecord => ({
   id: r.id,
   srNo: Number(r.sr_no || 1),
-  vehicleId: r.vehicle_id,
-  vehicleNo: r.vehicle_no,
+  vehicleId: r.vehicle_id || r.target_id || '',
+  vehicleNo: r.vehicle_no || r.target_name || '',
   date: r.date,
   diesel: Number(r.diesel || 0),
   mOil: Number(r.m_oil || 0),
@@ -751,14 +798,14 @@ const mapVehicleConsumptionFromRow = (r: any): VehicleConsumptionRecord => ({
   remarks: r.remarks || '',
 });
 
-const mapVehicleConsumptionToRow = (c: VehicleConsumptionRecord) => ({
+const mapVehicleConsumptionToRow = (c: any) => ({
   id: c.id,
   sr_no: c.srNo || 1,
-  vehicle_id: c.vehicleId,
-  vehicle_no: c.vehicleNo,
+  vehicle_id: c.vehicleId || c.targetId || 'veh-general',
+  vehicle_no: c.vehicleNo || c.targetName || 'General',
   date: c.date,
-  diesel: c.diesel || 0,
-  m_oil: c.mOil || 0,
+  diesel: c.diesel || (c.quantity && c.itemName?.toLowerCase().includes('diesel') ? c.quantity : 0),
+  m_oil: c.mOil || (c.quantity && c.itemName?.toLowerCase().includes('engine') ? c.quantity : 0),
   d_oil: c.dOil || 0,
   o_fltr: c.oFltr || 0,
   d_fltr: c.dFltr || 0,
@@ -766,6 +813,92 @@ const mapVehicleConsumptionToRow = (c: VehicleConsumptionRecord) => ({
   c_oil: c.cOil || 0,
   b_oil: c.bOil || 0,
   remarks: c.remarks || '',
+});
+
+const mapMineFromRow = (r: any): MineRecord => ({
+  id: r.id,
+  name: r.name,
+  location: r.location || '',
+  incharge: r.incharge || '',
+  status: (r.status === 'Inactive' ? 'Inactive' : 'Active') as 'Active' | 'Inactive',
+  notes: r.notes || '',
+  createdAt: r.created_at || '',
+});
+
+const mapMineToRow = (m: MineRecord) => ({
+  id: m.id,
+  name: m.name,
+  location: m.location || null,
+  incharge: m.incharge || null,
+  status: m.status || 'Active',
+  notes: m.notes || null,
+  created_at: m.createdAt || new Date().toISOString(),
+});
+
+const mapItemCategoryFromRow = (r: any): ItemCategory => ({
+  id: r.id,
+  name: r.name,
+  description: r.description || '',
+  createdAt: r.created_at || '',
+});
+
+const mapItemCategoryToRow = (c: ItemCategory) => ({
+  id: c.id,
+  name: c.name,
+  description: c.description || null,
+  created_at: c.createdAt || new Date().toISOString(),
+});
+
+const mapItemUnitTypeFromRow = (r: any): ItemUnitType => ({
+  id: r.id,
+  name: r.name,
+  symbol: r.symbol,
+  description: r.description || '',
+  createdAt: r.created_at || '',
+});
+
+const mapItemUnitTypeToRow = (u: ItemUnitType) => ({
+  id: u.id,
+  name: u.name,
+  symbol: u.symbol,
+  description: u.description || null,
+  created_at: u.createdAt || new Date().toISOString(),
+});
+
+const mapItemConsumptionFromRow = (r: any): ItemConsumptionRecord => ({
+  id: r.id,
+  srNo: Number(r.sr_no || 1),
+  date: r.date,
+  consumptionType: (r.consumption_type === 'mine' ? 'mine' : 'vehicle') as ConsumptionTargetType,
+  targetId: r.target_id || r.vehicle_id || '',
+  targetName: r.target_name || r.vehicle_no || '',
+  itemId: r.item_id || '',
+  itemCode: r.item_code || '',
+  itemName: r.item_name || '',
+  unit: r.unit || 'Units',
+  quantity: Number(r.quantity ?? r.diesel ?? r.m_oil ?? 0),
+  operatorName: r.operator_name || r.driver_name || '',
+  meterReading: r.meter_reading || '',
+  remarks: r.remarks || '',
+  createdAt: r.created_at || '',
+});
+
+const mapItemConsumptionToRow = (c: ItemConsumptionRecord) => ({
+  id: c.id,
+  sr_no: c.srNo || 1,
+  date: c.date,
+  consumption_type: c.consumptionType || 'vehicle',
+  target_id: c.targetId || (c as any).vehicleId || 'target-general',
+  target_name: c.targetName || (c as any).vehicleNo || 'General',
+  item_id: c.itemId || '',
+  item_code: c.itemCode || '',
+  item_name: c.itemName || '',
+  unit: c.unit || 'Units',
+  quantity: Number(c.quantity || 0),
+  operator_name: c.operatorName || '',
+  meter_reading: c.meterReading || null,
+  remarks: c.remarks || null,
+  created_at: c.createdAt || new Date().toISOString(),
 });
 
 const mapCompanySettingsFromRow = (r: any): CompanySettings => ({
@@ -990,6 +1123,10 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
         stockEntries: initialStockEntries,
         vehicles: initialVehicles,
         vehicleConsumptions: initialVehicleConsumptions,
+        mines: initialMines,
+        itemCategories: initialItemCategories,
+        itemUnits: initialItemUnits,
+        itemConsumptions: initialItemConsumptions,
         vehicleConsumptionSummary,
         itemWiseStockSummary,
       };
@@ -1015,6 +1152,10 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       stockEntriesRes,
       vehiclesRes,
       consumptionsRes,
+      minesRes,
+      categoriesRes,
+      unitsRes,
+      itemConsumptionsRes,
     ] = await Promise.all([
       diagnosticSupabaseOperation<any[]>('fetchBootstrapUsers', SUPABASE_TABLES.APP_USERS, 'SELECT', {}, () =>
         supabase.from(SUPABASE_TABLES.APP_USERS).select('*')
@@ -1073,6 +1214,18 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       diagnosticSupabaseOperation<any[]>('fetchBootstrapConsumptions', SUPABASE_TABLES.VEHICLE_CONSUMPTIONS, 'SELECT', {}, () =>
         supabase.from(SUPABASE_TABLES.VEHICLE_CONSUMPTIONS).select('*')
       ),
+      diagnosticSupabaseOperation<any[]>('fetchBootstrapMines', SUPABASE_TABLES.MINES, 'SELECT', {}, () =>
+        supabase.from(SUPABASE_TABLES.MINES).select('*')
+      ),
+      diagnosticSupabaseOperation<any[]>('fetchBootstrapCategories', SUPABASE_TABLES.ITEM_CATEGORIES, 'SELECT', {}, () =>
+        supabase.from(SUPABASE_TABLES.ITEM_CATEGORIES).select('*')
+      ),
+      diagnosticSupabaseOperation<any[]>('fetchBootstrapUnits', SUPABASE_TABLES.ITEM_UNITS, 'SELECT', {}, () =>
+        supabase.from(SUPABASE_TABLES.ITEM_UNITS).select('*')
+      ),
+      diagnosticSupabaseOperation<any[]>('fetchBootstrapItemConsumptions', SUPABASE_TABLES.ITEM_CONSUMPTIONS, 'SELECT', {}, () =>
+        supabase.from(SUPABASE_TABLES.ITEM_CONSUMPTIONS).select('*')
+      ),
     ]);
 
     const loadFallback = <T>(key: string, initial: T): T => {
@@ -1106,6 +1259,29 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
     const stockEntries = stockEntriesRes ? stockEntriesRes.map(mapStockEntryFromRow) : loadFallback('stock_entries', initialStockEntries);
     const vehicles = vehiclesRes ? vehiclesRes.map(mapVehicleFromRow) : loadFallback('vehicles', initialVehicles);
     const vehicleConsumptions = consumptionsRes ? consumptionsRes.map(mapVehicleConsumptionFromRow) : loadFallback('consumptions', initialVehicleConsumptions);
+    const mines = minesRes ? minesRes.map(mapMineFromRow) : loadFallback('item_mines', initialMines);
+    const itemCategories = categoriesRes ? categoriesRes.map(mapItemCategoryFromRow) : loadFallback('item_categories', initialItemCategories);
+    const itemUnits = unitsRes ? unitsRes.map(mapItemUnitTypeFromRow) : loadFallback('item_units', initialItemUnits);
+
+    const itemConsumptions: ItemConsumptionRecord[] = itemConsumptionsRes && itemConsumptionsRes.length > 0
+      ? itemConsumptionsRes.map(mapItemConsumptionFromRow)
+      : consumptionsRes && consumptionsRes.length > 0
+      ? consumptionsRes.map((r: any) => ({
+          id: r.id,
+          srNo: Number(r.sr_no || 1),
+          date: r.date || '01-01-2026',
+          consumptionType: 'vehicle' as ConsumptionTargetType,
+          targetId: r.vehicle_id || 'veh-1',
+          targetName: r.vehicle_no || 'Vehicle',
+          itemId: 'item-1',
+          itemCode: 'ITM-DSL-01',
+          itemName: 'High Speed Diesel (HSD)',
+          unit: 'L',
+          quantity: Number(r.diesel || r.m_oil || 0),
+          operatorName: '',
+          remarks: r.remarks || '',
+        }))
+      : loadFallback('consumptions', initialItemConsumptions);
 
     const vehicleConsumptionSummary = computeVehicleConsumptionSummary(vehicles, vehicleConsumptions);
     const itemWiseStockSummary = computeItemWiseStockSummary(stockItems, stockEntries);
@@ -1130,6 +1306,10 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       stockEntries,
       vehicles,
       vehicleConsumptions,
+      mines,
+      itemCategories,
+      itemUnits,
+      itemConsumptions,
       vehicleConsumptionSummary,
       itemWiseStockSummary,
     };
@@ -1915,6 +2095,12 @@ export async function apiSaveVehicleConsumption(vc: VehicleConsumptionRecord): P
     if (!isSupabaseConfigured()) {
       return vc;
     }
+    // Also save to item_consumptions if this is an ItemConsumptionRecord
+    if ((vc as any).consumptionType || (vc as any).targetId) {
+      const itemRow = mapItemConsumptionToRow(vc as any);
+      Promise.resolve(supabase.from(SUPABASE_TABLES.ITEM_CONSUMPTIONS).upsert(itemRow)).catch(() => {});
+    }
+
     const res = await diagnosticSupabaseOperation<any>(
       'apiSaveVehicleConsumption',
       SUPABASE_TABLES.VEHICLE_CONSUMPTIONS,
@@ -1934,6 +2120,8 @@ export async function apiDeleteVehicleConsumption(id: string): Promise<boolean> 
     if (!isSupabaseConfigured()) {
       return true;
     }
+    // Try both tables
+    Promise.resolve(supabase.from(SUPABASE_TABLES.ITEM_CONSUMPTIONS).delete().eq('id', id)).catch(() => {});
     const res = await diagnosticSupabaseOperation<any>(
       'apiDeleteVehicleConsumption',
       SUPABASE_TABLES.VEHICLE_CONSUMPTIONS,
@@ -1944,6 +2132,175 @@ export async function apiDeleteVehicleConsumption(id: string): Promise<boolean> 
     return res !== null;
   } catch (err: any) {
     console.error('Unhandled exception in apiDeleteVehicleConsumption:', err);
+    return false;
+  }
+}
+
+// ------------------------------------------
+// STORE EXTENSIONS: MINES, CATEGORIES, UNITS, ITEM CONSUMPTIONS
+// ------------------------------------------
+
+export async function apiSaveMine(mine: MineRecord): Promise<MineRecord | null> {
+  try {
+    const row = mapMineToRow(mine);
+    if (!isSupabaseConfigured()) {
+      return mine;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiSaveMine',
+      SUPABASE_TABLES.MINES,
+      'UPSERT',
+      row,
+      () => supabase.from(SUPABASE_TABLES.MINES).upsert(row)
+    );
+    return res !== null ? mine : mine;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiSaveMine:', err);
+    return mine;
+  }
+}
+
+export async function apiDeleteMine(id: string): Promise<boolean> {
+  try {
+    if (!isSupabaseConfigured()) {
+      return true;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiDeleteMine',
+      SUPABASE_TABLES.MINES,
+      'DELETE',
+      { id },
+      () => supabase.from(SUPABASE_TABLES.MINES).delete().eq('id', id)
+    );
+    return res !== null;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiDeleteMine:', err);
+    return false;
+  }
+}
+
+export async function apiSaveItemCategory(cat: ItemCategory): Promise<ItemCategory | null> {
+  try {
+    const row = mapItemCategoryToRow(cat);
+    if (!isSupabaseConfigured()) {
+      return cat;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiSaveItemCategory',
+      SUPABASE_TABLES.ITEM_CATEGORIES,
+      'UPSERT',
+      row,
+      () => supabase.from(SUPABASE_TABLES.ITEM_CATEGORIES).upsert(row)
+    );
+    return res !== null ? cat : cat;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiSaveItemCategory:', err);
+    return cat;
+  }
+}
+
+export async function apiDeleteItemCategory(id: string): Promise<boolean> {
+  try {
+    if (!isSupabaseConfigured()) {
+      return true;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiDeleteItemCategory',
+      SUPABASE_TABLES.ITEM_CATEGORIES,
+      'DELETE',
+      { id },
+      () => supabase.from(SUPABASE_TABLES.ITEM_CATEGORIES).delete().eq('id', id)
+    );
+    return res !== null;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiDeleteItemCategory:', err);
+    return false;
+  }
+}
+
+export async function apiSaveItemUnitType(unit: ItemUnitType): Promise<ItemUnitType | null> {
+  try {
+    const row = mapItemUnitTypeToRow(unit);
+    if (!isSupabaseConfigured()) {
+      return unit;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiSaveItemUnitType',
+      SUPABASE_TABLES.ITEM_UNITS,
+      'UPSERT',
+      row,
+      () => supabase.from(SUPABASE_TABLES.ITEM_UNITS).upsert(row)
+    );
+    return res !== null ? unit : unit;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiSaveItemUnitType:', err);
+    return unit;
+  }
+}
+
+export async function apiDeleteItemUnitType(id: string): Promise<boolean> {
+  try {
+    if (!isSupabaseConfigured()) {
+      return true;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiDeleteItemUnitType',
+      SUPABASE_TABLES.ITEM_UNITS,
+      'DELETE',
+      { id },
+      () => supabase.from(SUPABASE_TABLES.ITEM_UNITS).delete().eq('id', id)
+    );
+    return res !== null;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiDeleteItemUnitType:', err);
+    return false;
+  }
+}
+
+export async function apiSaveItemConsumption(rec: ItemConsumptionRecord): Promise<ItemConsumptionRecord | null> {
+  try {
+    const row = mapItemConsumptionToRow(rec);
+    if (!isSupabaseConfigured()) {
+      return rec;
+    }
+    // Upsert into dedicated item_consumptions
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiSaveItemConsumption',
+      SUPABASE_TABLES.ITEM_CONSUMPTIONS,
+      'UPSERT',
+      row,
+      () => supabase.from(SUPABASE_TABLES.ITEM_CONSUMPTIONS).upsert(row)
+    );
+
+    // Also attempt backward-compatible vehicle_consumptions upsert if vehicle
+    if (rec.consumptionType === 'vehicle') {
+      const vRow = mapVehicleConsumptionToRow(rec);
+      Promise.resolve(supabase.from(SUPABASE_TABLES.VEHICLE_CONSUMPTIONS).upsert(vRow)).catch(() => {});
+    }
+
+    return res !== null ? rec : rec;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiSaveItemConsumption:', err);
+    return rec;
+  }
+}
+
+export async function apiDeleteItemConsumption(id: string): Promise<boolean> {
+  try {
+    if (!isSupabaseConfigured()) {
+      return true;
+    }
+    Promise.resolve(supabase.from(SUPABASE_TABLES.VEHICLE_CONSUMPTIONS).delete().eq('id', id)).catch(() => {});
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiDeleteItemConsumption',
+      SUPABASE_TABLES.ITEM_CONSUMPTIONS,
+      'DELETE',
+      { id },
+      () => supabase.from(SUPABASE_TABLES.ITEM_CONSUMPTIONS).delete().eq('id', id)
+    );
+    return res !== null;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiDeleteItemConsumption:', err);
     return false;
   }
 }
@@ -2093,3 +2450,65 @@ export async function apiRunHealthPing(): Promise<{ status: string; time: string
     time: new Date().toISOString(),
   };
 }
+
+export interface TableAuditResult {
+  tableKey: string;
+  tableName: string;
+  status: 'ok' | 'missing' | 'error' | 'unconfigured';
+  count?: number;
+  error?: string;
+  latencyMs?: number;
+}
+
+export async function apiAuditSupabaseTables(): Promise<TableAuditResult[]> {
+  if (!isSupabaseConfigured()) {
+    return Object.entries(SUPABASE_TABLES).map(([tableKey, tableName]) => ({
+      tableKey,
+      tableName,
+      status: 'unconfigured' as const,
+      error: 'Supabase Anon Key not set',
+    }));
+  }
+
+  const entries = Object.entries(SUPABASE_TABLES);
+  const results = await Promise.all(
+    entries.map(async ([tableKey, tableName]) => {
+      const start = performance.now();
+      try {
+        const { count, error } = await supabase
+          .from(tableName)
+          .select('id', { count: 'exact', head: true });
+        const latencyMs = Math.round(performance.now() - start);
+
+        if (error) {
+          const isMissing = error.code === 'PGRST205' || String(error.message).toLowerCase().includes('not exist') || String(error.message).toLowerCase().includes('schema');
+          return {
+            tableKey,
+            tableName,
+            status: isMissing ? ('missing' as const) : ('error' as const),
+            error: error.message || (isMissing ? 'Table does not exist' : 'Query error'),
+            latencyMs,
+          };
+        }
+
+        return {
+          tableKey,
+          tableName,
+          status: 'ok' as const,
+          count: count ?? 0,
+          latencyMs,
+        };
+      } catch (err: any) {
+        return {
+          tableKey,
+          tableName,
+          status: 'error' as const,
+          error: err.message || 'Exception during table check',
+        };
+      }
+    })
+  );
+
+  return results;
+}
+

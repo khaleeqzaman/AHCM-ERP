@@ -163,5 +163,9 @@ export const SUPABASE_TABLES = {
   STOCK_ENTRIES: 'stock_entries',
   VEHICLES: 'vehicles',
   VEHICLE_CONSUMPTIONS: 'vehicle_consumptions',
+  ITEM_CONSUMPTIONS: 'item_consumptions',
+  MINES: 'mines',
+  ITEM_CATEGORIES: 'item_categories',
+  ITEM_UNITS: 'item_units',
   COMPANY_SETTINGS: 'company_settings',
 } as const;

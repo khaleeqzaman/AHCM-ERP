@@ -201,7 +201,17 @@ export const stockItems = pgTable('stock_items', {
   itemCode: text('item_code').notNull(),
   itemName: text('item_name').notNull(),
   category: text('category'),
+  categoryName: text('category_name'),
+  categoryId: text('category_id'),
   unit: text('unit').notNull(),
+  unitSymbol: text('unit_symbol'),
+  unitTypeId: text('unit_type_id'),
+  unitTypeName: text('unit_type_name'),
+  openingStock: doublePrecision('opening_stock').default(0),
+  reorderLevel: doublePrecision('reorder_level').default(0),
+  remarks: text('remarks'),
+  date: text('date'),
+  createdAt: text('created_at'),
 });
 
 // 15. Store & Sales: Stock Entries Table
@@ -218,6 +228,11 @@ export const stockEntries = pgTable('stock_entries', {
   vehiclesQty: doublePrecision('vehicles_qty').default(0),
   companyName: text('company_name'),
   balance: doublePrecision('balance').default(0),
+  vendorName: text('vendor_name'),
+  invoiceNo: text('invoice_no'),
+  remarks: text('remarks'),
+  unit: text('unit'),
+  createdAt: text('created_at'),
 });
 
 // 16. Store & Sales: Vehicles Table
@@ -227,6 +242,8 @@ export const vehicles = pgTable('vehicles', {
   driverName: text('driver_name').notNull(),
   vehicleType: text('vehicle_type').notNull(),
   status: text('status').notNull(),
+  notes: text('notes'),
+  createdAt: text('created_at'),
 });
 
 // 17. Store & Sales: Vehicle Consumptions Table
@@ -267,6 +284,53 @@ export const coalProductionRecords = pgTable('coal_production_records', {
   quantityTons: doublePrecision('quantity_tons').default(0),
   pitheadLocation: text('pithead_location'),
   vehicleNo: text('vehicle_no'),
+  remarks: text('remarks'),
+  createdAt: text('created_at'),
+});
+
+// 20. Store & Sales: Mines Table
+export const mines = pgTable('mines', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  location: text('location'),
+  incharge: text('incharge'),
+  status: text('status').notNull().default('Active'),
+  notes: text('notes'),
+  createdAt: text('created_at'),
+});
+
+// 21. Store & Sales: Item Categories Table
+export const itemCategories = pgTable('item_categories', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: text('created_at'),
+});
+
+// 22. Store & Sales: Item Units Table
+export const itemUnits = pgTable('item_units', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  symbol: text('symbol').notNull(),
+  description: text('description'),
+  createdAt: text('created_at'),
+});
+
+// 23. Store & Sales: Item Consumptions Table (Unified Mine & Vehicle Consumption)
+export const itemConsumptions = pgTable('item_consumptions', {
+  id: text('id').primaryKey(),
+  srNo: integer('sr_no'),
+  date: text('date').notNull(),
+  consumptionType: text('consumption_type').notNull(),
+  targetId: text('target_id').notNull(),
+  targetName: text('target_name').notNull(),
+  itemId: text('item_id').notNull(),
+  itemCode: text('item_code').notNull(),
+  itemName: text('item_name').notNull(),
+  unit: text('unit').notNull(),
+  quantity: doublePrecision('quantity').default(0),
+  operatorName: text('operator_name'),
+  meterReading: text('meter_reading'),
   remarks: text('remarks'),
   createdAt: text('created_at'),
 });
