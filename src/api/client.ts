@@ -627,8 +627,8 @@ const mapCoalProductionFromRow = (r: any): CoalStockRecord => ({
   date: r.date,
   partnerId: r.partner_id || '',
   partnerName: r.partner_name,
-  quantity: Number(r.quantity_tons || 0),
-  quantityTons: Number(r.quantity_tons || 0),
+  quantity: Number(r.quantity_tons ?? r.quantity ?? 0),
+  quantityTons: Number(r.quantity_tons ?? r.quantity ?? 0),
   pitheadLocation: r.pithead_location || '',
   vehicleNo: r.vehicle_no || '',
   remarks: r.remarks || '',
@@ -641,9 +641,9 @@ const mapCoalProductionToRow = (c: CoalProductionRecord) => ({
   date: c.date,
   partner_id: c.partnerId || '',
   partner_name: c.partnerName,
-  quantity_tons: c.quantityTons || 0,
+  quantity_tons: Number(c.quantity ?? c.quantityTons ?? 0),
   pithead_location: c.pitheadLocation || '',
-  vehicle_no: c.vehicleNo || '',
+  vehicleNo: c.vehicleNo || '',
   remarks: c.remarks || '',
 });
 

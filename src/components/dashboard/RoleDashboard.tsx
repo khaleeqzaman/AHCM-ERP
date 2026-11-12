@@ -125,24 +125,22 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
   const totalPosRevenue = posEntries.reduce((sum, p) => sum + (p.totalValue || 0), 0);
   const totalFuelLitres = consumptions.reduce((sum, c) => sum + (c.diesel || 0), 0);
 
-  // Authoritative Coal Production, Live Stock, and Sold Statistics (Opening balance defaults to 100 Tons: 500 + 100 + 500 Tons)
-  const openingCoalStock = (typeof companySettings?.openingCoalStock === 'number' && companySettings.openingCoalStock > 0)
-    ? companySettings.openingCoalStock
-    : 100;
-  const totalCoalProduced = coalProductionRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
-  const totalCoalSoldFromSales = coalSellRecords.reduce((sum, r) => sum + (Number(r.quantityTons) || 0), 0);
-  const totalCoalSoldFromPos = posEntries.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
+  // Authoritative Coal Production, Live Stock, and Sold Statistics
+  const openingCoalStock = Number(companySettings?.openingCoalStock || 0);
+  const totalCoalProduced = coalProductionRecords.reduce((sum, r) => sum + Number(r.quantity ?? r.quantityTons ?? 0), 0);
+  const totalCoalSoldFromSales = coalSellRecords.reduce((sum, r) => sum + Number(r.quantity ?? r.quantityTons ?? 0), 0);
+  const totalCoalSoldFromPos = posEntries.reduce((sum, p) => sum + Number(p.quantity ?? (p as any).quantityTons ?? 0), 0);
   // Authoritative total sold: prefer explicit coal sell records if present, or POS
-  const totalCoalSold = totalCoalSoldFromSales > 0 ? totalCoalSoldFromSales : totalCoalSoldFromPos;
+  const totalCoalSold = Math.max(totalCoalSoldFromSales, totalCoalSoldFromPos);
   // Total Coal Stock Gross = Total Coal Stock (Produced) + Coal Opening Balance
   const totalCoalStockGross = totalCoalProduced + openingCoalStock;
   // Authoritative live available coal stock = Opening + Produced - Sold
   const currentCoalStock = Math.max(0, totalCoalStockGross - totalCoalSold);
   const totalCoalTonsSold = totalCoalSold;
   const coalStockFormula = useMemo(() => {
-    const quantities = coalProductionRecords.map((r) => Number(r.quantityTons) || 0);
-    return formatCoalStockFormula(quantities, openingCoalStock, 0);
-  }, [coalProductionRecords, openingCoalStock]);
+    const quantities = coalProductionRecords.map((r) => Number(r.quantity ?? r.quantityTons ?? 0));
+    return formatCoalStockFormula(quantities, openingCoalStock, totalCoalSold);
+  }, [coalProductionRecords, openingCoalStock, totalCoalSold]);
 
   // Admin Dashboard Executive Section State & Aggregations
   const [adminSectionTab, setAdminSectionTab] = useState<'both' | 'vehicle' | 'stock'>('both');
@@ -613,9 +611,9 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
               </div>
             </div>
 
-            {/* KPI 2: Live Coal Stock (Total Coal Stock + Coal Opening Balance) */}
+            {/* KPI 2: Live Coal Stock (Total Coal Stock + Coal Opening Balance - Total Coal Sold) */}
             <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-              totalCoalStockGross > 0
+              currentCoalStock > 0
                 ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
                 : 'bg-rose-50/70 border-rose-300 text-rose-950'
             }`}>
@@ -624,29 +622,24 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                   Live Coal Stock
                 </span>
                 <span className={`text-[11px] font-mono px-2 py-0.5 rounded font-semibold border ${
-                  totalCoalStockGross > 0
+                  currentCoalStock > 0
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                     : 'bg-rose-100 text-rose-800 border-rose-300'
                 }`}>
-                  {totalCoalStockGross > 0 ? 'Stock Active' : 'Zero Reserve'}
+                  {currentCoalStock > 0 ? 'Stock Active' : 'Zero Reserve'}
                 </span>
               </div>
               <div className="text-3xl font-bold font-mono text-emerald-900 tracking-tight">
-                {formatWholeNumber(totalCoalStockGross)} <span className="text-base font-normal text-emerald-700">Tons</span>
+                {formatWholeNumber(currentCoalStock)} <span className="text-base font-normal text-emerald-700">Tons</span>
               </div>
               <div className="text-[11px] text-emerald-900 mt-2 pt-2 border-t border-emerald-200/60 font-mono space-y-1">
-                <div className="font-semibold text-emerald-950">
+                <div className="font-semibold text-emerald-950 truncate" title={coalStockFormula}>
                   Formula: {coalStockFormula}
                 </div>
-                {totalCoalSold > 0 ? (
-                  <div className="text-[10px] text-emerald-700 font-medium">
-                    Available to Sell: {formatWholeNumber(currentCoalStock)} Tons ({formatWholeNumber(totalCoalSold)} Tons Sold)
-                  </div>
-                ) : (
-                  <div className="text-[10px] text-emerald-700 font-medium">
-                    Total Coal Stock + Coal Opening Balance
-                  </div>
-                )}
+                <div className="text-[10px] text-emerald-700 font-medium flex items-center justify-between flex-wrap gap-1">
+                  <span>Gross Inflow: {formatWholeNumber(totalCoalStockGross)} Tons</span>
+                  <span>Sold: {formatWholeNumber(totalCoalSold)} Tons</span>
+                </div>
               </div>
             </div>
 
@@ -682,7 +675,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                 {Array.from(
                   coalProductionRecords.reduce((acc, r) => {
-                    acc.set(r.partnerName, (acc.get(r.partnerName) || 0) + (Number(r.quantityTons) || 0));
+                    acc.set(r.partnerName, (acc.get(r.partnerName) || 0) + Number(r.quantity ?? r.quantityTons ?? 0));
                     return acc;
                   }, new Map<string, number>())
                 ).slice(0, 6).map(([pName, pTons]) => {
@@ -1680,10 +1673,10 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
             <Pickaxe className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-800">
-            {formatWholeNumber(totalCoalStockGross)} Tons
+            {formatWholeNumber(currentCoalStock)} Tons
           </div>
           <div className="text-[11px] text-slate-500 mt-1 font-mono">
-            Stock + Opening ({formatWholeNumber(totalCoalProduced)} + {formatWholeNumber(openingCoalStock)})
+            Available (Gross {formatWholeNumber(totalCoalStockGross)} − Sold {formatWholeNumber(totalCoalSold)})
           </div>
         </div>
 
