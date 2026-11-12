@@ -28,15 +28,21 @@ export function formatWholeCurrency(val: number | string | null | undefined, pre
 export function toDateInputValue(val: string | null | undefined): string {
   if (!val) return '';
   const str = String(val).trim();
-  // Check if DD-MM-YYYY format
-  if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
-    const [d, m, y] = str.split('-');
-    return `${y}-${m}-${d}`;
+
+  // Match DD-MM-YYYY or D-M-YYYY or DD/MM/YYYY or D/M/YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
-  // Check if YYYY-MM-DD format
-  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-    return str.substring(0, 10);
+
+  // Match YYYY-MM-DD or YYYY/MM/DD
+  const ymdMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
+
   // Fallback to JS Date parsing
   const parsed = new Date(str);
   if (!isNaN(parsed.getTime())) {
@@ -58,11 +64,27 @@ export function fromDateInputValue(
 ): string {
   if (!val) return '';
   const str = String(val).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    if (targetFormat === 'YYYY-MM-DD') return str;
-    const [y, m, d] = str.split('-');
-    return `${d}-${m}-${y}`;
+
+  // From YYYY-MM-DD or YYYY/MM/DD
+  const ymdMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    const paddedD = d.padStart(2, '0');
+    const paddedM = m.padStart(2, '0');
+    if (targetFormat === 'YYYY-MM-DD') return `${y}-${paddedM}-${paddedD}`;
+    return `${paddedD}-${paddedM}-${y}`;
   }
+
+  // From DD-MM-YYYY or D-M-YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    const paddedD = d.padStart(2, '0');
+    const paddedM = m.padStart(2, '0');
+    if (targetFormat === 'YYYY-MM-DD') return `${y}-${paddedM}-${paddedD}`;
+    return `${paddedD}-${paddedM}-${y}`;
+  }
+
   return str;
 }
 

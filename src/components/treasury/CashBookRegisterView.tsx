@@ -73,8 +73,10 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
     }
   }, [initialMode]);
 
-  // Notifications
+  // Notifications & Form Error State
   const [notification, setNotification] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
 
   // ----------------------------------------------------
   // DRAFT FORM STATE (Add Transaction Mode)
@@ -160,6 +162,20 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
   };
 
   const handleCancelTransaction = () => {
+    setFormError(null);
+    const hasData =
+      draftRows.some(
+        (r) => r.description.trim() !== '' || Number(r.credit) > 0 || Number(r.debit) > 0
+      ) || draftRows.length > 1;
+
+    if (hasData) {
+      setIsCancelConfirmOpen(true);
+    } else {
+      executeCancelTransaction();
+    }
+  };
+
+  const executeCancelTransaction = () => {
     setDraftRows([
       {
         id: `draft-${Date.now()}-reset`,
@@ -169,12 +185,16 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
         debit: '',
       },
     ]);
-    setNotification('Transaction form reset. Blank form ready.');
-    setTimeout(() => setNotification(null), 3000);
+    setIsCancelConfirmOpen(false);
+    setFormError(null);
+    setActiveMode('view_cash_book');
+    setNotification('Transaction entry cancelled. Returned to Cash Book Register.');
+    setTimeout(() => setNotification(null), 3500);
   };
 
   const handleSaveTransactions = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
 
     // Filter valid rows
     const validRows = draftRows.filter(
@@ -182,7 +202,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
     );
 
     if (validRows.length === 0) {
-      alert('Please enter at least one transaction narration or credit/debit amount before saving.');
+      setFormError('Please enter at least one transaction narration or credit/debit amount before saving.');
       return;
     }
 
@@ -245,20 +265,23 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
   // Print Modal State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Helper date parser (DD-MM-YYYY or YYYY-MM-DD)
+  // Helper date parser (DD-MM-YYYY, YYYY-MM-DD, slashes or dashes)
   const parseEntryDate = (dStr: string): number => {
     if (!dStr) return 0;
-    if (dStr.includes('-')) {
-      const parts = dStr.split('-');
-      if (parts[0].length === 4) {
-        // YYYY-MM-DD
-        return new Date(dStr).getTime();
-      } else if (parts[2]?.length === 4) {
-        // DD-MM-YYYY
-        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
-      }
+    const str = String(dStr).trim();
+    // DD-MM-YYYY or D-M-YYYY or DD/MM/YYYY or D/M/YYYY
+    const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+    if (dmyMatch) {
+      const [, d, m, y] = dmyMatch;
+      return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
     }
-    return new Date(dStr).getTime() || 0;
+    // YYYY-MM-DD or YYYY/MM/DD
+    const ymdMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+    if (ymdMatch) {
+      const [, y, m, d] = ymdMatch;
+      return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
+    }
+    return new Date(str).getTime() || 0;
   };
 
   // Filter & Sort View Cash Book Entries
@@ -277,8 +300,8 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
 
         // Date range
         const entryTime = parseEntryDate(e.date);
-        const startTime = startDate ? new Date(startDate).getTime() : 0;
-        const endTime = endDate ? new Date(endDate).getTime() + 86400000 : Infinity;
+        const startTime = startDate ? parseEntryDate(startDate) : 0;
+        const endTime = endDate ? parseEntryDate(endDate) + 86399999 : Infinity;
         const matchesDate = entryTime >= startTime && entryTime <= endTime;
 
         return matchesSearch && matchesDate;
@@ -321,7 +344,8 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
   // Export to CSV Handler
   const handleExportCSV = () => {
     if (filteredAndSortedEntries.length === 0) {
-      alert('No records available to export.');
+      setNotification('No cash book records available to export for the selected filter.');
+      setTimeout(() => setNotification(null), 3000);
       return;
     }
 
@@ -461,6 +485,23 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
       {/* ==================================================== */}
       {activeMode === 'add_transaction' && (
         <form onSubmit={handleSaveTransactions} className="space-y-4">
+          {/* Form Error Banner */}
+          {formError && (
+            <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-2.5 shadow-xs">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span className="font-semibold">{formError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormError(null)}
+                className="text-rose-500 hover:text-rose-800 p-1 rounded cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
             {/* Table Header Bar */}
             <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -476,14 +517,25 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => handleAddDraftRow()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer self-start sm:self-auto"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Row</span>
-              </button>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={handleCancelTransaction}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-rose-700 bg-white hover:bg-rose-50 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                >
+                  <X className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Cancel Transaction</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAddDraftRow()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Row</span>
+                </button>
+              </div>
             </div>
 
             {/* Interactive Form Table */}
@@ -492,7 +544,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
                     <th className="py-2.5 px-2 w-12 text-center">Sr.</th>
-                    <th className="py-2.5 px-3 w-36">Date</th>
+                    <th className="py-2.5 px-3 w-40 min-w-[145px]">Date</th>
                     <th className="py-2.5 px-3">Description / Narration</th>
                     <th className="py-2.5 px-3 w-36 text-right">Credit (Inflow)</th>
                     <th className="py-2.5 px-3 w-36 text-right">Debit (Outflow)</th>
@@ -515,7 +567,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                         </td>
 
                         {/* Date (DatePickerInput) */}
-                        <td className="py-2 px-3">
+                        <td className="py-2 px-3 w-40 min-w-[145px]">
                           <DatePickerInput
                             value={row.date}
                             onChange={(newDate) => handleDraftFieldChange(index, 'date', newDate)}
@@ -645,9 +697,10 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
               <button
                 type="button"
                 onClick={handleCancelTransaction}
-                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:text-rose-700 hover:bg-rose-50 bg-white border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:text-rose-700 hover:bg-rose-50 bg-white border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
               >
-                Cancel Transaction
+                <X className="w-3.5 h-3.5 text-rose-500" />
+                <span>Cancel Transaction</span>
               </button>
 
               <button
@@ -696,7 +749,12 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                     setStartDate(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="px-1.5 py-0.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+                  onClick={(e) => {
+                    try {
+                      (e.currentTarget as any).showPicker?.();
+                    } catch {}
+                  }}
+                  className="px-1.5 py-0.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-amber-500 cursor-pointer"
                 />
                 <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">To:</span>
                 <input
@@ -706,7 +764,12 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                     setEndDate(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="px-1.5 py-0.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-amber-500"
+                  onClick={(e) => {
+                    try {
+                      (e.currentTarget as any).showPicker?.();
+                    } catch {}
+                  }}
+                  className="px-1.5 py-0.5 text-xs bg-white border border-slate-300 rounded font-mono text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-amber-500 cursor-pointer"
                 />
                 {(startDate || endDate) && (
                   <button
@@ -1214,6 +1277,57 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Yes, Delete Row</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* MODAL: CONFIRM CANCEL TRANSACTION */}
+      {/* ==================================================== */}
+      {isCancelConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-full bg-rose-100 text-rose-600 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  Discard Unsaved Transactions?
+                </h3>
+                <p className="text-xs text-slate-600 mt-1">
+                  You have unsaved transaction entries in this form. Cancelling will discard all draft entries and return you to the Cash Book Register view.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 space-y-1">
+              <p className="font-semibold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 inline-block" />
+                Unsaved Work:
+              </p>
+              <p className="text-[11px] text-amber-700 leading-relaxed">
+                {draftRows.length} row(s) with net impact of PKR {formatWholeNumber(draftTotalBalance)} will not be recorded in the register.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsCancelConfirmOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer border border-slate-300"
+              >
+                Keep Editing
+              </button>
+              <button
+                type="button"
+                onClick={executeCancelTransaction}
+                className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Yes, Discard & Cancel</span>
               </button>
             </div>
           </div>

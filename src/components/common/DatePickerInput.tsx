@@ -40,6 +40,14 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
     onChange(formatted);
   };
 
+  const handleClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    try {
+      (e.currentTarget as any).showPicker?.();
+    } catch {
+      // Fallback silently if not supported
+    }
+  };
+
   return (
     <input
       type="date"
@@ -51,7 +59,8 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
       max={max ? toDateInputValue(max) : undefined}
       value={htmlDateValue}
       onChange={handleChange}
-      placeholder={placeholder || (outputFormat === 'DD-MM-YYYY' ? 'dd/mm/yyyy' : 'yyyy-mm-dd')}
+      onClick={handleClick}
+      placeholder={placeholder || (outputFormat === 'DD-MM-YYYY' ? 'dd-mm-yyyy' : 'yyyy-mm-dd')}
       className={`cursor-pointer ${className}`}
     />
   );
