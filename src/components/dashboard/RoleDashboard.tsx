@@ -101,25 +101,25 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
   const pendingPurchases = purchases.filter(p => p.status === 'Submitted for Approval');
   const totalPendingApprovals = pendingDemands.length + pendingPurchases.length;
 
-  const totalDemandAmount = demands.reduce((acc, d) => acc + d.totalAmount, 0);
-  const totalPurchaseAmount = purchases.reduce((acc, p) => acc + p.totalAmount, 0);
+  const totalDemandAmount = demands.reduce((acc, d) => acc + (Number(d.totalAmount) || 0), 0);
+  const totalPurchaseAmount = purchases.reduce((acc, p) => acc + (Number(p.totalAmount) || 0), 0);
 
   // Treasury
   const cashInflow = cashBookEntries.reduce((sum, e) => sum + (Number(e.credit) || 0), 0);
   const cashOutflow = cashBookEntries.reduce((sum, e) => sum + (Number(e.debit) || 0), 0);
   const netCashInHand = cashInflow - cashOutflow;
-  const totalCreditReceivables = creditBookEntries.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalCreditReceivables = creditBookEntries.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const getAccountBalance = (b: BankAccountRecord) => {
     const netTransactions = (b.transactions || []).reduce(
-      (acc, t) => acc + (t.depositDebit || 0) - (t.withdrawalPayment || 0),
+      (acc, t) => acc + (Number(t.depositDebit) || 0) - (Number(t.withdrawalPayment) || 0),
       0
     );
-    return (b.openingBalance || 0) + netTransactions;
+    return (Number(b.openingBalance) || 0) + netTransactions;
   };
   const totalBankBalances = bankAccounts.reduce((sum, b) => sum + getAccountBalance(b), 0);
 
   // Accounts
-  const totalTurnover = vouchers.reduce((sum, v) => sum + v.totalDebit, 0);
+  const totalTurnover = vouchers.reduce((sum, v) => sum + (Number(v.totalDebit) || 0), 0);
 
   // Store & Coal Operations (100% Isolated from Store Items)
   const totalPosRevenue = posEntries.reduce((sum, p) => sum + (p.totalValue || 0), 0);
@@ -306,7 +306,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
         map.set(target.itemId, target);
       }
 
-      const inflow = (entry.stockQuantity ?? entry.stockQty ?? 0) + (entry.purchase ?? entry.purchaseQty ?? 0);
+      const inflow = (Number(entry.stockQuantity ?? entry.stockQty ?? 0) || 0) + (Number(entry.purchase ?? entry.purchaseQty ?? 0) || 0);
       target.totalInflowPurchase += inflow;
       target.entriesCount += 1;
       if (!target.lastDate || entry.date > target.lastDate) {
@@ -317,8 +317,8 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
     // 3. Compute running balance and stock status: (Opening Stock + Total Inflow) - Total Usage = Balance
     const result = Array.from(map.values()).map((s) => {
       const c = consumptionMap.get(s.itemId) || { vehicleUsage: 0, mineUsage: 0, totalUsage: 0 };
-      const totalAvailable = s.openingStock + s.totalInflowPurchase;
-      const net = totalAvailable - c.totalUsage;
+      const totalAvailable = (Number(s.openingStock) || 0) + (Number(s.totalInflowPurchase) || 0);
+      const net = totalAvailable - (Number(c.totalUsage) || 0);
 
       let status: 'In Stock' | 'Low Stock' | 'Critical' = 'In Stock';
       if (net <= 5) {
@@ -390,7 +390,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
               Welcome, {currentUser.name}
             </h1>
             <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-              Cross-department enterprise overview. You have executive oversight over Demands, Purchases, Treasury, Accounts, Store & Sales, and System Users.
+              Cross-department enterprise overview. Executive oversight across Demands, Purchases, Treasury & Banking, Financial Accounts, and Coal Operations.
             </p>
           </div>
 
@@ -416,8 +416,9 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
           </div>
         </div>
 
-        {/* 5 Pillars Summary (Including Total Bank Balance) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        {/* Executive Pillars Summary (Pending Approvals, Total Bank Balance, Cashier Cash in Hand) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Pillar 1: Pending Approvals */}
           <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
               <span className="text-xs font-medium">Pending Approvals</span>
@@ -463,7 +464,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                 <span className="text-xs font-medium">Cashier Cash in Hand</span>
                 <Banknote className="w-4 h-4 text-amber-600" />
               </div>
-              <div className="text-2xl font-bold font-mono text-amber-700">
+              <div className={`text-2xl font-bold font-mono ${netCashInHand >= 0 ? 'text-amber-700' : 'text-rose-600'}`}>
                 PKR {formatWholeNumber(netCashInHand)}
               </div>
             </div>
@@ -484,34 +485,6 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                   <div className="font-mono font-bold truncate">PKR {formatWholeNumber(cashOutflow)}</div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Pillar 4: Store POS Sales */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">Store POS Sales</span>
-              <Boxes className="w-4 h-4 text-cyan-600" />
-            </div>
-            <div className="text-2xl font-bold font-mono text-cyan-700">
-              PKR {formatWholeNumber(totalPosRevenue)}
-            </div>
-            <div className="text-[11px] text-slate-500 mt-1">
-              {totalCoalTonsSold.toFixed(1)} Tons Dispatched ({posEntries.length} Invoices)
-            </div>
-          </div>
-
-          {/* Pillar 5: System Users */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 mb-2">
-              <span className="text-xs font-medium">System Users</span>
-              <Users className="w-4 h-4 text-blue-600" />
-            </div>
-            <div className="text-2xl font-bold font-mono text-slate-900">
-              {users.length} Accounts
-            </div>
-            <div className="text-[11px] text-emerald-600 mt-1 font-medium">
-              {users.filter(u => u.status === 'active').length} Active across 5 roles
             </div>
           </div>
         </div>
@@ -735,11 +708,21 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
               </div>
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span>Physical Cash in Hand:</span>
-                <span className="font-mono font-bold text-amber-700">PKR {formatWholeNumber(netCashInHand)}</span>
+                <span className={`font-mono font-bold ${netCashInHand >= 0 ? 'text-amber-700' : 'text-rose-600'}`}>
+                  PKR {formatWholeNumber(netCashInHand)}
+                </span>
               </div>
+              {totalCreditReceivables > 0 && (
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span>Credit Book Receivables:</span>
+                  <span className="font-mono font-bold text-indigo-700">PKR {formatWholeNumber(totalCreditReceivables)}</span>
+                </div>
+              )}
               <div className="flex justify-between py-1 font-semibold">
                 <span className="text-slate-800">Total Liquid Reserves:</span>
-                <span className="font-mono font-bold text-emerald-700">PKR {formatWholeNumber(totalBankBalances + netCashInHand)}</span>
+                <span className={`font-mono font-bold ${(totalBankBalances + netCashInHand) >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                  PKR {formatWholeNumber(totalBankBalances + netCashInHand)}
+                </span>
               </div>
             </div>
           </div>
@@ -763,7 +746,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
 
           <div className="bg-white border border-slate-200 rounded-xl p-4">
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Store, Sales & Fleet</span>
+              <span>Store & Fleet</span>
               <Boxes className="w-4 h-4 text-cyan-600" />
             </h4>
             <div className="space-y-1 text-xs text-slate-600">
@@ -1220,7 +1203,7 @@ export const RoleDashboard: React.FC<RoleDashboardProps> = ({
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={6} className="py-6 text-center text-slate-400 text-xs">
+                              <td colSpan={7} className="py-6 text-center text-slate-400 text-xs">
                                 No stock items match your search.
                               </td>
                             </tr>
