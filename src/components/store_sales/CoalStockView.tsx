@@ -12,6 +12,7 @@ import {
 import type { CoalStockRecord, PartnerRecord, CoalSellRecord, CompanySettings } from '../../types/storeSales.ts';
 import ConfirmModal from './ConfirmModal.tsx';
 import { printConcernedTable } from '../../utils/printTable.ts';
+import { exportUniversalCsv } from '../../utils/exportCsv.ts';
 
 interface CoalStockViewProps {
   coalStocks: CoalStockRecord[];
@@ -225,29 +226,35 @@ export const CoalStockView: React.FC<CoalStockViewProps> = ({
     const rows = filteredStocks.map((stk, idx) => [
       idx + 1,
       stk.date,
-      `"${stk.partnerName.replace(/"/g, '""')}"`,
+      stk.partnerName,
       stk.quantity,
-      `"${(stk.pitheadLocation || '').replace(/"/g, '""')}"`,
-      `"${(stk.vehicleRef || '').replace(/"/g, '""')}"`,
-      `"${(stk.remarks || '').replace(/"/g, '""')}"`,
+      stk.pitheadLocation || '',
+      stk.vehicleRef || '',
+      stk.remarks || '',
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `coal_stock_register_${todayStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const totalQty = filteredStocks.reduce((sum, s) => sum + (s.quantity || 0), 0);
+
+    exportUniversalCsv(`coal_stock_register_${todayStr}.csv`, {
+      tableName: 'Coal Production & Extraction Stock Register',
+      companySettings,
+      reportDate: todayStr,
+      headers,
+      rows,
+      totalsRow: ['Total Extracted Tons', '', '', totalQty, '', '', ''],
+    });
   };
 
   // Print Register (Table Only)
   const handlePrint = () => {
     printConcernedTable(
       'printable-coal-stock-register-table',
-      `Coal Stock Register - ${companySettings.companyName}`
+      `Coal Stock Register - ${companySettings.companyName}`,
+      {
+        companySettings,
+        tableName: 'Coal Production & Extraction Stock Register',
+        reportDate: todayStr,
+      }
     );
   };
 

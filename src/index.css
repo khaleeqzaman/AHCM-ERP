@@ -132,6 +132,18 @@ body {
     text-align: center !important;
   }
 
+  /* When authoritative PrintDocumentHeader is present, suppress legacy static .print-only-header */
+  body.printing-concerned-table .active-printing-target:has([data-print-header="true"]) .print-only-header {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  .print-document-header {
+    display: block !important;
+    visibility: visible !important;
+    margin-bottom: 12px !important;
+  }
+
   .print-only-header h1 {
     font-size: 13pt !important;
     font-weight: 800 !important;

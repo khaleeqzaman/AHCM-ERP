@@ -36,6 +36,7 @@ import { DatePickerInput } from '../common/DatePickerInput.tsx';
 import ConfirmModal from './ConfirmModal.tsx';
 import { formatWholeNumber } from '../../utils/formatters.ts';
 import { printConcernedTable } from '../../utils/printTable.ts';
+import { exportUniversalCsv } from '../../utils/exportCsv.ts';
 
 // Helper to convert DD-MM-YYYY to timestamp for chronological comparisons
 const parseDateTs = (d?: string): number => {
@@ -780,30 +781,26 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   const handleExportCSV = () => {
     if (activeSubTab === 'vehicles') {
       const headers = ['Sr', 'Vehicle No', 'Equipment Type', 'Driver / Operator', 'Status'];
-      const rows = filteredVehicles.map((v, i) => [i + 1, `"${v.vehicleNo}"`, `"${v.vehicleType}"`, `"${v.driverName}"`, v.status]);
-      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Vehicles_Fleet_Register_${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const rows = filteredVehicles.map((v, i) => [i + 1, v.vehicleNo, v.vehicleType, v.driverName, v.status]);
+      exportUniversalCsv(`Vehicles_Fleet_Register_${new Date().toISOString().slice(0, 10)}.csv`, {
+        tableName: 'Fleet Machinery & Vehicles Register',
+        reportDate: new Date().toLocaleDateString('en-GB'),
+        headers,
+        rows,
+      });
       showToast('Vehicles register exported to CSV.');
       return;
     }
 
     if (activeSubTab === 'mines') {
       const headers = ['Sr', 'Mine Name', 'Location / Ridge', 'Incharge / Mining Officer', 'Status'];
-      const rows = filteredMines.map((m, i) => [i + 1, `"${m.name}"`, `"${m.location || ''}"`, `"${m.incharge || ''}"`, m.status]);
-      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Mines_Sites_Register_${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const rows = filteredMines.map((m, i) => [i + 1, m.name, m.location || '', m.incharge || '', m.status]);
+      exportUniversalCsv(`Mines_Sites_Register_${new Date().toISOString().slice(0, 10)}.csv`, {
+        tableName: 'Mines & Mining Sites Register',
+        reportDate: new Date().toLocaleDateString('en-GB'),
+        headers,
+        rows,
+      });
       showToast('Mines register exported to CSV.');
       return;
     }
@@ -811,25 +808,26 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
     const headers = ['Sr.', 'Date', 'Type', 'Target (Vehicle/Mine)', 'Item Code', 'Item Name', 'Unit', 'Quantity Consumed', 'Operator / Incharge', 'Remarks'];
     const rows = filteredConsumptions.map((c, idx) => [
       idx + 1,
-      `"${c.date}"`,
+      c.date,
       c.consumptionType.toUpperCase(),
-      `"${c.targetName.replace(/"/g, '""')}"`,
-      `"${c.itemCode}"`,
-      `"${c.itemName.replace(/"/g, '""')}"`,
-      `"${c.unit}"`,
+      c.targetName,
+      c.itemCode,
+      c.itemName,
+      c.unit,
       c.quantity,
-      `"${(c.operatorName || '').replace(/"/g, '""')}"`,
-      `"${(c.remarks || '').replace(/"/g, '""')}"`,
+      c.operatorName || '',
+      c.remarks || '',
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Item_Consumption_Register_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const totalQty = filteredConsumptions.reduce((sum, c) => sum + (c.quantity || 0), 0);
+
+    exportUniversalCsv(`Item_Consumption_Register_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Store Item Consumption Register',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+      totalsRow: ['Total Consumption', '', '', '', '', '', '', totalQty, '', ''],
+    });
     showToast('Consumption register exported to CSV.');
   };
 
@@ -880,9 +878,13 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
             type="button"
             onClick={() => {
               if (activeSubTab === 'vehicles') {
-                printConcernedTable('printable-vehicles-table', 'Fleet Machinery & Vehicles Register');
+                printConcernedTable('printable-vehicles-table', 'Fleet Machinery & Vehicles Register', {
+                  tableName: 'Fleet Machinery & Vehicles Register',
+                });
               } else if (activeSubTab === 'mines') {
-                printConcernedTable('printable-mines-table', 'Mines & Mining Sites Register');
+                printConcernedTable('printable-mines-table', 'Mines & Mining Sites Register', {
+                  tableName: 'Mines & Mining Sites Register',
+                });
               } else {
                 let tableId = 'printable-consumption-all-logs-table';
                 let title = 'Store Item Consumption Register';
@@ -890,7 +892,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                   tableId = 'printable-consumption-item-wise-table';
                   title = 'Store Item-wise Consumption Summary';
                 }
-                printConcernedTable(tableId, title);
+                printConcernedTable(tableId, title, { tableName: title });
               }
             }}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-xs cursor-pointer"
@@ -1778,7 +1780,12 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => printConcernedTable('printable-consumption-report-table', 'Store Item Consumption Report')}
+                onClick={() =>
+                  printConcernedTable('printable-consumption-report-table', 'Store Item Consumption Report', {
+                    tableName: 'Store Management - Item Consumption Audit Report',
+                    reportDate: new Date().toLocaleDateString('en-GB'),
+                  })
+                }
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5" />

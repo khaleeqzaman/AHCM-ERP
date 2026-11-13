@@ -22,6 +22,17 @@ export function formatWholeCurrency(val: number | string | null | undefined, pre
 }
 
 /**
+ * Returns today's date formatted as DD-MM-YYYY (matching app standard).
+ */
+export function getTodayFormatted(): string {
+  const now = new Date();
+  const d = String(now.getDate()).padStart(2, '0');
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const y = now.getFullYear();
+  return `${d}-${m}-${y}`;
+}
+
+/**
  * Normalizes any date string (whether "DD-MM-YYYY", "YYYY-MM-DD", or ISO timestamp)
  * into standard HTML5 date picker format: "YYYY-MM-DD".
  */

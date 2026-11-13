@@ -16,6 +16,8 @@ import {
 import { BankAccountRecord } from '../../types/treasury';
 import { formatWholeNumber } from '../../utils/formatters';
 import { printConcernedTable } from '../../utils/printTable';
+import { exportUniversalCsv } from '../../utils/exportCsv';
+import { PrintDocumentHeader } from '../common/PrintDocumentHeader';
 
 interface BanksSummaryViewProps {
   bankAccounts: BankAccountRecord[];
@@ -103,43 +105,31 @@ export const BanksSummaryView: React.FC<BanksSummaryViewProps> = ({
 
     const rows = filteredSummary.map((acc, idx) => [
       idx + 1,
-      `"${acc.bankName.replace(/"/g, '""')}"`,
-      `"${acc.accountNumber.replace(/"/g, '""')}"`,
-      `"${acc.accountTitle.replace(/"/g, '""')}"`,
+      acc.bankName,
+      acc.accountNumber,
+      acc.accountTitle,
       Math.round(acc.openingBalance || 0),
       Math.round(acc.totalDeposit),
       Math.round(acc.totalWithdrawal),
       Math.round(acc.currentBalance),
     ]);
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      [
-        'AL-HAMD COAL MINES & METALS (PVT) LTD. - CONSOLIDATED BANKS SUMMARY REPORT',
-        `Generated Date: ${new Date().toLocaleDateString('en-GB')}`,
+    exportUniversalCsv(`Banks_Summary_Report_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Consolidated Banks Summary Table',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+      totalsRow: [
+        'Totals',
         '',
-        headers.join(','),
-      ]
-        .concat(rows.map((r) => r.join(',')))
-        .concat([
-          '',
-          `Totals,,,,${Math.round(
-            filteredSummary.reduce((s, a) => s + (a.openingBalance || 0), 0)
-          )},${Math.round(
-            filteredSummary.reduce((s, a) => s + a.totalDeposit, 0)
-          )},${Math.round(
-            filteredSummary.reduce((s, a) => s + a.totalWithdrawal, 0)
-          )},${Math.round(totalFilteredBalance)}`,
-        ])
-        .join('\n');
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Banks_Summary_Report_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+        '',
+        '',
+        Math.round(filteredSummary.reduce((s, a) => s + (a.openingBalance || 0), 0)),
+        Math.round(filteredSummary.reduce((s, a) => s + a.totalDeposit, 0)),
+        Math.round(filteredSummary.reduce((s, a) => s + a.totalWithdrawal, 0)),
+        Math.round(totalFilteredBalance),
+      ],
+    });
 
     setNotification(`Banks Summary successfully exported (${filteredSummary.length} accounts).`);
     setTimeout(() => setNotification(null), 3000);
@@ -180,7 +170,12 @@ export const BanksSummaryView: React.FC<BanksSummaryViewProps> = ({
 
           <button
             type="button"
-            onClick={() => printConcernedTable('printable-banks-summary-table', 'Banks Summary Table')}
+            onClick={() =>
+              printConcernedTable('printable-banks-summary-table', 'Banks Summary Table', {
+                tableName: 'Banks Summary Table',
+                reportDate: new Date().toLocaleDateString('en-GB'),
+              })
+            }
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-800 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-300 rounded-lg transition-colors shadow-2xs cursor-pointer"
             title="Print Banks Summary table only"
           >
@@ -390,18 +385,11 @@ export const BanksSummaryView: React.FC<BanksSummaryViewProps> = ({
 
             {/* Formal Report Layout */}
             <div id="printable-banks-summary-formal-report" className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900 print-concerned-table">
-              {/* Company Header */}
-              <div className="text-center pb-3 border-b border-slate-800">
-                <h2 className="text-lg font-extrabold uppercase tracking-wider text-slate-950">
-                  AL-HAMD COAL MINES & METALS (PVT) LTD.
-                </h2>
-                <p className="text-xs font-medium text-slate-600">
-                  Head Office & Mining Sites: Quetta / Balochistan, Pakistan · Treasury & Banking Audit
-                </p>
-                <div className="mt-2 inline-block px-3 py-0.5 bg-blue-50 border border-blue-300 rounded text-xs font-bold uppercase tracking-wider text-blue-900">
-                  CONSOLIDATED ENTERPRISE BANKS SUMMARY & LIQUIDITY STATEMENT
-                </div>
-              </div>
+              <PrintDocumentHeader
+                tableName="Consolidated Enterprise Banks Summary & Liquidity Statement"
+                date={new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                subtitle="Treasury & Banking Audit Department"
+              />
 
               {/* Summary KPIs Strip */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">

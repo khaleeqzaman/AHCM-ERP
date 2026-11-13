@@ -1,4 +1,5 @@
 import { ChartAccount, AccountType } from '../types/accounting';
+import { exportUniversalCsv } from './exportCsv';
 
 export interface RawJsonAccount {
   accountNo?: string;
@@ -687,28 +688,24 @@ export function exportAccountsToCsvFile(accounts: ChartAccount[]): void {
   ];
 
   const rows = accounts.map((acc) => [
-    `"${acc.accountNo || acc.code}"`,
-    `"${acc.name.replace(/"/g, '""')}"`,
+    acc.accountNo || acc.code,
+    acc.name,
     acc.accountType,
     acc.level || 3,
     acc.transType || 'T',
-    `"${acc.parentAccountNo || ''}"`,
+    acc.parentAccountNo || '',
     acc.normalBalance,
     acc.openingBalance,
     acc.currentBalance,
-    `"${(acc.classification || '').replace(/"/g, '""')}"`,
-    `"${(acc.groupName || '').replace(/"/g, '""')}"`,
+    acc.classification || '',
+    acc.groupName || '',
     acc.isActive ? 'Active' : 'Inactive',
   ]);
 
-  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `chart_of_accounts_${new Date().toISOString().slice(0, 10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  exportUniversalCsv(`chart_of_accounts_${new Date().toISOString().slice(0, 10)}.csv`, {
+    tableName: 'Standard Chart of Accounts (COA) Register',
+    reportDate: new Date().toLocaleDateString('en-GB'),
+    headers,
+    rows,
+  });
 }

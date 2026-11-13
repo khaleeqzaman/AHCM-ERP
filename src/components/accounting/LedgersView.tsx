@@ -26,6 +26,9 @@ import {
   LedgerEntry 
 } from '../../types/accounting';
 import { formatWholeNumber } from '../../utils/formatters';
+import { exportUniversalCsv } from '../../utils/exportCsv';
+import { printConcernedTable } from '../../utils/printTable';
+import { PrintDocumentHeader } from '../common/PrintDocumentHeader';
 
 interface LedgersViewProps {
   accounts: ChartAccount[];
@@ -191,56 +194,37 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
 
     const rows = filteredEntries.map((e, idx) => [
       idx + 1,
-      `"${e.date || ''}"`,
-      `"${e.voucherNo || ''}"`,
-      `"${getTypeCode(e.voucherType)}"`,
-      `"${(e.referenceNo || '').replace(/"/g, '""')}"`,
-      `"${(e.particulars || '').replace(/"/g, '""')}"`,
+      e.date || '',
+      e.voucherNo || '',
+      getTypeCode(e.voucherType),
+      e.referenceNo || '',
+      e.particulars || '',
       e.debit,
       e.credit,
-      e.runningBalance
+      e.runningBalance,
     ]);
 
-    // Metadata block
-    const meta = [
-      `"AHCM MINING & TRADING ENTERPRISES - GENERAL LEDGER STATEMENT"`,
-      `"Account Head: [${selectedAccount.code}] ${selectedAccount.name}"`,
-      `"Classification: ${selectedAccount.classification} (${selectedAccount.accountType})"`,
-      `"Normal Balance Side: ${selectedAccount.normalBalance}"`,
-      `"Opening Balance: PKR ${selectedAccount.openingBalance}"`,
-      `"Date Range: ${startDate || 'Earliest'} to ${endDate || 'Latest'}"`,
-      `"Exported On: ${new Date().toISOString().slice(0, 10)}"`,
-      `""`
-    ];
+    const dateRangeLabel = startDate || endDate
+      ? `${startDate || 'Earliest'} to ${endDate || 'Latest'}`
+      : new Date().toISOString().slice(0, 10);
 
-    // Summary row
-    rows.push([
-      '"TOTALS"',
-      '""',
-      '""',
-      '""',
-      '""',
-      '"TOTAL ACTIVITY & CLOSING BALANCE"',
-      totalPeriodDebits,
-      totalPeriodCredits,
-      closingBalance
-    ]);
-
-    const csvContent = [
-      ...meta,
-      headers.join(','),
-      ...rows.map((r) => r.join(','))
-    ].join('\r\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `general_ledger_${selectedAccount.code}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    exportUniversalCsv(`general_ledger_${selectedAccount.code}_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: `General Ledger - [${selectedAccount.code}] ${selectedAccount.name}`,
+      reportDate: dateRangeLabel,
+      headers,
+      rows,
+      totalsRow: [
+        'TOTALS',
+        '',
+        '',
+        '',
+        '',
+        'TOTAL ACTIVITY & CLOSING BALANCE',
+        totalPeriodDebits,
+        totalPeriodCredits,
+        closingBalance,
+      ],
+    });
 
     setExportSuccess(true);
     setTimeout(() => setExportSuccess(false), 3000);
@@ -733,7 +717,12 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() =>
+                    printConcernedTable('printable-ledger-statement', 'General Ledger Statement', {
+                      tableName: `General Ledger - [${selectedAccount.code}] ${selectedAccount.name}`,
+                      reportDate: startDate || endDate ? `${startDate || 'Earliest'} to ${endDate || 'Present'}` : undefined,
+                    })
+                  }
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
@@ -750,18 +739,12 @@ export const LedgersView: React.FC<LedgersViewProps> = ({
             </div>
 
             {/* Document Content */}
-            <div className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900 print:border-0 print:p-0">
-              <div className="text-center pb-3 border-b-2 border-slate-800">
-                <h1 className="text-base font-extrabold uppercase tracking-wider">
-                  AHCM MINING & TRADING ENTERPRISES
-                </h1>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-700 mt-0.5">
-                  General Ledger Account Statement
-                </h2>
-                <div className="text-[11px] text-slate-500 mt-1 font-mono">
-                  Printed as of {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Financial Year 2026
-                </div>
-              </div>
+            <div id="printable-ledger-statement" className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900 print-concerned-table">
+              <PrintDocumentHeader
+                tableName={`General Ledger: [${selectedAccount.code}] ${selectedAccount.name}`}
+                date={startDate || endDate ? `${startDate || 'Earliest'} to ${endDate || 'Present'}` : undefined}
+                subtitle="Financial Accounting & General Ledger Division"
+              />
 
               <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-3.5 rounded-lg border border-slate-200">
                 <div>

@@ -19,6 +19,7 @@ import {
 import { ActivityLog, ActivityLogCategory } from '../../types/activityLog';
 import { getActivityLogs, subscribeActivityLogs, clearActivityLogs } from '../../services/activityLogger';
 import { User, UserRole } from '../../types/user';
+import { exportUniversalCsv } from '../../utils/exportCsv';
 
 interface UserActivityLogsViewProps {
   users: User[];
@@ -82,26 +83,24 @@ export const UserActivityLogsView: React.FC<UserActivityLogsViewProps> = ({
     const headers = ['ID', 'Timestamp', 'Username', 'User Name', 'Role', 'Category', 'Action', 'Details', 'Status', 'Device'];
     const rows = filteredLogs.map((l) => [
       l.id,
-      `"${l.displayDate}"`,
-      `"${l.username}"`,
-      `"${l.userName}"`,
-      `"${l.userRole}"`,
-      `"${l.category}"`,
-      `"${l.action.replace(/"/g, '""')}"`,
-      `"${l.details.replace(/"/g, '""')}"`,
-      `"${l.status}"`,
-      `"${l.ipAddress || 'Web Client'}"`,
+      l.displayDate,
+      l.username,
+      l.userName,
+      l.userRole,
+      l.category,
+      l.action,
+      l.details,
+      l.status,
+      l.ipAddress || 'Web Client',
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
     const dateStr = new Date().toISOString().split('T')[0];
-    link.setAttribute('download', `AHCM_ERP_Activity_Logs_${dateStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportUniversalCsv(`AHCM_ERP_Activity_Logs_${dateStr}.csv`, {
+      tableName: 'System User Activity Audit Logs',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+    });
   };
 
   // Metrics

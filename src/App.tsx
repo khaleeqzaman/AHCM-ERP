@@ -81,6 +81,7 @@ import { AdminApprovalView } from './components/AdminApprovalView';
 import { AccountingScreen } from './components/accounting/AccountingScreen';
 import { TreasuryScreen } from './components/treasury/TreasuryScreen';
 import { StoreSalesScreen } from './components/store_sales/StoreSalesScreen';
+import { SettingsScreen } from './components/settings/SettingsScreen';
 import {
   fetchBootstrapData,
   apiSaveUser,
@@ -2328,35 +2329,17 @@ export default function App() {
             </div>
           )}
 
-          {/* Settings */}
+          {/* Settings Screen (Admin Module) */}
           {currentModule === 'settings' && (
-            <div className="bg-white border border-slate-200 rounded-xl p-8 text-center space-y-4">
-              <SettingsIcon className="w-12 h-12 text-slate-400 mx-auto" />
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  System Settings & Workflow Configurations
-                </h2>
-                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                  Manage reference number generation prefixes, automated workflow thresholds, and approver assignments.
-                </p>
-              </div>
-              <div className="flex justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCurrentModule('purchase')}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                >
-                  Go to Purchase Module
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentModule('accounting')}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors cursor-pointer"
-                >
-                  Go to Accounts
-                </button>
-              </div>
-            </div>
+            <SettingsScreen
+              companySettings={companySettings}
+              onSaveSettings={(cs) => {
+                setCompanySettings(cs);
+                saveCache('company_settings', cs);
+                apiSaveCompanySettings(cs);
+              }}
+              currentUser={currentUser}
+            />
           )}
         </main>
       </div>

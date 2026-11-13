@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { DemandDocument, PurchaseDocument, DemandItem, PurchaseSummaryItem } from '../types';
 import { formatWholeNumber } from '../utils/formatters';
+import { printConcernedTable } from '../utils/printTable';
 
 interface ApprovedRejectedRecordsViewProps {
   demands: DemandDocument[];
@@ -203,7 +204,12 @@ export const ApprovedRejectedRecordsView: React.FC<ApprovedRejectedRecordsViewPr
   };
 
   const handlePrint = () => {
-    window.print();
+    const tableId = activeTab === 'demands' ? 'printable-approved-rejected-demands' : 'printable-approved-rejected-purchases';
+    const title = activeTab === 'demands' ? 'Approved & Rejected Demands Register' : 'Approved & Rejected Purchase Orders Register';
+    printConcernedTable(tableId, title, {
+      tableName: title,
+      reportDate: startDate || endDate ? `${startDate || 'Inception'} to ${endDate || 'Present'}` : undefined,
+    });
   };
 
   return (
@@ -502,7 +508,7 @@ export const ApprovedRejectedRecordsView: React.FC<ApprovedRejectedRecordsViewPr
 
         {/* Demands Table View */}
         {activeTab === 'demands' && (
-          <div className="overflow-x-auto">
+          <div id="printable-approved-rejected-demands" className="overflow-x-auto print-concerned-table">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider select-none">
@@ -714,7 +720,7 @@ export const ApprovedRejectedRecordsView: React.FC<ApprovedRejectedRecordsViewPr
 
         {/* Purchase Orders Table View */}
         {activeTab === 'purchases' && (
-          <div className="overflow-x-auto">
+          <div id="printable-approved-rejected-purchases" className="overflow-x-auto print-concerned-table">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider select-none">

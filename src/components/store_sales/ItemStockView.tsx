@@ -33,6 +33,7 @@ import { DatePickerInput } from '../common/DatePickerInput.tsx';
 import ConfirmModal from './ConfirmModal.tsx';
 import { formatWholeNumber } from '../../utils/formatters.ts';
 import { printConcernedTable } from '../../utils/printTable.ts';
+import { exportUniversalCsv } from '../../utils/exportCsv.ts';
 
 // Helper to parse DD-MM-YYYY dates accurately into timestamps for reliable chronological sorting
 const parseDateTs = (dateStr?: string): number => {
@@ -209,7 +210,12 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
           ? 'Date-wise Item Inventory Summary'
           : 'Store Item Inventory Ledger';
 
-    printConcernedTable(tableId, title);
+    printConcernedTable(tableId, title, {
+      tableName: title,
+      reportDate: (consolidatedStartDate || consolidatedEndDate)
+        ? `${consolidatedStartDate || 'Start'} to ${consolidatedEndDate || 'Present'}`
+        : undefined,
+    });
   };
 
   // Consumption Aggregations per Item
@@ -498,23 +504,21 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
       const headers = ['Sr.', 'Date', 'Item Code', 'Item Name', 'Unit', 'Total Quantity Added', 'Entries Count', 'Suppliers'];
       const rows = dateWiseSummaryData.map((s, idx) => [
         idx + 1,
-        `"${s.date}"`,
-        `"${s.itemCode}"`,
-        `"${s.itemName.replace(/"/g, '""')}"`,
-        `"${s.unit}"`,
+        s.date,
+        s.itemCode,
+        s.itemName,
+        s.unit,
         s.totalStockQty,
         s.entriesCount,
-        `"${s.vendors.join(', ').replace(/"/g, '""')}"`,
+        s.vendors.join(', '),
       ]);
 
-      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `DateWise_Item_Inventory_Summary_${new Date().toISOString().slice(0, 10)}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      exportUniversalCsv(`DateWise_Item_Inventory_Summary_${new Date().toISOString().slice(0, 10)}.csv`, {
+        tableName: 'Date-wise Item Inventory Summary',
+        reportDate: new Date().toLocaleDateString('en-GB'),
+        headers,
+        rows,
+      });
       showToast('Date-wise Inventory Summary exported to CSV.');
       return;
     }
@@ -522,31 +526,29 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
     const headers = ['Sr.', 'Date', 'Item Code', 'Item Name', 'Unit', 'Quantity Added', 'Running Inventory Balance', 'Vendor', 'Invoice No', 'Remarks'];
     const rows = filteredStockList.map((s, idx) => [
       idx + 1,
-      `"${s.date}"`,
-      `"${s.itemCode}"`,
-      `"${s.itemName.replace(/"/g, '""')}"`,
-      `"${s.unit}"`,
+      s.date,
+      s.itemCode,
+      s.itemName,
+      s.unit,
       s.stockQuantity ?? 0,
       s.runningBalance ?? 0,
-      `"${(s.vendorName || '').replace(/"/g, '""')}"`,
-      `"${(s.invoiceNo || '').replace(/"/g, '""')}"`,
-      `"${(s.remarks || '').replace(/"/g, '""')}"`,
+      s.vendorName || '',
+      s.invoiceNo || '',
+      s.remarks || '',
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Item_Inventory_Ledger_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportUniversalCsv(`Item_Inventory_Ledger_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Store Item Inventory Ledger',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+    });
     showToast('Item Inventory Ledger exported to CSV.');
   };
 
   // CSV Export for Inventory Report
   const handleExportStockReportCSV = () => {
-    const dynamicMineHeaders = mines.map(m => `"${m.name} Usage"`);
+    const dynamicMineHeaders = mines.map(m => `${m.name} Usage`);
     const headers = [
       'Sr.', 
       'Date', 
@@ -564,10 +566,10 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
       const mineCols = mines.map(m => r.mineWiseUsage[m.id] || 0);
       return [
         idx + 1,
-        `"${r.date}"`,
-        `"${r.itemCode}"`,
-        `"${r.itemName.replace(/"/g, '""')}"`,
-        `"${r.unit}"`,
+        r.date,
+        r.itemCode,
+        r.itemName,
+        r.unit,
         r.stockQuantity,
         r.vehicleUsage,
         r.mineUsage,
@@ -576,14 +578,12 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
       ];
     });
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Item_Inventory_Report_Matrix_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportUniversalCsv(`Item_Inventory_Report_Matrix_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Item Inventory Balance & Mines Matrix Report',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+    });
     showToast('Comprehensive Inventory Report exported to CSV.');
   };
 
@@ -906,31 +906,50 @@ export const ItemStockView: React.FC<ItemStockViewProps> = ({
 
     const rows = sortedConsolidatedItems.map((item, idx) => [
       idx + 1,
-      `"${item.itemCode}"`,
-      `"${item.itemName.replace(/"/g, '""')}"`,
-      `"${item.categoryName.replace(/"/g, '""')}"`,
-      `"${item.unitSymbol}"`,
+      item.itemCode,
+      item.itemName,
+      item.categoryName,
+      item.unitSymbol,
       item.totalInflow,
       item.inflowEntriesCount,
       item.vehicleConsumption,
       item.mineConsumption,
       item.totalConsumption,
       item.availableQty,
-      `"${item.statusLabel}"`,
-      `"${item.lastTransactionDate}"`
+      item.statusLabel,
+      item.lastTransactionDate,
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
     const dateSlug = (consolidatedStartDate || consolidatedEndDate)
       ? `_from_${consolidatedStartDate || 'start'}_to_${consolidatedEndDate || 'end'}`
       : `_${new Date().toISOString().slice(0, 10)}`;
-    link.download = `Consolidated_Item_Inventory${dateSlug}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+
+    const reportDateRange = (consolidatedStartDate || consolidatedEndDate)
+      ? `${consolidatedStartDate || 'Start'} to ${consolidatedEndDate || 'Present'}`
+      : new Date().toLocaleDateString('en-GB');
+
+    exportUniversalCsv(`Consolidated_Item_Inventory${dateSlug}.csv`, {
+      tableName: 'Consolidated Items Stock & Available Running Inventory',
+      reportDate: reportDateRange,
+      headers,
+      rows,
+      totalsRow: [
+        'TOTALS',
+        '',
+        '',
+        '',
+        '',
+        consolidatedTotals.totalInflow,
+        '',
+        consolidatedTotals.vehicleConsumption,
+        consolidatedTotals.mineConsumption,
+        consolidatedTotals.totalConsumption,
+        consolidatedTotals.availableQty,
+        '',
+        '',
+      ],
+    });
+
     showToast('Consolidated Item Inventory exported to CSV.');
   };
 

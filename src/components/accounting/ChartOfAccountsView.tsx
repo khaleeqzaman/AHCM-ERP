@@ -41,6 +41,8 @@ import {
   EMPTY_MONTHLY_RECORD,
   normalizeAccountType
 } from '../../utils/chartOfAccountsJson';
+import { printConcernedTable } from '../../utils/printTable';
+import { PrintDocumentHeader } from '../common/PrintDocumentHeader';
 
 interface ChartOfAccountsViewProps {
   accounts: ChartAccount[];
@@ -414,7 +416,11 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
   // PRINT HANDLING
   // =========================================================
   const handleTriggerPrint = () => {
-    window.print();
+    printConcernedTable('printable-coa-register-sheet', 'Chart of Accounts Register', {
+      tableName: 'Standard Chart of Accounts (COA) Register',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      subtitle: `Total Accounts: ${filteredAccounts.length}`,
+    });
   };
 
   // Filtered & Sorted Accounts List
@@ -1605,19 +1611,13 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
             </div>
 
             {/* Printable Preview Container */}
-            <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-6 bg-white space-y-4 text-xs font-sans print:border-0 print:p-0">
+            <div id="printable-coa-register-sheet" className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-6 bg-white space-y-4 text-xs font-sans print-concerned-table">
               {/* Document Header */}
-              <div className="text-center pb-3 border-b-2 border-slate-900 space-y-1">
-                <h1 className="text-lg font-bold uppercase tracking-wider text-slate-900">
-                  AHCM Mining & Trading Enterprises
-                </h1>
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-600">
-                  Standard Chart of Accounts (COA) Register
-                </h2>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  Printed On: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Total Accounts: {filteredAccounts.length}
-                </div>
-              </div>
+              <PrintDocumentHeader
+                tableName="Standard Chart of Accounts (COA) Register"
+                date={new Date().toLocaleDateString('en-GB')}
+                subtitle={`Total Accounts: ${filteredAccounts.length}`}
+              />
 
               {/* Printable Table */}
               <table className="w-full text-left border-collapse text-[11px]">

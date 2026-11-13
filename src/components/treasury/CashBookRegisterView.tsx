@@ -28,6 +28,8 @@ import { CashBookEntry } from '../../types/treasury';
 import { formatWholeNumber } from '../../utils/formatters';
 import { DatePickerInput } from '../common/DatePickerInput';
 import { printConcernedTable } from '../../utils/printTable';
+import { exportUniversalCsv } from '../../utils/exportCsv';
+import { PrintDocumentHeader } from '../common/PrintDocumentHeader';
 
 interface CashBookRegisterViewProps {
   entries: CashBookEntry[];
@@ -358,33 +360,31 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
     const headers = ['Sr. No.', 'Date', 'Description', 'Credit (Inflow)', 'Debit (Outflow)', 'Balance'];
     const rows = filteredAndSortedEntries.map((e) => [
       e.srNo,
-      `"${e.date}"`,
-      `"${e.description.replace(/"/g, '""')}"`,
+      e.date,
+      e.description,
       Math.round(e.credit),
       Math.round(e.debit),
       Math.round((Number(e.credit) || 0) - (Number(e.debit) || 0)),
     ]);
 
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      ['AL-HAMD COAL MINES & METALS (PVT) LTD. - CASH BOOK REGISTER', '']
-        .concat([headers.join(',')])
-        .concat(rows.map((r) => r.join(',')))
-        .concat([
-          '',
-          `Totals,,,${Math.round(filteredTotalCredit)},${Math.round(filteredTotalDebit)},${Math.round(
-            filteredTotalBalance
-          )}`,
-        ])
-        .join('\n');
+    const dateRangeLabel = startDate || endDate
+      ? `${startDate || 'Inception'} to ${endDate || 'Present'}`
+      : new Date().toISOString().slice(0, 10);
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Cash_Book_Register_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportUniversalCsv(`Cash_Book_Register_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Cash Book Register Table',
+      reportDate: dateRangeLabel,
+      headers,
+      rows,
+      totalsRow: [
+        'Totals',
+        '',
+        '',
+        Math.round(filteredTotalCredit),
+        Math.round(filteredTotalDebit),
+        Math.round(filteredTotalBalance),
+      ],
+    });
   };
 
   return (
@@ -884,7 +884,12 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => printConcernedTable('printable-cashbook-history-table', 'Cash Book Register Table')}
+                  onClick={() =>
+                    printConcernedTable('printable-cashbook-history-table', 'Cash Book Register Table', {
+                      tableName: 'Cash Book Register Table',
+                      reportDate: startDate || endDate ? `${startDate || 'Inception'} to ${endDate || 'Present'}` : undefined,
+                    })
+                  }
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg transition-colors shadow-2xs cursor-pointer"
                   title="Print Cash Book register table only"
                 >
@@ -1410,17 +1415,11 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
 
             {/* Formal Report Layout */}
             <div id="printable-cashbook-formal-report" className="border border-slate-800 rounded-xl p-6 space-y-4 bg-white text-slate-900 print-concerned-table">
-              <div className="text-center pb-3 border-b border-slate-800">
-                <h2 className="text-lg font-extrabold uppercase tracking-wider text-slate-950">
-                  AL-HAMD COAL MINES & METALS (PVT) LTD.
-                </h2>
-                <p className="text-xs font-medium text-slate-600">
-                  Head Office & Mining Sites: Quetta / Balochistan, Pakistan · Cashier Treasury Department
-                </p>
-                <div className="mt-2 inline-block px-3 py-0.5 bg-amber-50 border border-amber-300 rounded text-xs font-bold uppercase tracking-wider text-amber-900">
-                  PHYSICAL CASH BOOK REGISTER JOURNAL
-                </div>
-              </div>
+              <PrintDocumentHeader
+                tableName="Physical Cash Book Register Journal"
+                date={startDate || endDate ? `${startDate || 'Inception'} to ${endDate || 'Present'}` : undefined}
+                subtitle="Head Office & Mining Sites · Cashier Treasury Department"
+              />
 
               {/* Scope & Date Range Summary */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">

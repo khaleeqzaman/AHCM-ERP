@@ -26,6 +26,9 @@ import {
 } from 'lucide-react';
 import { VoucherDocument, VoucherType, VoucherStatus } from '../../types/accounting';
 import { formatWholeNumber } from '../../utils/formatters';
+import { exportUniversalCsv } from '../../utils/exportCsv';
+import { printConcernedTable } from '../../utils/printTable';
+import { PrintDocumentHeader } from '../common/PrintDocumentHeader';
 
 interface VouchersListViewProps {
   vouchers: VoucherDocument[];
@@ -238,50 +241,45 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
 
       return [
         index + 1,
-        `"${v.date || ''}"`,
-        `"${v.voucherNo || ''}"`,
-        `"${v.voucherType || ''}"`,
-        `"${(v.referenceNo || '').replace(/"/g, '""')}"`,
-        `"${(v.narration || '').replace(/"/g, '""')}"`,
+        v.date || '',
+        v.voucherNo || '',
+        v.voucherType || '',
+        v.referenceNo || '',
+        v.narration || '',
         v.totalDebit || 0,
         v.totalCredit || 0,
-        `"${v.status || ''}"`,
-        `"${linesSummary.replace(/"/g, '""')}"`,
-        `"${v.preparedBy || ''}"`,
-        `"${v.approvedBy || ''}"`,
-        `"${v.postedBy || ''}"`
+        v.status || '',
+        linesSummary,
+        v.preparedBy || '',
+        v.approvedBy || '',
+        v.postedBy || '',
       ];
     });
 
     const totalDebitsSum = filteredVouchers.reduce((sum, v) => sum + (v.totalDebit || 0), 0);
     const totalCreditsSum = filteredVouchers.reduce((sum, v) => sum + (v.totalCredit || 0), 0);
 
-    rows.push([
-      '"TOTAL"',
-      '""',
-      `"Vouchers: ${filteredVouchers.length}"`,
-      '""',
-      '""',
-      '"GRAND TOTAL"',
-      totalDebitsSum,
-      totalCreditsSum,
-      '""',
-      '""',
-      '""',
-      '""',
-      '""'
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `voucher_register_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    exportUniversalCsv(`voucher_register_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Official Voucher Register',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+      totalsRow: [
+        'TOTAL',
+        '',
+        `Vouchers: ${filteredVouchers.length}`,
+        '',
+        '',
+        'GRAND TOTAL',
+        totalDebitsSum,
+        totalCreditsSum,
+        '',
+        '',
+        '',
+        '',
+        '',
+      ],
+    });
 
     setExportSuccess(true);
     setTimeout(() => setExportSuccess(false), 3000);
@@ -976,7 +974,12 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() =>
+                    printConcernedTable('printable-single-voucher-doc', `Voucher_${printVoucher.voucherNo}`, {
+                      tableName: `${printVoucher.voucherType} — ${printVoucher.voucherNo}`,
+                      reportDate: printVoucher.date,
+                    })
+                  }
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
@@ -993,22 +996,13 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
             </div>
 
             {/* Official Voucher Printable Document */}
-            <div className="border-2 border-slate-800 rounded-xl p-6 sm:p-7 space-y-5 bg-white text-slate-900 font-sans print:border-black print:p-0">
+            <div id="printable-single-voucher-doc" className="border-2 border-slate-800 rounded-xl p-6 sm:p-7 space-y-5 bg-white text-slate-900 font-sans print-concerned-table">
               {/* Header */}
-              <div className="text-center pb-4 border-b-2 border-slate-800 space-y-1">
-                <div className="flex items-center justify-center gap-2 text-slate-900">
-                  <Building2 className="w-5 h-5 text-emerald-700" />
-                  <span className="text-base font-extrabold uppercase tracking-wider">
-                    AL-HAMD COAL MINES & FABRICATIONS
-                  </span>
-                </div>
-                <div className="text-xs font-semibold uppercase tracking-widest text-slate-700">
-                  Finance & Accounts Division · General Ledger
-                </div>
-                <div className="inline-block mt-2 px-3 py-1 bg-slate-900 text-white font-mono font-bold text-xs uppercase tracking-wider rounded">
-                  {printVoucher.voucherType}
-                </div>
-              </div>
+              <PrintDocumentHeader
+                tableName={`${printVoucher.voucherType} — ${printVoucher.voucherNo}`}
+                date={printVoucher.date}
+                subtitle="Finance & Accounts Division · General Ledger"
+              />
 
               {/* Meta Grid */}
               <div className="grid grid-cols-2 gap-4 text-xs">
@@ -1349,7 +1343,13 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() =>
+                    printConcernedTable('printable-vouchers-register-sheet', 'Voucher Register', {
+                      tableName: 'Official Voucher Register & General Journal Log',
+                      reportDate: new Date().toLocaleDateString('en-GB'),
+                      subtitle: `Filter: Type [${typeFilter}] · Status [${statusFilter}] · Total Vouchers: ${filteredVouchers.length}`,
+                    })
+                  }
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-xs"
                 >
                   <Printer className="w-3.5 h-3.5" />
@@ -1366,19 +1366,13 @@ export const VouchersListView: React.FC<VouchersListViewProps> = ({
             </div>
 
             {/* Printable Content Sheet */}
-            <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-6 bg-white space-y-4 text-xs font-sans print:border-0 print:p-0">
+            <div id="printable-vouchers-register-sheet" className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-6 bg-white space-y-4 text-xs font-sans print-concerned-table">
               {/* Document Header */}
-              <div className="text-center pb-3 border-b-2 border-slate-900 space-y-1">
-                <h1 className="text-lg font-bold uppercase tracking-wider text-slate-900">
-                  AHCM Mining & Trading Enterprises
-                </h1>
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-600">
-                  Official Voucher Register & General Journal Log
-                </h2>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  Printed On: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Filter: Type [{typeFilter}] · Status [{statusFilter}] · Total Vouchers: {filteredVouchers.length}
-                </div>
-              </div>
+              <PrintDocumentHeader
+                tableName="Official Voucher Register & General Journal Log"
+                date={new Date().toLocaleDateString('en-GB')}
+                subtitle={`Filter: Type [${typeFilter}] · Status [${statusFilter}] · Total Vouchers: ${filteredVouchers.length}`}
+              />
 
               {/* Printable Register Table */}
               <table className="w-full text-left border-collapse text-[11px]">

@@ -23,6 +23,7 @@ import type {
 } from '../../types/storeSales.ts';
 import ConfirmModal from './ConfirmModal.tsx';
 import { printConcernedTable } from '../../utils/printTable.ts';
+import { exportUniversalCsv } from '../../utils/exportCsv.ts';
 
 interface CoalSellViewProps {
   coalSells: CoalSellRecord[];
@@ -344,14 +345,14 @@ export const CoalSellView: React.FC<CoalSellViewProps> = ({
     const rows = filteredSells.map((s, idx) => [
       idx + 1,
       s.date,
-      `"${s.partnerName.replace(/"/g, '""')}"`,
-      `"${s.buyerName.replace(/"/g, '""')}"`,
-      `"${s.buyerNTN}"`,
-      `"${s.buyerCNIC}"`,
+      s.partnerName,
+      s.buyerName,
+      s.buyerNTN,
+      s.buyerCNIC,
       s.buyerType,
       s.saleOrganization,
-      `"${s.documentType}"`,
-      `"${s.documentNumber}"`,
+      s.documentType,
+      s.documentNumber,
       s.quantity,
       s.valueExcludingTax,
       s.salesTaxFed,
@@ -360,21 +361,23 @@ export const CoalSellView: React.FC<CoalSellViewProps> = ({
       s.totalValue,
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `coal_sell_datewise_report_${todayStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const totalQty = filteredSells.reduce((sum, s) => sum + (s.quantity || 0), 0);
+    const totalVal = filteredSells.reduce((sum, s) => sum + (s.totalValue || 0), 0);
+
+    exportUniversalCsv(`coal_sell_datewise_report_${todayStr}.csv`, {
+      tableName: 'Date-wise Coal Sales & Commercial Register',
+      companySettings,
+      reportDate: todayStr,
+      headers,
+      rows,
+      totalsRow: ['Total Sold', '', '', '', '', '', '', '', '', '', totalQty, '', '', '', '', totalVal],
+    });
   };
 
   // Export Partner-wise CSV
   const handleExportPartnerWiseCSV = () => {
     const partnerNames = partners.map(p => p.name);
-    const headers = ['Sr', 'Date', ...partnerNames.map(p => `"${p} (Tons)"`), 'Day Total (Tons)', 'Total Entries'];
+    const headers = ['Sr', 'Date', ...partnerNames.map(p => `${p} (Tons)`), 'Day Total (Tons)', 'Total Entries'];
     
     const rows = partnerWiseDailyReport.map((row, idx) => [
       idx + 1,
@@ -384,22 +387,25 @@ export const CoalSellView: React.FC<CoalSellViewProps> = ({
       row.entriesCount,
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `coal_sell_partnerwise_report_${todayStr}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportUniversalCsv(`coal_sell_partnerwise_report_${todayStr}.csv`, {
+      tableName: 'Partner-wise Daily Coal Extraction & Sales Matrix',
+      companySettings,
+      reportDate: todayStr,
+      headers,
+      rows,
+    });
   };
 
   // Print Date-wise Report (Table Only)
   const handlePrintDateWise = () => {
     printConcernedTable(
       'printable-coal-sell-datewise-table',
-      `Date-wise Coal Sell Report - ${companySettings.companyName}`
+      `Date-wise Coal Sell Report - ${companySettings.companyName}`,
+      {
+        companySettings,
+        tableName: 'Date-wise Coal Sales & Commercial Register',
+        reportDate: todayStr,
+      }
     );
   };
 
@@ -407,7 +413,12 @@ export const CoalSellView: React.FC<CoalSellViewProps> = ({
   const handlePrintPartnerWise = () => {
     printConcernedTable(
       'printable-coal-sell-partnerwise-table',
-      `Partner-wise Daily Coal Sell Report - ${companySettings.companyName}`
+      `Partner-wise Daily Coal Sell Report - ${companySettings.companyName}`,
+      {
+        companySettings,
+        tableName: 'Partner-wise Daily Coal Extraction & Sales Matrix',
+        reportDate: todayStr,
+      }
     );
   };
 

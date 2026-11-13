@@ -258,6 +258,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             icon: <Boxes className="w-4 h-4" />,
             hasSubmenu: true,
           },
+          {
+            id: 'settings' as NavModule,
+            label: 'Settings',
+            icon: <Sliders className="w-4 h-4" />,
+          },
         ];
     }
   };

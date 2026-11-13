@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { ChartAccount, VoucherDocument } from '../../types/accounting';
 import { formatWholeNumber } from '../../utils/formatters';
+import { exportUniversalCsv } from '../../utils/exportCsv';
+import { printConcernedTable } from '../../utils/printTable';
+import { PrintDocumentHeader } from '../common/PrintDocumentHeader';
 
 interface TrialBalanceViewProps {
   accounts: ChartAccount[];
@@ -89,43 +92,40 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
     const rows = trialBalanceRows.map((r) => [
       `"${r.code || ''}"`,
       `"${(r.name || '').replace(/"/g, '""')}"`,
-      `"${r.accountType || ''}"`,
-      `"${r.normalBalance || ''}"`,
+      r.accountType || '',
+      r.normalBalance || '',
       r.periodDebits,
       r.periodCredits,
       r.debitBal,
-      r.creditBal
+      r.creditBal,
     ]);
 
-    // Append Total Row
-    rows.push([
-      '"TOTAL TRIAL BALANCE"',
-      '""',
-      '""',
-      '""',
-      trialBalanceRows.reduce((sum, r) => sum + r.periodDebits, 0),
-      trialBalanceRows.reduce((sum, r) => sum + r.periodCredits, 0),
-      totalDebits,
-      totalCredits
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `trial_balance_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    exportUniversalCsv(`trial_balance_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Standard Trial Balance Sheet',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+      totalsRow: [
+        'TOTAL TRIAL BALANCE',
+        '',
+        '',
+        '',
+        trialBalanceRows.reduce((sum, r) => sum + r.periodDebits, 0),
+        trialBalanceRows.reduce((sum, r) => sum + r.periodCredits, 0),
+        totalDebits,
+        totalCredits,
+      ],
+    });
 
     setExportSuccess(true);
     setTimeout(() => setExportSuccess(false), 3000);
   };
 
   const handlePrint = () => {
-    window.print();
+    printConcernedTable('printable-trial-balance-sheet', 'Standard Trial Balance Sheet', {
+      tableName: 'Official Standard Trial Balance Sheet',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+    });
   };
 
   return (
@@ -341,22 +341,13 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
             </div>
 
             {/* Printable Preview Container */}
-            <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-6 bg-white space-y-4 text-xs font-sans print:border-0 print:p-0">
+            <div id="printable-trial-balance-sheet" className="flex-1 overflow-y-auto border border-slate-200 rounded-lg p-6 bg-white space-y-4 text-xs font-sans print-concerned-table">
               {/* Document Header */}
-              <div className="text-center pb-3 border-b-2 border-slate-900 space-y-1">
-                <h1 className="text-lg font-bold uppercase tracking-wider text-slate-900">
-                  AHCM Mining & Trading Enterprises
-                </h1>
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-slate-600">
-                  Official Standard Trial Balance Sheet
-                </h2>
-                <div className="text-[10px] text-slate-500 font-mono">
-                  As of Oct 2026 · Printed On: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </div>
-                <div className="inline-block px-2.5 py-0.5 rounded text-[10px] font-bold font-mono uppercase tracking-wider mt-1 bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  {isBalanced ? '✓ Balanced (Equilibrium Confirmed)' : '⚠ Discrepancy Found'}
-                </div>
-              </div>
+              <PrintDocumentHeader
+                tableName="Official Standard Trial Balance Sheet"
+                date={new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })}
+                subtitle={isBalanced ? '✓ Balanced (Equilibrium Confirmed)' : '⚠ Discrepancy Found'}
+              />
 
               {/* Printable Table */}
               <table className="w-full text-left border-collapse text-[11px]">

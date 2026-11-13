@@ -10,6 +10,7 @@ import {
 import type { BuyerRecord, CoalSellRecord, BuyerType, SaleProvince } from '../../types/storeSales.ts';
 import ConfirmModal from './ConfirmModal.tsx';
 import { printConcernedTable } from '../../utils/printTable.ts';
+import { exportUniversalCsv } from '../../utils/exportCsv.ts';
 
 interface BuyerManagementViewProps {
   buyers: BuyerRecord[];
@@ -197,33 +198,33 @@ export const BuyerManagementView: React.FC<BuyerManagementViewProps> = ({
       const stats = buyerStats[b.id] || { totalPurchasedTons: 0, totalSpentPKR: 0, invoicesCount: 0 };
       return [
         idx + 1,
-        `"${b.buyerName.replace(/"/g, '""')}"`,
-        `"${b.buyerNTN}"`,
-        `"${b.buyerCNIC}"`,
+        b.buyerName,
+        b.buyerNTN,
+        b.buyerCNIC,
         b.buyerType,
         b.saleOrganization,
-        `"${(b.city || '').replace(/"/g, '""')}"`,
-        `"${(b.phone || '').replace(/"/g, '""')}"`,
+        b.city || '',
+        b.phone || '',
         stats.invoicesCount,
         stats.totalPurchasedTons,
         stats.totalSpentPKR,
       ];
     });
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `coal_buyers_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportUniversalCsv(`coal_buyers_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Registered Buyers Directory',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+    });
   };
 
   // Print List (Table Only)
   const handlePrint = () => {
-    printConcernedTable('printable-buyers-directory-table', 'Registered Buyers Directory');
+    printConcernedTable('printable-buyers-directory-table', 'Registered Buyers Directory', {
+      tableName: 'Registered Buyers Directory',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+    });
   };
 
   return (

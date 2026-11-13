@@ -18,6 +18,8 @@ import { StoreItem, ItemCategory, ItemUnitType, ItemsSubTab } from '../../types/
 import { DatePickerInput } from '../common/DatePickerInput';
 import { ConfirmModal } from './ConfirmModal';
 import { formatWholeNumber } from '../../utils/formatters';
+import { exportUniversalCsv } from '../../utils/exportCsv';
+import { printConcernedTable } from '../../utils/printTable';
 
 interface ItemsViewProps {
   items: StoreItem[];
@@ -272,23 +274,21 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
     const headers = ['Sr.', 'Date', 'Item Code', 'Item Name', 'Category', 'Unit', 'Current Stock', 'Remarks'];
     const rows = filteredItems.map((item, idx) => [
       idx + 1,
-      `"${item.date}"`,
-      `"${item.itemCode}"`,
-      `"${item.itemName.replace(/"/g, '""')}"`,
-      `"${item.categoryName}"`,
-      `"${item.unitTypeName} (${item.unitSymbol})"`,
+      item.date,
+      item.itemCode,
+      item.itemName,
+      item.categoryName,
+      `${item.unitTypeName} (${item.unitSymbol})`,
       itemStockMap[item.id] || 0,
-      `"${(item.remarks || '').replace(/"/g, '""')}"`,
+      item.remarks || '',
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Store_Items_Catalog_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportUniversalCsv(`Store_Items_Catalog_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Store Items Master Register',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+    });
     showToast('Store Items exported to CSV.');
   };
 
@@ -337,7 +337,12 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() =>
+              printConcernedTable('printable-store-items-master-table', 'Store Items Master Register', {
+                tableName: 'Store Items Master Register',
+                reportDate: new Date().toLocaleDateString('en-GB'),
+              })
+            }
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-xs cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5 text-slate-600" />
@@ -573,7 +578,7 @@ export const ItemsView: React.FC<ItemsViewProps> = ({
           </div>
 
           {/* Table */}
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+          <div id="printable-store-items-master-table" className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden print-concerned-table">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">

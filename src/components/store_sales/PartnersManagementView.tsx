@@ -10,6 +10,7 @@ import {
 import type { PartnerRecord, CoalStockRecord, CoalSellRecord } from '../../types/storeSales.ts';
 import ConfirmModal from './ConfirmModal.tsx';
 import { printConcernedTable } from '../../utils/printTable.ts';
+import { exportUniversalCsv } from '../../utils/exportCsv.ts';
 
 interface PartnersManagementViewProps {
   partners: PartnerRecord[];
@@ -195,32 +196,32 @@ export const PartnersManagementView: React.FC<PartnersManagementViewProps> = ({
       const stats = partnerStats[p.id] || { stockAdded: 0, sold: 0, netBalance: 0 };
       return [
         idx + 1,
-        `"${p.name.replace(/"/g, '""')}"`,
-        `"${p.code}"`,
+        p.name,
+        p.code,
         p.isActive ? 'Active' : 'Inactive',
-        `"${(p.contactPerson || '').replace(/"/g, '""')}"`,
-        `"${(p.phone || '').replace(/"/g, '""')}"`,
+        p.contactPerson || '',
+        p.phone || '',
         stats.stockAdded,
         stats.sold,
         stats.netBalance,
-        `"${(p.notes || '').replace(/"/g, '""')}"`,
+        p.notes || '',
       ];
     });
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `mining_partners_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportUniversalCsv(`mining_partners_${new Date().toISOString().slice(0, 10)}.csv`, {
+      tableName: 'Mining Partners Directory',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+    });
   };
 
   // Print List (Table Only)
   const handlePrint = () => {
-    printConcernedTable('printable-partners-directory-table', 'Mining Partners Directory');
+    printConcernedTable('printable-partners-directory-table', 'Mining Partners Directory', {
+      tableName: 'Mining Partners Directory',
+      reportDate: new Date().toLocaleDateString('en-GB'),
+    });
   };
 
   return (

@@ -21,6 +21,7 @@ import {
 } from '../../types/storeSales';
 import { ConfirmModal } from './ConfirmModal';
 import { printConcernedTable } from '../../utils/printTable';
+import { exportUniversalCsv } from '../../utils/exportCsv';
 
 interface ItemSettingsViewProps {
   categories: ItemCategory[];
@@ -241,25 +242,26 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
     let headers: string[] = [];
     let rows: (string | number)[][] = [];
     let filename = '';
+    let tableName = '';
 
     if (activeTab === 'categories') {
       headers = ['ID', 'Category Name', 'Description'];
-      rows = filteredCategories.map(c => [c.id, `"${c.name}"`, `"${c.description || ''}"`]);
+      rows = filteredCategories.map(c => [c.id, c.name, c.description || '']);
       filename = 'Item_Categories.csv';
+      tableName = 'Item Categories Master Register';
     } else {
       headers = ['ID', 'Unit Name', 'Symbol', 'Description'];
-      rows = filteredUnits.map(u => [u.id, `"${u.name}"`, `"${u.symbol}"`, `"${u.description || ''}"`]);
+      rows = filteredUnits.map(u => [u.id, u.name, u.symbol, u.description || '']);
       filename = 'Item_Unit_Types.csv';
+      tableName = 'Measurement Unit Types Master Register';
     }
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportUniversalCsv(filename, {
+      tableName,
+      reportDate: new Date().toLocaleDateString('en-GB'),
+      headers,
+      rows,
+    });
     showToast(`Exported ${filename} successfully.`);
   };
 
@@ -311,7 +313,10 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
             onClick={() => {
               const tableId = activeTab === 'categories' ? 'printable-categories-table' : 'printable-units-table';
               const title = activeTab === 'categories' ? 'Item Categories Master' : 'Measurement Unit Types Master';
-              printConcernedTable(tableId, title);
+              printConcernedTable(tableId, title, {
+                tableName: title,
+                reportDate: new Date().toLocaleDateString('en-GB'),
+              });
             }}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors shadow-xs cursor-pointer"
           >
