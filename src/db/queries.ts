@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from './index.ts';
 import * as schema from './schema.ts';
 import type { User } from '../types/user.ts';
@@ -231,6 +231,7 @@ export async function dbGetChartAccounts(): Promise<ChartAccount[]> {
     return rows.map((r) => ({
       id: r.id,
       code: r.code,
+      accountNo: r.accountNo || r.code,
       typeDigit: r.typeDigit || 1,
       classDigit: r.classDigit || 1,
       groupCode: r.groupCode || '',
@@ -244,6 +245,11 @@ export async function dbGetChartAccounts(): Promise<ChartAccount[]> {
       currentBalance: r.currentBalance || 0,
       description: r.description || undefined,
       isActive: r.isActive ?? true,
+      level: r.level ?? undefined,
+      transType: r.transType || undefined,
+      parentAccountNo: r.parentAccountNo ?? undefined,
+      openingBalanceType: (r.openingBalanceType as 'DR' | 'CR') || (r.normalBalance === 'Credit' ? 'CR' : 'DR'),
+      monthly: (r.monthly as ChartAccount['monthly']) || undefined,
     }));
   } catch (error) {
     console.error('Failed to get chart accounts from database:', error);
@@ -251,46 +257,192 @@ export async function dbGetChartAccounts(): Promise<ChartAccount[]> {
   }
 }
 
+function buildChartAccountDbRow(account: ChartAccount) {
+  const code = (account.code || account.accountNo || '').trim();
+  const typeDigit =
+    account.typeDigit ||
+    (account.accountType === 'Asset'
+      ? 1
+      : account.accountType === 'Liability'
+      ? 2
+      : account.accountType === 'Equity'
+      ? 3
+      : account.accountType === 'Revenue'
+      ? 4
+      : 5);
+  const normalBalance =
+    account.normalBalance || (account.openingBalanceType === 'CR' ? 'Credit' : 'Debit');
+  const openingBalance = Number(account.openingBalance) || 0;
+  const currentBalance =
+    account.currentBalance !== undefined ? Number(account.currentBalance) || 0 : openingBalance;
+
+  return {
+    id: account.id,
+    code,
+    accountNo: account.accountNo || code,
+    typeDigit,
+    classDigit: account.classDigit || 1,
+    groupCode: account.groupCode || '',
+    subCode: account.subCode || '',
+    name: account.name,
+    accountType: account.accountType,
+    classification: account.classification || '',
+    groupName: account.groupName || '',
+    normalBalance,
+    openingBalance,
+    currentBalance,
+    description: account.description ?? null,
+    isActive: account.isActive ?? true,
+    level: account.level ?? null,
+    transType: account.transType ?? null,
+    parentAccountNo: account.parentAccountNo ?? null,
+    openingBalanceType: account.openingBalanceType || (normalBalance === 'Credit' ? 'CR' : 'DR'),
+    monthly: account.monthly ?? null,
+  };
+}
+
 export async function dbSaveChartAccount(account: ChartAccount): Promise<ChartAccount> {
   try {
+    const row = buildChartAccountDbRow(account);
+
+    // Ensure unique code constraint cannot conflict with another existing ID
+    const existingByCode = await db
+      .select({ id: schema.chartAccounts.id, code: schema.chartAccounts.code })
+      .from(schema.chartAccounts);
+    const codeMatch = existingByCode.find(
+      (r) => r.code.trim().toLowerCase() === row.code.toLowerCase()
+    );
+    const targetId = codeMatch ? codeMatch.id : row.id;
+
     await db
       .insert(schema.chartAccounts)
-      .values({
-        id: account.id,
-        code: account.code,
-        typeDigit: account.typeDigit,
-        classDigit: account.classDigit,
-        groupCode: account.groupCode,
-        subCode: account.subCode,
-        name: account.name,
-        accountType: account.accountType,
-        classification: account.classification,
-        groupName: account.groupName,
-        normalBalance: account.normalBalance,
-        openingBalance: account.openingBalance,
-        currentBalance: account.currentBalance,
-        description: account.description,
-        isActive: account.isActive,
-      })
+      .values({ ...row, id: targetId })
       .onConflictDoUpdate({
         target: schema.chartAccounts.id,
         set: {
-          code: account.code,
-          name: account.name,
-          accountType: account.accountType,
-          classification: account.classification,
-          groupName: account.groupName,
-          normalBalance: account.normalBalance,
-          openingBalance: account.openingBalance,
-          currentBalance: account.currentBalance,
-          description: account.description,
-          isActive: account.isActive,
+          code: row.code,
+          accountNo: row.accountNo,
+          typeDigit: row.typeDigit,
+          classDigit: row.classDigit,
+          groupCode: row.groupCode,
+          subCode: row.subCode,
+          name: row.name,
+          accountType: row.accountType,
+          classification: row.classification,
+          groupName: row.groupName,
+          normalBalance: row.normalBalance,
+          openingBalance: row.openingBalance,
+          currentBalance: row.currentBalance,
+          description: row.description,
+          isActive: row.isActive,
+          level: row.level,
+          transType: row.transType,
+          parentAccountNo: row.parentAccountNo,
+          openingBalanceType: row.openingBalanceType,
+          monthly: row.monthly,
         },
       });
-    return account;
+    return { ...account, id: targetId };
   } catch (error) {
     console.error('Failed to save chart account in database:', error);
     throw new Error('Failed to save chart account', { cause: error });
+  }
+}
+
+export async function dbDeleteChartAccount(id: string): Promise<void> {
+  try {
+    await db.delete(schema.chartAccounts).where(eq(schema.chartAccounts.id, id));
+  } catch (error) {
+    console.error('Failed to delete chart account from database:', error);
+    throw new Error('Failed to delete chart account', { cause: error });
+  }
+}
+
+export async function dbBulkSaveChartAccounts(
+  accountsList: ChartAccount[],
+  overrideAll = false
+): Promise<ChartAccount[]> {
+  try {
+    // Deduplicate by normalized code (keeping latest entry) so batch upsert never touches the same row twice
+    const dedupedMap = new Map<string, ChartAccount>();
+    for (const acc of accountsList) {
+      const codeKey = (acc.code || acc.accountNo || acc.id || '').trim().toLowerCase();
+      if (!codeKey) continue;
+      dedupedMap.set(codeKey, acc);
+    }
+    const deduped = Array.from(dedupedMap.values());
+
+    const reconciled = await db.transaction(async (tx) => {
+      let existingCodeToId = new Map<string, string>();
+
+      if (overrideAll) {
+        await tx.delete(schema.chartAccounts);
+      } else {
+        const existingRows = await tx
+          .select({ id: schema.chartAccounts.id, code: schema.chartAccounts.code })
+          .from(schema.chartAccounts);
+        existingCodeToId = new Map(
+          existingRows.map((r) => [r.code.trim().toLowerCase(), r.id])
+        );
+      }
+
+      const finalAccounts: ChartAccount[] = deduped.map((acc, idx) => {
+        const codeStr = (acc.code || acc.accountNo || '').trim();
+        const codeKey = codeStr.toLowerCase();
+        const resolvedId =
+          (!overrideAll && existingCodeToId.get(codeKey)) ||
+          acc.id ||
+          `coa-${codeStr.replace(/[^a-zA-Z0-9]/g, '_') || idx}`;
+        return {
+          ...acc,
+          id: resolvedId,
+          code: codeStr || acc.code,
+          accountNo: acc.accountNo || codeStr,
+        };
+      });
+
+      const batchSize = 50;
+      for (let i = 0; i < finalAccounts.length; i += batchSize) {
+        const chunk = finalAccounts.slice(i, i + batchSize).map(buildChartAccountDbRow);
+        if (chunk.length === 0) continue;
+
+        await tx
+          .insert(schema.chartAccounts)
+          .values(chunk)
+          .onConflictDoUpdate({
+            target: schema.chartAccounts.id,
+            set: {
+              code: sql`excluded.code`,
+              accountNo: sql`excluded.account_no`,
+              typeDigit: sql`excluded.type_digit`,
+              classDigit: sql`excluded.class_digit`,
+              groupCode: sql`excluded.group_code`,
+              subCode: sql`excluded.sub_code`,
+              name: sql`excluded.name`,
+              accountType: sql`excluded.account_type`,
+              classification: sql`excluded.classification`,
+              groupName: sql`excluded.group_name`,
+              normalBalance: sql`excluded.normal_balance`,
+              openingBalance: sql`excluded.opening_balance`,
+              currentBalance: sql`excluded.current_balance`,
+              description: sql`excluded.description`,
+              isActive: sql`excluded.is_active`,
+              level: sql`excluded.level`,
+              transType: sql`excluded.trans_type`,
+              parentAccountNo: sql`excluded.parent_account_no`,
+              openingBalanceType: sql`excluded.opening_balance_type`,
+              monthly: sql`excluded.monthly`,
+            },
+          });
+      }
+
+      return finalAccounts;
+    });
+
+    return reconciled;
+  } catch (error) {
+    console.error('Failed to bulk save chart accounts in database:', error);
+    throw new Error('Failed to bulk save chart accounts', { cause: error });
   }
 }
 

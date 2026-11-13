@@ -391,6 +391,7 @@ CREATE TABLE IF NOT EXISTS public.purchases (
 CREATE TABLE IF NOT EXISTS public.chart_accounts (
     id TEXT PRIMARY KEY NOT NULL,
     code TEXT NOT NULL,
+    account_no TEXT,
     type_digit INTEGER,
     class_digit INTEGER,
     group_code TEXT,
@@ -403,7 +404,12 @@ CREATE TABLE IF NOT EXISTS public.chart_accounts (
     opening_balance DOUBLE PRECISION DEFAULT 0,
     current_balance DOUBLE PRECISION DEFAULT 0,
     description TEXT,
-    is_active BOOLEAN DEFAULT true
+    is_active BOOLEAN DEFAULT true,
+    level INTEGER,
+    trans_type TEXT,
+    parent_account_no TEXT,
+    opening_balance_type TEXT,
+    monthly JSONB
 );
 
 CREATE TABLE IF NOT EXISTS public.vouchers (

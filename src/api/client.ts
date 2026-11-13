@@ -371,34 +371,54 @@ const mapPurchaseToRow = (p: PurchaseDocument) => ({
   updated_at: p.updatedAt || new Date().toISOString(),
 });
 
-const mapChartAccountFromRow = (r: any): ChartAccount => ({
-  id: r.id,
-  code: r.code,
-  accountNo: r.account_no || r.code,
-  typeDigit: Number(r.type_digit || 1),
-  classDigit: Number(r.class_digit || 1),
-  groupCode: r.group_code || '',
-  subCode: r.sub_code || '',
-  name: r.name,
-  accountType: r.account_type,
-  classification: r.classification || '',
-  groupName: r.group_name || '',
-  normalBalance: (r.normal_balance || 'Debit') as any,
-  openingBalance: Number(r.opening_balance || 0),
-  currentBalance: Number(r.current_balance || 0),
-  description: r.description || undefined,
-  isActive: r.is_active ?? true,
-  level: r.level ? Number(r.level) : undefined,
-  transType: r.trans_type || undefined,
-  parentAccountNo: r.parent_account_no || undefined,
-  openingBalanceType: r.opening_balance_type || (r.normal_balance === 'Credit' ? 'CR' : 'DR'),
-  monthly: r.monthly || undefined,
-});
+const mapChartAccountFromRow = (r: any): ChartAccount => {
+  let monthly = r.monthly;
+  if (typeof monthly === 'string' && monthly.trim().length > 0) {
+    try {
+      monthly = JSON.parse(monthly);
+    } catch {
+      monthly = undefined;
+    }
+  }
+  return {
+    id: r.id,
+    code: r.code,
+    accountNo: r.account_no || r.code,
+    typeDigit: Number(r.type_digit || 1),
+    classDigit: Number(r.class_digit || 1),
+    groupCode: r.group_code || '',
+    subCode: r.sub_code || '',
+    name: r.name,
+    accountType: r.account_type,
+    classification: r.classification || '',
+    groupName: r.group_name || '',
+    normalBalance: (r.normal_balance || 'Debit') as any,
+    openingBalance: Number(r.opening_balance || 0),
+    currentBalance: Number(r.current_balance || 0),
+    description: r.description || undefined,
+    isActive: r.is_active ?? true,
+    level: r.level !== null && r.level !== undefined ? Number(r.level) : undefined,
+    transType: r.trans_type || undefined,
+    parentAccountNo: r.parent_account_no ?? undefined,
+    openingBalanceType: r.opening_balance_type || (r.normal_balance === 'Credit' ? 'CR' : 'DR'),
+    monthly: monthly || undefined,
+  };
+};
 
-const mapChartAccountToRow = (a: ChartAccount) => ({
+const mapChartAccountCoreToRow = (a: ChartAccount) => ({
   id: a.id,
-  code: a.code || a.accountNo || '',
-  type_digit: a.typeDigit || (a.accountType === 'Asset' ? 1 : a.accountType === 'Liability' ? 2 : a.accountType === 'Equity' ? 3 : a.accountType === 'Revenue' ? 4 : 5),
+  code: (a.code || a.accountNo || '').trim(),
+  type_digit:
+    a.typeDigit ||
+    (a.accountType === 'Asset'
+      ? 1
+      : a.accountType === 'Liability'
+      ? 2
+      : a.accountType === 'Equity'
+      ? 3
+      : a.accountType === 'Revenue'
+      ? 4
+      : 5),
   class_digit: a.classDigit || 1,
   group_code: a.groupCode || '',
   sub_code: a.subCode || '',
@@ -407,10 +427,22 @@ const mapChartAccountToRow = (a: ChartAccount) => ({
   classification: a.classification || '',
   group_name: a.groupName || '',
   normal_balance: a.normalBalance || (a.openingBalanceType === 'CR' ? 'Credit' : 'Debit'),
-  opening_balance: a.openingBalance || 0,
-  current_balance: a.currentBalance || a.openingBalance || 0,
+  opening_balance: Number(a.openingBalance) || 0,
+  current_balance:
+    a.currentBalance !== undefined ? Number(a.currentBalance) || 0 : Number(a.openingBalance) || 0,
   description: a.description || null,
   is_active: a.isActive ?? true,
+});
+
+const mapChartAccountToRow = (a: ChartAccount) => ({
+  ...mapChartAccountCoreToRow(a),
+  account_no: (a.accountNo || a.code || '').trim(),
+  level: a.level ?? null,
+  trans_type: a.transType ?? null,
+  parent_account_no: a.parentAccountNo ?? null,
+  opening_balance_type:
+    a.openingBalanceType || (a.normalBalance === 'Credit' ? 'CR' : 'DR'),
+  monthly: a.monthly ?? null,
 });
 
 const mapVoucherFromRow = (r: any): VoucherDocument => ({
@@ -1091,11 +1123,66 @@ export function computeItemWiseStockSummary(
 // 1. BOOTSTRAP (INITIAL APP LOAD & SYNC)
 // ==========================================
 export async function fetchBootstrapData(): Promise<BootstrapData | null> {
+  const loadFallback = <T>(key: string, initial: T): T => {
+    try {
+      const raw = localStorage.getItem(`ahcm_erp_${key}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed as unknown as T;
+        if (parsed && typeof parsed === 'object') return parsed as unknown as T;
+      }
+    } catch {}
+    return initial;
+  };
+
   try {
-    // If Supabase is not configured yet in this environment, return baseline records immediately
+    // If Supabase client SDK is not configured in browser, bootstrap from Express PostgreSQL API first
     if (!isSupabaseConfigured()) {
+      try {
+        const res = await fetch('/api/bootstrap');
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('application/json')) {
+          const data = await res.json();
+          if (data && typeof data === 'object' && Array.isArray(data.accounts)) {
+            return {
+              users: data.users?.length ? data.users : loadFallback('users', initialUsers),
+              demands: data.demands ?? loadFallback('demands', initialDemands),
+              purchases: data.purchases ?? loadFallback('purchases', initialPurchases),
+              accounts: data.accounts.length ? data.accounts : loadFallback('accounts', initialChartOfAccounts),
+              vouchers: data.vouchers ?? loadFallback('vouchers', initialVouchers),
+              cashBookEntries: data.cashBookEntries ?? loadFallback('cash_book', initialCashBookEntries),
+              creditBookEntries: data.creditBookEntries ?? loadFallback('credit_book', initialCreditBookEntries),
+              banks: data.banks ?? loadFallback('banks', initialBanks),
+              bankAccounts: data.bankAccounts ?? loadFallback('bank_accounts', initialBankAccounts),
+              companySettings: data.companySettings ?? loadFallback('company_settings', initialCompanySettings),
+              buyers: data.buyers ?? loadFallback('buyers', initialBuyers),
+              partners: data.partners ?? loadFallback('partners', initialPartners),
+              posEntries: data.posEntries ?? loadFallback('pos_entries', initialPosEntries),
+              coalSellRecords: data.coalSellRecords ?? loadFallback('coal_records', initialCoalSellRecords),
+              coalProductionRecords: data.coalProductionRecords ?? loadFallback('coal_production_records', initialCoalProductionRecords),
+              stockItems: data.stockItems ?? loadFallback('stock_items', initialStockItems),
+              stockEntries: data.stockEntries ?? loadFallback('stock_entries', initialStockEntries),
+              vehicles: data.vehicles ?? loadFallback('vehicles', initialVehicles),
+              vehicleConsumptions: data.vehicleConsumptions ?? loadFallback('consumptions', initialVehicleConsumptions),
+              mines: data.mines ?? loadFallback('item_mines', initialMines),
+              itemCategories: data.itemCategories ?? loadFallback('item_categories', initialItemCategories),
+              itemUnits: data.itemUnits ?? loadFallback('item_units', initialItemUnits),
+              itemConsumptions: data.itemConsumptions ?? loadFallback('consumptions', initialItemConsumptions),
+              vehicleConsumptionSummary:
+                data.vehicleConsumptionSummary ??
+                computeVehicleConsumptionSummary(data.vehicles || initialVehicles, data.vehicleConsumptions || initialVehicleConsumptions),
+              itemWiseStockSummary:
+                data.itemWiseStockSummary ??
+                computeItemWiseStockSummary(data.stockItems || initialStockItems, data.stockEntries || initialStockEntries),
+            };
+          }
+        }
+      } catch (apiErr) {
+        console.warn('Express /api/bootstrap unavailable, falling back to local baseline:', apiErr);
+      }
+
       console.log(
-        '%c[SUPABASE PREVIEW] %cSupabase Anon Key is not yet configured for this preview environment. Loaded default local baseline data. Connect your Supabase Anon Key in Database Diagnostics to enable live cloud sync.',
+        '%c[SUPABASE PREVIEW] %cSupabase Anon Key is not yet configured for this preview environment. Loaded local baseline data.',
         'color: #0284c7; font-weight: bold;',
         'color: #64748b;'
       );
@@ -1104,29 +1191,29 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       const itemWiseStockSummary = computeItemWiseStockSummary(initialStockItems, initialStockEntries);
 
       return {
-        users: initialUsers,
-        demands: initialDemands,
-        purchases: initialPurchases,
-        accounts: initialChartOfAccounts,
-        vouchers: initialVouchers,
-        cashBookEntries: initialCashBookEntries,
-        creditBookEntries: initialCreditBookEntries,
-        banks: initialBanks,
-        bankAccounts: initialBankAccounts,
-        companySettings: initialCompanySettings,
-        buyers: initialBuyers,
-        partners: initialPartners,
-        posEntries: initialPosEntries,
-        coalSellRecords: initialCoalSellRecords,
-        coalProductionRecords: initialCoalProductionRecords,
-        stockItems: initialStockItems,
-        stockEntries: initialStockEntries,
-        vehicles: initialVehicles,
-        vehicleConsumptions: initialVehicleConsumptions,
-        mines: initialMines,
-        itemCategories: initialItemCategories,
-        itemUnits: initialItemUnits,
-        itemConsumptions: initialItemConsumptions,
+        users: loadFallback('users', initialUsers),
+        demands: loadFallback('demands', initialDemands),
+        purchases: loadFallback('purchases', initialPurchases),
+        accounts: loadFallback('accounts', initialChartOfAccounts),
+        vouchers: loadFallback('vouchers', initialVouchers),
+        cashBookEntries: loadFallback('cash_book', initialCashBookEntries),
+        creditBookEntries: loadFallback('credit_book', initialCreditBookEntries),
+        banks: loadFallback('banks', initialBanks),
+        bankAccounts: loadFallback('bank_accounts', initialBankAccounts),
+        companySettings: loadFallback('company_settings', initialCompanySettings),
+        buyers: loadFallback('buyers', initialBuyers),
+        partners: loadFallback('partners', initialPartners),
+        posEntries: loadFallback('pos_entries', initialPosEntries),
+        coalSellRecords: loadFallback('coal_records', initialCoalSellRecords),
+        coalProductionRecords: loadFallback('coal_production_records', initialCoalProductionRecords),
+        stockItems: loadFallback('stock_items', initialStockItems),
+        stockEntries: loadFallback('stock_entries', initialStockEntries),
+        vehicles: loadFallback('vehicles', initialVehicles),
+        vehicleConsumptions: loadFallback('consumptions', initialVehicleConsumptions),
+        mines: loadFallback('item_mines', initialMines),
+        itemCategories: loadFallback('item_categories', initialItemCategories),
+        itemUnits: loadFallback('item_units', initialItemUnits),
+        itemConsumptions: loadFallback('consumptions', initialItemConsumptions),
         vehicleConsumptionSummary,
         itemWiseStockSummary,
       };
@@ -1227,18 +1314,6 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
         supabase.from(SUPABASE_TABLES.ITEM_CONSUMPTIONS).select('*')
       ),
     ]);
-
-    const loadFallback = <T>(key: string, initial: T): T => {
-      try {
-        const raw = localStorage.getItem(`ahcm_erp_${key}`);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed as unknown as T;
-          if (parsed && typeof parsed === 'object') return parsed as unknown as T;
-        }
-      } catch {}
-      return initial;
-    };
 
     const users = usersRes && usersRes.length > 0 ? usersRes.map(mapUserFromRow) : loadFallback('users', initialUsers);
     const demands = demandsRes ? demandsRes.map(mapDemandFromRow) : loadFallback('demands', initialDemands);
@@ -1450,6 +1525,13 @@ export async function apiDeletePurchase(purchaseId: string): Promise<boolean> {
 // ==========================================
 export async function apiSaveChartAccount(acc: ChartAccount): Promise<ChartAccount | null> {
   try {
+    // Sync with Express PostgreSQL API when available
+    fetch('/api/accounting/accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(acc),
+    }).catch(() => {});
+
     const row = mapChartAccountToRow(acc);
     if (!isSupabaseConfigured()) {
       return acc;
@@ -1461,7 +1543,17 @@ export async function apiSaveChartAccount(acc: ChartAccount): Promise<ChartAccou
       row,
       () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).upsert(row)
     );
-    return res !== null ? acc : acc;
+    if (res === null) {
+      const coreRow = mapChartAccountCoreToRow(acc);
+      await diagnosticSupabaseOperation<any>(
+        'apiSaveChartAccount_coreFallback',
+        SUPABASE_TABLES.CHART_ACCOUNTS,
+        'UPSERT',
+        coreRow,
+        () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).upsert(coreRow)
+      );
+    }
+    return acc;
   } catch (err: any) {
     console.error('Unhandled exception in apiSaveChartAccount:', err);
     return acc;
@@ -1470,8 +1562,19 @@ export async function apiSaveChartAccount(acc: ChartAccount): Promise<ChartAccou
 
 export async function apiDeleteChartAccount(accountId: string): Promise<boolean> {
   try {
+    let deletedViaExpress = false;
+    try {
+      const serverRes = await fetch(`/api/accounting/accounts/${encodeURIComponent(accountId)}`, {
+        method: 'DELETE',
+      });
+      const contentType = serverRes.headers.get('content-type') || '';
+      if (serverRes.ok && contentType.includes('application/json')) {
+        deletedViaExpress = true;
+      }
+    } catch {}
+
     if (!isSupabaseConfigured()) {
-      return true;
+      return deletedViaExpress;
     }
     const res = await diagnosticSupabaseOperation<any>(
       'apiDeleteChartAccount',
@@ -1480,7 +1583,7 @@ export async function apiDeleteChartAccount(accountId: string): Promise<boolean>
       { accountId },
       () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).delete().eq('id', accountId)
     );
-    return res !== null;
+    return res !== null || deletedViaExpress;
   } catch (err: any) {
     console.error('Unhandled exception in apiDeleteChartAccount:', err);
     return false;
@@ -1488,43 +1591,143 @@ export async function apiDeleteChartAccount(accountId: string): Promise<boolean>
 }
 
 export async function apiBulkSaveChartAccounts(
-  accountsList: ChartAccount[], 
+  accountsList: ChartAccount[],
   overrideAll = false
-): Promise<ChartAccount[] | null> {
-  try {
-    if (!isSupabaseConfigured()) {
-      return accountsList;
-    }
-
-    if (overrideAll) {
-      await diagnosticSupabaseOperation<any>(
-        'apiClearChartAccountsBeforeImport',
-        SUPABASE_TABLES.CHART_ACCOUNTS,
-        'DELETE',
-        { overrideAll: true },
-        () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).delete().neq('id', '___non_existent_safety_id___')
-      );
-    }
-
-    // Upsert in batches of 40
-    const rows = accountsList.map(mapChartAccountToRow);
-    const batchSize = 40;
-    for (let i = 0; i < rows.length; i += batchSize) {
-      const batch = rows.slice(i, i + batchSize);
-      await diagnosticSupabaseOperation<any>(
-        `apiBulkSaveChartAccounts_batch_${Math.floor(i / batchSize)}`,
-        SUPABASE_TABLES.CHART_ACCOUNTS,
-        'UPSERT',
-        { count: batch.length },
-        () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).upsert(batch)
-      );
-    }
-
-    return accountsList;
-  } catch (err: any) {
-    console.error('Unhandled exception in apiBulkSaveChartAccounts:', err);
-    return accountsList;
+): Promise<{ success: boolean; accounts: ChartAccount[]; error?: string }> {
+  // Deduplicate by normalized code (keeping latest)
+  const dedupedMap = new Map<string, ChartAccount>();
+  for (const acc of accountsList) {
+    const key = (acc.code || acc.accountNo || acc.id || '').trim().toLowerCase();
+    if (!key) continue;
+    dedupedMap.set(key, acc);
   }
+  const deduped = Array.from(dedupedMap.values());
+
+  let persistedAccounts = deduped;
+  let savedViaExpress = false;
+  let expressError = '';
+  let savedViaSupabase = false;
+  let supabaseError = '';
+
+  // 1. Primary Express / PostgreSQL backend persistence
+  try {
+    const serverRes = await fetch('/api/accounting/accounts/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accounts: deduped, overrideAll }),
+    });
+    const contentType = serverRes.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const json = await serverRes.json();
+      if (serverRes.ok && json?.success) {
+        savedViaExpress = true;
+        if (Array.isArray(json.accounts)) {
+          persistedAccounts = json.accounts;
+        }
+      } else {
+        expressError = json?.details || json?.error || `Server error (${serverRes.status})`;
+      }
+    }
+  } catch (err: any) {
+    // Express API may be absent in pure static hosting
+    expressError = err?.message || '';
+  }
+
+  // 2. Direct Supabase Client SDK persistence (when configured in browser / Vercel)
+  if (isSupabaseConfigured()) {
+    try {
+      let toUpsert = persistedAccounts;
+
+      if (overrideAll) {
+        const delRes = await diagnosticSupabaseOperation<any>(
+          'apiClearChartAccountsBeforeImport',
+          SUPABASE_TABLES.CHART_ACCOUNTS,
+          'DELETE',
+          { overrideAll: true },
+          () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).delete().neq('id', '___non_existent_safety_id___')
+        );
+        if (delRes === null) {
+          supabaseError = getDbApiDiagnosticLogs()[0]?.error || 'Failed to clear existing accounts in Supabase.';
+        }
+      } else {
+        // Reconcile IDs by existing code so UNIQUE(code) never conflicts and duplicates aren't created
+        const existingRows = await diagnosticSupabaseOperation<any[]>(
+          'apiFetchExistingChartAccountCodes',
+          SUPABASE_TABLES.CHART_ACCOUNTS,
+          'SELECT',
+          {},
+          () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).select('id, code')
+        );
+        if (Array.isArray(existingRows)) {
+          const codeToId = new Map<string, string>();
+          existingRows.forEach((r) => {
+            if (r?.code && r?.id) codeToId.set(String(r.code).trim().toLowerCase(), String(r.id));
+          });
+          toUpsert = toUpsert.map((acc) => {
+            const matchedId = codeToId.get((acc.code || acc.accountNo || '').trim().toLowerCase());
+            return matchedId ? { ...acc, id: matchedId } : acc;
+          });
+        }
+      }
+
+      if (!supabaseError) {
+        const batchSize = 40;
+        let allBatchesOk = true;
+        for (let i = 0; i < toUpsert.length; i += batchSize) {
+          const batchSlice = toUpsert.slice(i, i + batchSize);
+          const rows = batchSlice.map(mapChartAccountToRow);
+          let batchRes = await diagnosticSupabaseOperation<any>(
+            `apiBulkSaveChartAccounts_batch_${Math.floor(i / batchSize)}`,
+            SUPABASE_TABLES.CHART_ACCOUNTS,
+            'UPSERT',
+            { count: rows.length },
+            () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).upsert(rows)
+          );
+
+          // If optional hierarchical columns aren't in PostgREST schema cache yet, fall back to core columns
+          if (batchRes === null) {
+            const lastErr = getDbApiDiagnosticLogs()[0]?.error || '';
+            if (lastErr.includes('PGRST204') || lastErr.toLowerCase().includes('schema cache') || lastErr.toLowerCase().includes('column')) {
+              const coreRows = batchSlice.map(mapChartAccountCoreToRow);
+              batchRes = await diagnosticSupabaseOperation<any>(
+                `apiBulkSaveChartAccounts_coreBatch_${Math.floor(i / batchSize)}`,
+                SUPABASE_TABLES.CHART_ACCOUNTS,
+                'UPSERT',
+                { count: coreRows.length },
+                () => supabase.from(SUPABASE_TABLES.CHART_ACCOUNTS).upsert(coreRows)
+              );
+            }
+          }
+
+          if (batchRes === null) {
+            allBatchesOk = false;
+            supabaseError = getDbApiDiagnosticLogs()[0]?.error || 'Failed to upsert Chart of Accounts batch to Supabase.';
+            break;
+          }
+        }
+        if (allBatchesOk) {
+          savedViaSupabase = true;
+          persistedAccounts = toUpsert;
+        }
+      }
+    } catch (err: any) {
+      supabaseError = err?.message || String(err);
+      console.error('Unhandled exception in apiBulkSaveChartAccounts:', err);
+    }
+  }
+
+  if (savedViaExpress || savedViaSupabase) {
+    return { success: true, accounts: persistedAccounts };
+  }
+
+  return {
+    success: false,
+    accounts: deduped,
+    error:
+      supabaseError ||
+      expressError ||
+      'Unable to reach PostgreSQL backend or Supabase database to store Chart of Accounts.',
+  };
 }
 
 export async function apiSaveVoucher(voucher: VoucherDocument): Promise<VoucherDocument | null> {

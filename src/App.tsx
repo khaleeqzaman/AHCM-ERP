@@ -979,21 +979,48 @@ export default function App() {
     apiDeleteChartAccount(id);
   };
 
-  const handleImportAccounts = (importedAccounts: ChartAccount[], overrideAll: boolean) => {
+  const handleImportAccounts = async (
+    importedAccounts: ChartAccount[],
+    overrideAll: boolean
+  ): Promise<{ success: boolean; count?: number; error?: string }> => {
+    let reconciled = importedAccounts;
+    if (!overrideAll) {
+      const existingByCode = new Map<string, ChartAccount>();
+      accounts.forEach((a) => {
+        const key = (a.code || a.accountNo || '').trim().toLowerCase();
+        if (key) existingByCode.set(key, a);
+      });
+      reconciled = importedAccounts.map((a) => {
+        const key = (a.code || a.accountNo || '').trim().toLowerCase();
+        const existing = existingByCode.get(key);
+        return existing ? { ...a, id: existing.id } : a;
+      });
+    }
+
+    const result = await apiBulkSaveChartAccounts(reconciled, overrideAll);
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || 'Failed to save imported Chart of Accounts to database.',
+      };
+    }
+
+    const persisted = result.accounts;
     setAccounts((prev) => {
       let next: ChartAccount[];
       if (overrideAll) {
-        next = importedAccounts;
+        next = persisted;
       } else {
         const map = new Map<string, ChartAccount>();
-        prev.forEach((a) => map.set(a.code || a.id, a));
-        importedAccounts.forEach((a) => map.set(a.code || a.id, a));
+        prev.forEach((a) => map.set((a.code || a.accountNo || a.id).trim().toLowerCase(), a));
+        persisted.forEach((a) => map.set((a.code || a.accountNo || a.id).trim().toLowerCase(), a));
         next = Array.from(map.values());
       }
       saveCache('accounts', next);
       return next;
     });
-    apiBulkSaveChartAccounts(importedAccounts, overrideAll);
+
+    return { success: true, count: persisted.length };
   };
 
   const handleSaveVoucher = (voucher: VoucherDocument) => {

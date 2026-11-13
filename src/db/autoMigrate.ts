@@ -104,6 +104,7 @@ const TABLE_CREATION_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "chart_accounts" (
     "id" text PRIMARY KEY NOT NULL,
     "code" text NOT NULL,
+    "account_no" text,
     "type_digit" integer,
     "class_digit" integer,
     "group_code" text,
@@ -116,7 +117,12 @@ const TABLE_CREATION_STATEMENTS = [
     "opening_balance" double precision DEFAULT 0,
     "current_balance" double precision DEFAULT 0,
     "description" text,
-    "is_active" boolean DEFAULT true
+    "is_active" boolean DEFAULT true,
+    "level" integer,
+    "trans_type" text,
+    "parent_account_no" text,
+    "opening_balance_type" text,
+    "monthly" jsonb
   );`,
 
   `CREATE TABLE IF NOT EXISTS "coal_sell_records" (
@@ -367,6 +373,12 @@ const COLUMN_MIGRATION_STATEMENTS = [
   `ALTER TABLE "stock_entries" ADD COLUMN IF NOT EXISTS "created_at" text;`,
   `ALTER TABLE "vehicles" ADD COLUMN IF NOT EXISTS "notes" text;`,
   `ALTER TABLE "vehicles" ADD COLUMN IF NOT EXISTS "created_at" text;`,
+  `ALTER TABLE "chart_accounts" ADD COLUMN IF NOT EXISTS "account_no" text;`,
+  `ALTER TABLE "chart_accounts" ADD COLUMN IF NOT EXISTS "level" integer;`,
+  `ALTER TABLE "chart_accounts" ADD COLUMN IF NOT EXISTS "trans_type" text;`,
+  `ALTER TABLE "chart_accounts" ADD COLUMN IF NOT EXISTS "parent_account_no" text;`,
+  `ALTER TABLE "chart_accounts" ADD COLUMN IF NOT EXISTS "opening_balance_type" text;`,
+  `ALTER TABLE "chart_accounts" ADD COLUMN IF NOT EXISTS "monthly" jsonb;`,
 ];
 
 /**
@@ -421,6 +433,11 @@ export async function autoMigrateAndSeed(): Promise<{ success: boolean; message:
         // Ignore column errors
       }
     }
+
+    // Notify PostgREST (if running on Supabase) to reload schema cache after DDL alterations
+    try {
+      await ddlClient.query(`NOTIFY pgrst, 'reload schema';`);
+    } catch {}
 
     // 3. Ensure app user has full permissions on all tables
     if (adminPoolInstance && process.env.SQL_USER) {

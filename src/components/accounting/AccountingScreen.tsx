@@ -31,7 +31,10 @@ interface AccountingScreenProps {
   onAddAccount: (account: ChartAccount) => void;
   onUpdateAccount: (account: ChartAccount) => void;
   onDeleteAccount?: (id: string) => void;
-  onImportAccounts?: (importedAccounts: ChartAccount[], overrideAll: boolean) => void;
+  onImportAccounts?: (
+    importedAccounts: ChartAccount[],
+    overrideAll: boolean
+  ) => Promise<{ success: boolean; count?: number; error?: string }> | void;
   onSaveVoucher: (voucher: VoucherDocument) => void;
   onDeleteVoucher?: (id: string) => void;
   onApproveVoucher: (id: string) => void;

@@ -51,7 +51,10 @@ interface ChartOfAccountsViewProps {
   onAddAccount: (account: ChartAccount) => void;
   onUpdateAccount: (account: ChartAccount) => void;
   onDeleteAccount?: (accountId: string) => void;
-  onImportAccounts?: (importedAccounts: ChartAccount[], overrideAll: boolean) => void;
+  onImportAccounts?: (
+    importedAccounts: ChartAccount[],
+    overrideAll: boolean
+  ) => Promise<{ success: boolean; count?: number; error?: string }> | void;
 }
 
 export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
@@ -335,6 +338,8 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
   // =========================================================
   const [jsonInput, setJsonInput] = useState<string>('');
   const [overrideAll, setOverrideAll] = useState<boolean>(false);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
+  const [importSubmitError, setImportSubmitError] = useState<string | null>(null);
   const [importFeedback, setImportFeedback] = useState<{
     valid: boolean;
     message: string;
@@ -393,23 +398,37 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
     setJsonInput(JSON.stringify(STANDARD_COA_TEMPLATE, null, 2));
   };
 
-  const handleExecuteImport = () => {
-    if (!importFeedback.valid || importFeedback.parsedAccounts.length === 0) {
+  const handleExecuteImport = async () => {
+    if (!importFeedback.valid || importFeedback.parsedAccounts.length === 0 || isImporting) {
       return;
     }
 
     const toImport = importFeedback.parsedAccounts;
-    if (onImportAccounts) {
-      onImportAccounts(toImport, overrideAll);
-    }
+    setIsImporting(true);
+    setImportSubmitError(null);
 
-    setIsImportModalOpen(false);
-    setJsonInput('');
-    showNotification(
-      overrideAll
-        ? `Successfully imported ${toImport.length} accounts. All prior accounts have been overridden.`
-        : `Successfully imported / merged ${toImport.length} accounts.`
-    );
+    try {
+      const result = onImportAccounts ? await onImportAccounts(toImport, overrideAll) : undefined;
+      if (result && result.success === false) {
+        setImportSubmitError(
+          result.error || 'Failed to save imported Chart of Accounts into the database.'
+        );
+        return;
+      }
+
+      setIsImportModalOpen(false);
+      setJsonInput('');
+      setImportSubmitError(null);
+      showNotification(
+        overrideAll
+          ? `Successfully imported and stored ${toImport.length} accounts in database. Prior accounts were overridden.`
+          : `Successfully imported and stored ${toImport.length} accounts in database.`
+      );
+    } catch (err: any) {
+      setImportSubmitError(err?.message || 'Unexpected error while saving accounts to database.');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   // =========================================================
@@ -1222,30 +1241,47 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
               )}
             </div>
 
+            {importSubmitError && (
+              <div className="p-2.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-800 text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>{importSubmitError}</span>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setIsImportModalOpen(false)}
-                className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                disabled={isImporting}
+                onClick={() => {
+                  setIsImportModalOpen(false);
+                  setImportSubmitError(null);
+                }}
+                className="px-4 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                disabled={!importFeedback.valid || importFeedback.parsedAccounts.length === 0}
+                disabled={!importFeedback.valid || importFeedback.parsedAccounts.length === 0 || isImporting}
                 onClick={handleExecuteImport}
                 className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer ${
-                  importFeedback.valid && importFeedback.parsedAccounts.length > 0
+                  importFeedback.valid && importFeedback.parsedAccounts.length > 0 && !isImporting
                     ? overrideAll
                       ? 'bg-amber-600 hover:bg-amber-700 text-white'
                       : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                 }`}
               >
-                <Upload className="w-3.5 h-3.5" />
+                {isImporting ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
                 <span>
-                  {overrideAll
+                  {isImporting
+                    ? 'Saving to Database...'
+                    : overrideAll
                     ? `Override & Import (${importFeedback.parsedAccounts.length}) Accounts`
                     : `Import (${importFeedback.parsedAccounts.length}) Accounts`}
                 </span>

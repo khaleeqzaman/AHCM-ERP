@@ -62,6 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_purchases_status ON public.purchases(status);
 CREATE TABLE IF NOT EXISTS public.chart_accounts (
     id TEXT PRIMARY KEY,
     code TEXT NOT NULL UNIQUE,
+    account_no TEXT,
     type_digit INTEGER,
     class_digit INTEGER,
     group_code TEXT,
@@ -74,8 +75,20 @@ CREATE TABLE IF NOT EXISTS public.chart_accounts (
     opening_balance DOUBLE PRECISION DEFAULT 0,
     current_balance DOUBLE PRECISION DEFAULT 0,
     description TEXT,
-    is_active BOOLEAN DEFAULT TRUE
+    is_active BOOLEAN DEFAULT TRUE,
+    level INTEGER,
+    trans_type TEXT,
+    parent_account_no TEXT,
+    opening_balance_type TEXT,
+    monthly JSONB
 );
+
+ALTER TABLE public.chart_accounts ADD COLUMN IF NOT EXISTS account_no TEXT;
+ALTER TABLE public.chart_accounts ADD COLUMN IF NOT EXISTS level INTEGER;
+ALTER TABLE public.chart_accounts ADD COLUMN IF NOT EXISTS trans_type TEXT;
+ALTER TABLE public.chart_accounts ADD COLUMN IF NOT EXISTS parent_account_no TEXT;
+ALTER TABLE public.chart_accounts ADD COLUMN IF NOT EXISTS opening_balance_type TEXT;
+ALTER TABLE public.chart_accounts ADD COLUMN IF NOT EXISTS monthly JSONB;
 
 CREATE INDEX IF NOT EXISTS idx_chart_accounts_code ON public.chart_accounts(code);
 CREATE INDEX IF NOT EXISTS idx_chart_accounts_type ON public.chart_accounts(account_type);

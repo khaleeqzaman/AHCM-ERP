@@ -553,7 +553,10 @@ export function parseAndValidateAccountsJson(jsonString: string): {
         }
       });
 
-      const currentBalance = openingBalance + netMonthly;
+      const currentBalance =
+        item.currentBalance !== undefined && netMonthly === 0
+          ? Math.round(Number(item.currentBalance) || 0)
+          : openingBalance + netMonthly;
 
       // Class and group derivation
       const typeDigit =
@@ -592,15 +595,16 @@ export function parseAndValidateAccountsJson(jsonString: string): {
           : 'Direct Costs');
 
       const code = accountNo || `${typeDigit}-1-01-${String(index + 1).padStart(3, '0')}`;
+      const sanitizedCode = code.replace(/[^a-zA-Z0-9]/g, '_');
 
       accounts.push({
-        id: `coa-${code.replace(/[^a-zA-Z0-9]/g, '_')}-${index}`,
+        id: sanitizedCode ? `coa-${sanitizedCode}` : `coa-item-${index}`,
         code,
         accountNo: code,
         typeDigit,
-        classDigit: 1,
-        groupCode: '01',
-        subCode: String(index + 1).padStart(3, '0'),
+        classDigit: Number(item.classDigit) || 1,
+        groupCode: item.groupCode ? String(item.groupCode) : '01',
+        subCode: item.subCode ? String(item.subCode) : String(index + 1).padStart(3, '0'),
         name: accountName || `Account ${code}`,
         accountType,
         classification,
@@ -618,14 +622,21 @@ export function parseAndValidateAccountsJson(jsonString: string): {
       });
     }
 
-    if (accounts.length === 0) {
+    // Deduplicate by normalized account code (keeping latest entry) so DB upserts never conflict
+    const dedupedMap = new Map<string, ChartAccount>();
+    for (const acc of accounts) {
+      dedupedMap.set((acc.code || acc.id).trim().toLowerCase(), acc);
+    }
+    const dedupedAccounts = Array.from(dedupedMap.values());
+
+    if (dedupedAccounts.length === 0) {
       return { success: false, error: 'No valid accounts could be parsed from the provided JSON.' };
     }
 
     return {
       success: true,
-      accounts,
-      count: accounts.length,
+      accounts: dedupedAccounts,
+      count: dedupedAccounts.length,
     };
   } catch (err: any) {
     return {

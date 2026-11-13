@@ -54,6 +54,7 @@ export const purchases = pgTable('purchases', {
 export const chartAccounts = pgTable('chart_accounts', {
   id: text('id').primaryKey(),
   code: text('code').notNull(),
+  accountNo: text('account_no'),
   typeDigit: integer('type_digit'),
   classDigit: integer('class_digit'),
   groupCode: text('group_code'),
@@ -67,6 +68,11 @@ export const chartAccounts = pgTable('chart_accounts', {
   currentBalance: doublePrecision('current_balance').default(0),
   description: text('description'),
   isActive: boolean('is_active').default(true),
+  level: integer('level'),
+  transType: text('trans_type'),
+  parentAccountNo: text('parent_account_no'),
+  openingBalanceType: text('opening_balance_type'),
+  monthly: jsonb('monthly'),
 });
 
 // 5. Accounting Vouchers Table

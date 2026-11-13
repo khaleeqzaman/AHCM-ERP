@@ -17,6 +17,8 @@ import {
   dbDeletePurchase,
   dbGetChartAccounts,
   dbSaveChartAccount,
+  dbDeleteChartAccount,
+  dbBulkSaveChartAccounts,
   dbGetVouchers,
   dbSaveVoucher,
   dbDeleteVoucher,
@@ -372,6 +374,33 @@ export function createApiApp(): express.Express {
       res.json(saved);
     } catch (err) {
       handleError(res, err, 'Failed to save chart account');
+    }
+  });
+
+  app.post('/api/accounting/accounts/bulk', async (req: Request, res: Response) => {
+    try {
+      const payload = Array.isArray(req.body) ? { accounts: req.body, overrideAll: false } : req.body;
+      const accountsList = Array.isArray(payload?.accounts) ? payload.accounts : [];
+      const overrideAll = Boolean(payload?.overrideAll);
+
+      if (accountsList.length === 0 && !overrideAll) {
+        res.status(400).json({ error: 'No chart of accounts provided for bulk import.' });
+        return;
+      }
+
+      const saved = await dbBulkSaveChartAccounts(accountsList, overrideAll);
+      res.json({ success: true, count: saved.length, accounts: saved });
+    } catch (err) {
+      handleError(res, err, 'Failed to bulk save chart accounts');
+    }
+  });
+
+  app.delete('/api/accounting/accounts/:id', async (req: Request, res: Response) => {
+    try {
+      await dbDeleteChartAccount(req.params.id);
+      res.json({ success: true, id: req.params.id });
+    } catch (err) {
+      handleError(res, err, 'Failed to delete chart account');
     }
   });
 
