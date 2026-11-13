@@ -27,6 +27,7 @@ import type {
   MineRecord,
   ItemCategory,
   ItemUnitType,
+  MachineryType,
   ItemConsumptionRecord,
   ConsumptionTargetType,
 } from '../types/storeSales';
@@ -54,6 +55,7 @@ import {
   initialMines,
   initialItemCategories,
   initialItemUnits,
+  initialMachineryTypes,
   initialItemConsumptions,
 } from '../data/mockStoreSalesData';
 
@@ -80,6 +82,7 @@ export interface BootstrapData {
   mines: MineRecord[];
   itemCategories: ItemCategory[];
   itemUnits: ItemUnitType[];
+  machineryTypes: MachineryType[];
   itemConsumptions: ItemConsumptionRecord[];
   vehicleConsumptionSummary?: VehicleConsumptionSummary[];
   itemWiseStockSummary?: ItemWiseStockSummary[];
@@ -897,6 +900,20 @@ const mapItemUnitTypeToRow = (u: ItemUnitType) => ({
   created_at: u.createdAt || new Date().toISOString(),
 });
 
+const mapMachineryTypeFromRow = (r: any): MachineryType => ({
+  id: r.id,
+  name: r.name,
+  description: r.description || '',
+  createdAt: r.created_at || '',
+});
+
+const mapMachineryTypeToRow = (mt: MachineryType) => ({
+  id: mt.id,
+  name: mt.name,
+  description: mt.description || null,
+  created_at: mt.createdAt || new Date().toISOString(),
+});
+
 const mapItemConsumptionFromRow = (r: any): ItemConsumptionRecord => ({
   id: r.id,
   srNo: Number(r.sr_no || 1),
@@ -1167,6 +1184,7 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
               mines: data.mines ?? loadFallback('item_mines', initialMines),
               itemCategories: data.itemCategories ?? loadFallback('item_categories', initialItemCategories),
               itemUnits: data.itemUnits ?? loadFallback('item_units', initialItemUnits),
+              machineryTypes: data.machineryTypes !== undefined ? data.machineryTypes : loadFallback('machinery_types', initialMachineryTypes),
               itemConsumptions: data.itemConsumptions ?? loadFallback('consumptions', initialItemConsumptions),
               vehicleConsumptionSummary:
                 data.vehicleConsumptionSummary ??
@@ -1213,6 +1231,7 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
         mines: loadFallback('item_mines', initialMines),
         itemCategories: loadFallback('item_categories', initialItemCategories),
         itemUnits: loadFallback('item_units', initialItemUnits),
+        machineryTypes: loadFallback('machinery_types', initialMachineryTypes),
         itemConsumptions: loadFallback('consumptions', initialItemConsumptions),
         vehicleConsumptionSummary,
         itemWiseStockSummary,
@@ -1242,6 +1261,7 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       minesRes,
       categoriesRes,
       unitsRes,
+      machineryTypesRes,
       itemConsumptionsRes,
     ] = await Promise.all([
       diagnosticSupabaseOperation<any[]>('fetchBootstrapUsers', SUPABASE_TABLES.APP_USERS, 'SELECT', {}, () =>
@@ -1310,6 +1330,9 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       diagnosticSupabaseOperation<any[]>('fetchBootstrapUnits', SUPABASE_TABLES.ITEM_UNITS, 'SELECT', {}, () =>
         supabase.from(SUPABASE_TABLES.ITEM_UNITS).select('*')
       ),
+      diagnosticSupabaseOperation<any[]>('fetchBootstrapMachineryTypes', SUPABASE_TABLES.MACHINERY_TYPES, 'SELECT', {}, () =>
+        supabase.from(SUPABASE_TABLES.MACHINERY_TYPES).select('*')
+      ),
       diagnosticSupabaseOperation<any[]>('fetchBootstrapItemConsumptions', SUPABASE_TABLES.ITEM_CONSUMPTIONS, 'SELECT', {}, () =>
         supabase.from(SUPABASE_TABLES.ITEM_CONSUMPTIONS).select('*')
       ),
@@ -1337,6 +1360,7 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
     const mines = minesRes ? minesRes.map(mapMineFromRow) : loadFallback('item_mines', initialMines);
     const itemCategories = categoriesRes ? categoriesRes.map(mapItemCategoryFromRow) : loadFallback('item_categories', initialItemCategories);
     const itemUnits = unitsRes ? unitsRes.map(mapItemUnitTypeFromRow) : loadFallback('item_units', initialItemUnits);
+    const machineryTypes = machineryTypesRes ? machineryTypesRes.map(mapMachineryTypeFromRow) : loadFallback('machinery_types', initialMachineryTypes);
 
     const itemConsumptions: ItemConsumptionRecord[] = itemConsumptionsRes && itemConsumptionsRes.length > 0
       ? itemConsumptionsRes.map(mapItemConsumptionFromRow)
@@ -1384,6 +1408,7 @@ export async function fetchBootstrapData(): Promise<BootstrapData | null> {
       mines,
       itemCategories,
       itemUnits,
+      machineryTypes,
       itemConsumptions,
       vehicleConsumptionSummary,
       itemWiseStockSummary,
@@ -2257,6 +2282,11 @@ export async function apiSaveVehicle(veh: VehicleRecord): Promise<VehicleRecord 
   try {
     const row = mapVehicleToRow(veh);
     if (!isSupabaseConfigured()) {
+      fetch('/api/store-sales/vehicles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(veh),
+      }).catch(() => {});
       return veh;
     }
     const res = await diagnosticSupabaseOperation<any>(
@@ -2276,6 +2306,9 @@ export async function apiSaveVehicle(veh: VehicleRecord): Promise<VehicleRecord 
 export async function apiDeleteVehicle(id: string): Promise<boolean> {
   try {
     if (!isSupabaseConfigured()) {
+      fetch(`/api/store-sales/vehicles/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
       return true;
     }
     const res = await diagnosticSupabaseOperation<any>(
@@ -2386,6 +2419,11 @@ export async function apiSaveItemCategory(cat: ItemCategory): Promise<ItemCatego
   try {
     const row = mapItemCategoryToRow(cat);
     if (!isSupabaseConfigured()) {
+      fetch('/api/store-sales/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cat),
+      }).catch(() => {});
       return cat;
     }
     const res = await diagnosticSupabaseOperation<any>(
@@ -2405,6 +2443,9 @@ export async function apiSaveItemCategory(cat: ItemCategory): Promise<ItemCatego
 export async function apiDeleteItemCategory(id: string): Promise<boolean> {
   try {
     if (!isSupabaseConfigured()) {
+      fetch(`/api/store-sales/categories/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
       return true;
     }
     const res = await diagnosticSupabaseOperation<any>(
@@ -2425,6 +2466,11 @@ export async function apiSaveItemUnitType(unit: ItemUnitType): Promise<ItemUnitT
   try {
     const row = mapItemUnitTypeToRow(unit);
     if (!isSupabaseConfigured()) {
+      fetch('/api/store-sales/units', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(unit),
+      }).catch(() => {});
       return unit;
     }
     const res = await diagnosticSupabaseOperation<any>(
@@ -2444,6 +2490,9 @@ export async function apiSaveItemUnitType(unit: ItemUnitType): Promise<ItemUnitT
 export async function apiDeleteItemUnitType(id: string): Promise<boolean> {
   try {
     if (!isSupabaseConfigured()) {
+      fetch(`/api/store-sales/units/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
       return true;
     }
     const res = await diagnosticSupabaseOperation<any>(
@@ -2456,6 +2505,56 @@ export async function apiDeleteItemUnitType(id: string): Promise<boolean> {
     return res !== null;
   } catch (err: any) {
     console.error('Unhandled exception in apiDeleteItemUnitType:', err);
+    return false;
+  }
+}
+
+export async function apiSaveMachineryType(mt: MachineryType): Promise<MachineryType | null> {
+  try {
+    const row = mapMachineryTypeToRow(mt);
+    if (!isSupabaseConfigured()) {
+      const resp = await fetch('/api/store-sales/machinery-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mt),
+      });
+      if (!resp.ok) {
+        console.error('Failed to save machinery type via API:', resp.status);
+      }
+      return mt;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiSaveMachineryType',
+      SUPABASE_TABLES.MACHINERY_TYPES,
+      'UPSERT',
+      row,
+      () => supabase.from(SUPABASE_TABLES.MACHINERY_TYPES).upsert(row)
+    );
+    return res !== null ? mt : mt;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiSaveMachineryType:', err);
+    return mt;
+  }
+}
+
+export async function apiDeleteMachineryType(id: string): Promise<boolean> {
+  try {
+    if (!isSupabaseConfigured()) {
+      const resp = await fetch(`/api/store-sales/machinery-types/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      return resp.ok;
+    }
+    const res = await diagnosticSupabaseOperation<any>(
+      'apiDeleteMachineryType',
+      SUPABASE_TABLES.MACHINERY_TYPES,
+      'DELETE',
+      { id },
+      () => supabase.from(SUPABASE_TABLES.MACHINERY_TYPES).delete().eq('id', id)
+    );
+    return res !== null;
+  } catch (err: any) {
+    console.error('Unhandled exception in apiDeleteMachineryType:', err);
     return false;
   }
 }

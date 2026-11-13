@@ -19,6 +19,7 @@ import type {
   CoalManagementSection,
   ItemCategory,
   ItemUnitType,
+  MachineryType,
   MineRecord,
   VehicleRecord,
   StoreItem,
@@ -46,6 +47,7 @@ interface StoreSalesScreenProps {
   // Store Management Data
   categories: ItemCategory[];
   unitTypes: ItemUnitType[];
+  machineryTypes?: MachineryType[];
   mines: MineRecord[];
   vehicles: VehicleRecord[];
   items: StoreItem[];
@@ -67,6 +69,10 @@ interface StoreSalesScreenProps {
   onAddUnitType: (unit: Omit<ItemUnitType, 'id' | 'createdAt'>) => void;
   onUpdateUnitType: (unit: ItemUnitType) => void;
   onDeleteUnitType: (id: string) => void;
+
+  onAddMachineryType?: (mt: Omit<MachineryType, 'id' | 'createdAt'>) => void;
+  onUpdateMachineryType?: (mt: MachineryType) => void;
+  onDeleteMachineryType?: (id: string) => void;
 
   onAddMine: (mine: Omit<MineRecord, 'id' | 'createdAt'>) => void;
   onUpdateMine: (mine: MineRecord) => void;
@@ -115,6 +121,7 @@ interface StoreSalesScreenProps {
 export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   categories,
   unitTypes,
+  machineryTypes = [],
   mines,
   vehicles,
   items,
@@ -131,6 +138,9 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
   onAddUnitType,
   onUpdateUnitType,
   onDeleteUnitType,
+  onAddMachineryType,
+  onUpdateMachineryType,
+  onDeleteMachineryType,
   onAddMine,
   onUpdateMine,
   onDeleteMine,
@@ -372,6 +382,7 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
               items={items}
               mines={mines}
               vehicles={vehicles}
+              machineryTypes={machineryTypes}
               itemStockMap={itemStockMap}
               onAddConsumption={onAddConsumption}
               onUpdateConsumption={onUpdateConsumption || (() => {})}
@@ -389,12 +400,16 @@ export const StoreSalesScreen: React.FC<StoreSalesScreenProps> = ({
             <ItemSettingsView
               categories={categories}
               unitTypes={unitTypes}
+              machineryTypes={machineryTypes}
               onAddCategory={onAddCategory}
               onUpdateCategory={onUpdateCategory}
               onDeleteCategory={onDeleteCategory}
               onAddUnit={onAddUnitType}
               onUpdateUnit={onUpdateUnitType}
               onDeleteUnit={onDeleteUnitType}
+              onAddMachineryType={onAddMachineryType}
+              onUpdateMachineryType={onUpdateMachineryType}
+              onDeleteMachineryType={onDeleteMachineryType}
             />
           )}
 

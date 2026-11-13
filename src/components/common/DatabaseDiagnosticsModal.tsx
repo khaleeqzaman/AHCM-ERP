@@ -659,6 +659,13 @@ CREATE TABLE IF NOT EXISTS public.item_consumptions (
     created_at TEXT
 );
 
+CREATE TABLE IF NOT EXISTS public.machinery_types (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT
+);
+
 -- Ensure all extended columns exist if tables were created previously
 ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS category_name TEXT;
 ALTER TABLE public.stock_items ADD COLUMN IF NOT EXISTS category_id TEXT;
@@ -707,6 +714,7 @@ ALTER TABLE IF EXISTS public.mines DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.item_categories DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.item_units DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.item_consumptions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.machinery_types DISABLE ROW LEVEL SECURITY;
 
 -- Reload schema in PostgREST
 NOTIFY pgrst, 'reload schema';`;
@@ -717,7 +725,7 @@ NOTIFY pgrst, 'reload schema';`;
               className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-md cursor-pointer transition-colors"
             >
               <Copy className="w-3 h-3" />
-              <span>{sqlCopied === 'full' ? 'Copied Full 23-Table SQL!' : 'Copy Complete Database SQL (23 Tables)'}</span>
+              <span>{sqlCopied === 'full' ? 'Copied Full 24-Table SQL!' : 'Copy Complete Database SQL (24 Tables)'}</span>
             </button>
 
             <button
@@ -748,6 +756,13 @@ CREATE TABLE IF NOT EXISTS public.item_units (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
     symbol TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.machinery_types (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
     description TEXT,
     created_at TEXT
 );
@@ -825,10 +840,11 @@ ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS remarks TEXT;
 ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS unit TEXT;
 ALTER TABLE public.stock_entries ADD COLUMN IF NOT EXISTS created_at TEXT;
 
-GRANT ALL ON public.mines, public.item_categories, public.item_units, public.item_consumptions, public.stock_items, public.stock_entries TO postgres, anon, authenticated, service_role;
+GRANT ALL ON public.mines, public.item_categories, public.item_units, public.machinery_types, public.item_consumptions, public.stock_items, public.stock_entries TO postgres, anon, authenticated, service_role;
 ALTER TABLE IF EXISTS public.mines DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.item_categories DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.item_units DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.machinery_types DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.item_consumptions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.stock_items DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.stock_entries DISABLE ROW LEVEL SECURITY;

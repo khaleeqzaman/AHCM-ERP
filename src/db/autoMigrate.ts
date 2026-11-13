@@ -1,7 +1,7 @@
 import { pool } from './index.ts';
 import { initialUsers } from '../data/mockUsers.ts';
 import { initialChartOfAccounts } from '../data/mockAccountingData.ts';
-import { initialCompanySettings } from '../data/mockStoreSalesData.ts';
+import { initialCompanySettings, initialMachineryTypes } from '../data/mockStoreSalesData.ts';
 import {
   dbGetUsers,
   dbSaveUser,
@@ -9,6 +9,8 @@ import {
   dbSaveChartAccount,
   dbGetCompanySettings,
   dbSaveCompanySettings,
+  dbGetMachineryTypes,
+  dbSaveMachineryType,
   dbGetDemands,
   dbSaveDemand,
   dbGetPurchases,
@@ -338,6 +340,13 @@ const TABLE_CREATION_STATEMENTS = [
     "remarks" text,
     "created_at" text
   );`,
+
+  `CREATE TABLE IF NOT EXISTS "machinery_types" (
+    "id" text PRIMARY KEY NOT NULL,
+    "name" text NOT NULL,
+    "description" text,
+    "created_at" text
+  );`,
 ];
 
 const COLUMN_MIGRATION_STATEMENTS = [
@@ -516,6 +525,18 @@ export async function autoMigrateAndSeed(): Promise<{ success: boolean; message:
           }
           await metaClient.query(`INSERT INTO "_app_system_meta" ("key", "value") VALUES ('mock_data_cleared_v2', 'true') ON CONFLICT ("key") DO UPDATE SET "value" = 'true';`);
           console.log('Successfully purged all operational mock data from database.');
+        }
+
+        const checkMachineryMeta = await metaClient.query(`SELECT "value" FROM "_app_system_meta" WHERE "key" = 'machinery_types_seeded_v1';`);
+        if (checkMachineryMeta.rows.length === 0) {
+          const existingMt = await dbGetMachineryTypes().catch(() => []);
+          if (existingMt.length === 0) {
+            console.log('Seeding baseline machinery / equipment types...');
+            for (const mt of initialMachineryTypes) {
+              await dbSaveMachineryType({ ...mt, createdAt: new Date().toISOString() });
+            }
+          }
+          await metaClient.query(`INSERT INTO "_app_system_meta" ("key", "value") VALUES ('machinery_types_seeded_v1', 'true') ON CONFLICT ("key") DO UPDATE SET "value" = 'true';`);
         }
       } finally {
         metaClient.release();

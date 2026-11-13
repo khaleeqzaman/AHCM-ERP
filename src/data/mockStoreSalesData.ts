@@ -1,6 +1,7 @@
 import type { 
   ItemCategory,
   ItemUnitType,
+  MachineryType,
   MineRecord,
   VehicleRecord,
   StoreItem,
@@ -27,6 +28,16 @@ export const initialItemCategories: ItemCategory[] = [];
 
 // Item Settings: Unit Types (empty by default)
 export const initialItemUnits: ItemUnitType[] = [];
+
+// Item Settings: Machinery / Equipment Types (standard baseline types)
+export const initialMachineryTypes: MachineryType[] = [
+  { id: 'mt-1', name: 'Dump Truck', description: 'Heavy Haulage' },
+  { id: 'mt-2', name: 'Excavator', description: 'Heavy Excavation' },
+  { id: 'mt-3', name: 'Front Loader', description: 'Pithead Stockpile' },
+  { id: 'mt-4', name: 'Pickup / Support', description: 'Support Vehicle' },
+  { id: 'mt-5', name: 'Heavy Generator', description: 'Heavy Diesel Generator' },
+  { id: 'mt-6', name: 'Tunnel Compressor', description: 'Compressor / Drill Rig' },
+];
 
 // Item Settings: Mines (empty by default)
 export const initialMines: MineRecord[] = [];

@@ -341,3 +341,11 @@ export const itemConsumptions = pgTable('item_consumptions', {
   createdAt: text('created_at'),
 });
 
+// 24. Store & Sales: Machinery / Equipment Types Table
+export const machineryTypes = pgTable('machinery_types', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  createdAt: text('created_at'),
+});
+

@@ -28,6 +28,7 @@ import type {
   StoreItem, 
   ItemStockEntry,
   VehicleRecord, 
+  MachineryType,
   MineRecord, 
   ItemConsumptionSubTab,
   ConsumptionTargetType 
@@ -53,6 +54,7 @@ interface ItemConsumptionViewProps {
   stockEntries?: ItemStockEntry[];
   items: StoreItem[];
   vehicles: VehicleRecord[];
+  machineryTypes?: MachineryType[];
   mines: MineRecord[];
   itemStockMap: Record<string, number>; // itemId -> current live inventory quantity
   onAddConsumption: (record: ItemConsumptionRecord) => void;
@@ -72,6 +74,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   stockEntries = [],
   items = [],
   vehicles = [],
+  machineryTypes = [],
   mines = [],
   itemStockMap = {},
   onAddConsumption,
@@ -130,7 +133,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<VehicleRecord | null>(null);
   const [vehNo, setVehNo] = useState('');
-  const [vehType, setVehType] = useState('Dump Truck');
+  const [vehType, setVehType] = useState(machineryTypes[0]?.name || '');
   const [vehDriver, setVehDriver] = useState('');
   const [vehStatus, setVehStatus] = useState<'Active' | 'Under Maintenance'>('Active');
 
@@ -282,7 +285,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
   const handleOpenAddVehicle = () => {
     setEditingVehicle(null);
     setVehNo('');
-    setVehType('Dump Truck');
+    setVehType(machineryTypes[0]?.name || '');
     setVehDriver('');
     setVehStatus('Active');
     setIsVehicleModalOpen(true);
@@ -299,7 +302,7 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
 
   const submitVehicleForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vehNo.trim()) return;
+    if (!vehNo.trim() || !vehType.trim()) return;
 
     const isEdit = !!editingVehicle;
     setConfirmModal({
@@ -2173,17 +2176,26 @@ export const ItemConsumptionView: React.FC<ItemConsumptionViewProps> = ({
                   Machinery / Equipment Type <span className="text-rose-500">*</span>
                 </label>
                 <select
+                  required
                   value={vehType}
                   onChange={(e) => setVehType(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
-                  <option value="Dump Truck">Dump Truck (Heavy Haulage)</option>
-                  <option value="Excavator">Excavator (Heavy Excavation)</option>
-                  <option value="Front Loader">Front Loader (Pithead Stockpile)</option>
-                  <option value="Pickup / Support">Pickup / Support Vehicle</option>
-                  <option value="Heavy Generator">Heavy Diesel Generator</option>
-                  <option value="Tunnel Compressor">Tunnel Compressor / Drill Rig</option>
+                  <option value="" disabled>-- Select Machinery / Equipment Type --</option>
+                  {machineryTypes.map((mt) => (
+                    <option key={mt.id} value={mt.name}>
+                      {mt.name}{mt.description ? ` (${mt.description})` : ''}
+                    </option>
+                  ))}
+                  {vehType && !machineryTypes.some((mt) => mt.name === vehType) && (
+                    <option value={vehType}>{vehType}</option>
+                  )}
                 </select>
+                {machineryTypes.length === 0 && (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    No machinery types defined. Go to Item Settings &rarr; Machinery / Equipment Types to add types first.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">

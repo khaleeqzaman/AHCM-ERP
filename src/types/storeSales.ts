@@ -15,7 +15,7 @@ export type StoreManagementSection =
   | 'item_setting' 
   | 'reports';
 
-export type ItemSettingSubTab = 'categories' | 'units';
+export type ItemSettingSubTab = 'categories' | 'units' | 'machinery_types';
 export type ItemsSubTab = 'add_item' | 'view_items';
 export type ItemStockSubTab = 'consolidated_inventory' | 'add_stock' | 'view_stock' | 'stock_report' | 'add_inventory' | 'view_inventory' | 'inventory_report';
 export type ItemInventorySubTab = 'consolidated_inventory' | 'add_inventory' | 'view_inventory' | 'inventory_report' | 'add_stock' | 'view_stock' | 'stock_report';
@@ -36,6 +36,14 @@ export interface ItemUnitType {
   id: string;
   name: string; // e.g., Liters, Pieces, Kilograms, Bags, Meters, Drums
   symbol: string; // e.g., L, Pcs, kg, Bags, m, Dr
+  description?: string;
+  createdAt?: string;
+}
+
+// Item Settings: Machinery / Equipment Types (linked to Register Machinery / Vehicle)
+export interface MachineryType {
+  id: string;
+  name: string;
   description?: string;
   createdAt?: string;
 }

@@ -65,6 +65,15 @@ import {
   dbSaveCompanySettings,
   dbGetVehicleConsumptionSummary,
   dbGetItemWiseStockSummary,
+  dbGetItemCategories,
+  dbSaveItemCategory,
+  dbDeleteItemCategory,
+  dbGetItemUnits,
+  dbSaveItemUnitType,
+  dbDeleteItemUnitType,
+  dbGetMachineryTypes,
+  dbSaveMachineryType,
+  dbDeleteMachineryType,
 } from './src/db/queries.ts';
 import { testDatabaseConnection, pool } from './src/db/index.ts';
 import { autoMigrateAndSeed } from './src/db/autoMigrate.ts';
@@ -201,6 +210,9 @@ export function createApiApp(): express.Express {
         stockEntries,
         vehicles,
         vehicleConsumptions,
+        itemCategories,
+        itemUnits,
+        machineryTypes,
         vehicleConsumptionSummary,
         itemWiseStockSummary,
       ] = await Promise.all([
@@ -223,6 +235,9 @@ export function createApiApp(): express.Express {
         dbGetStockEntries().catch(() => []),
         dbGetVehicles().catch(() => []),
         dbGetVehicleConsumptions().catch(() => []),
+        dbGetItemCategories().catch(() => []),
+        dbGetItemUnits().catch(() => []),
+        dbGetMachineryTypes().catch(() => []),
         dbGetVehicleConsumptionSummary().catch(() => []),
         dbGetItemWiseStockSummary().catch(() => []),
       ]);
@@ -247,6 +262,9 @@ export function createApiApp(): express.Express {
         stockEntries: stockEntries || [],
         vehicles: vehicles || [],
         vehicleConsumptions: vehicleConsumptions || [],
+        itemCategories: itemCategories || [],
+        itemUnits: itemUnits || [],
+        machineryTypes: machineryTypes || [],
         vehicleConsumptionSummary,
         itemWiseStockSummary,
       });
@@ -802,6 +820,88 @@ export function createApiApp(): express.Express {
       res.json({ success: true, id: req.params.id });
     } catch (err) {
       handleError(res, err, 'Failed to delete vehicle consumption');
+    }
+  });
+
+  // ---- Store Item Settings: Categories, Units, Machinery Types ----
+  app.get('/api/store-sales/categories', async (_req: Request, res: Response) => {
+    try {
+      const list = await dbGetItemCategories();
+      res.json(list);
+    } catch (err) {
+      handleError(res, err, 'Failed to fetch item categories');
+    }
+  });
+
+  app.post('/api/store-sales/categories', async (req: Request, res: Response) => {
+    try {
+      const saved = await dbSaveItemCategory(req.body);
+      res.json(saved);
+    } catch (err) {
+      handleError(res, err, 'Failed to save item category');
+    }
+  });
+
+  app.delete('/api/store-sales/categories/:id', async (req: Request, res: Response) => {
+    try {
+      await dbDeleteItemCategory(req.params.id);
+      res.json({ success: true, id: req.params.id });
+    } catch (err) {
+      handleError(res, err, 'Failed to delete item category');
+    }
+  });
+
+  app.get('/api/store-sales/units', async (_req: Request, res: Response) => {
+    try {
+      const list = await dbGetItemUnits();
+      res.json(list);
+    } catch (err) {
+      handleError(res, err, 'Failed to fetch item units');
+    }
+  });
+
+  app.post('/api/store-sales/units', async (req: Request, res: Response) => {
+    try {
+      const saved = await dbSaveItemUnitType(req.body);
+      res.json(saved);
+    } catch (err) {
+      handleError(res, err, 'Failed to save item unit');
+    }
+  });
+
+  app.delete('/api/store-sales/units/:id', async (req: Request, res: Response) => {
+    try {
+      await dbDeleteItemUnitType(req.params.id);
+      res.json({ success: true, id: req.params.id });
+    } catch (err) {
+      handleError(res, err, 'Failed to delete item unit');
+    }
+  });
+
+  app.get('/api/store-sales/machinery-types', async (_req: Request, res: Response) => {
+    try {
+      const list = await dbGetMachineryTypes();
+      res.json(list);
+    } catch (err) {
+      handleError(res, err, 'Failed to fetch machinery types');
+    }
+  });
+
+  app.post('/api/store-sales/machinery-types', async (req: Request, res: Response) => {
+    try {
+      const saved = await dbSaveMachineryType(req.body);
+      res.json(saved);
+    } catch (err) {
+      handleError(res, err, 'Failed to save machinery type');
+    }
+  });
+
+  app.delete('/api/store-sales/machinery-types/:id', async (req: Request, res: Response) => {
+    try {
+      await dbDeleteMachineryType(req.params.id);
+      res.json({ success: true, id: req.params.id });
+    } catch (err) {
+      handleError(res, err, 'Failed to delete machinery type');
     }
   });
 

@@ -44,6 +44,7 @@ import {
   CoalSellRecord, 
   ItemCategory, 
   ItemUnitType, 
+  MachineryType,
   MineRecord, 
   VehicleRecord,
   PosCoalSellEntry,
@@ -73,6 +74,7 @@ import {
   initialItemConsumptions,
   initialItemCategories,
   initialItemUnits,
+  initialMachineryTypes,
   initialMines,
 } from './data/mockStoreSalesData';
 import { Sidebar } from './components/Sidebar';
@@ -128,6 +130,8 @@ import {
   apiDeleteItemCategory,
   apiSaveItemUnitType,
   apiDeleteItemUnitType,
+  apiSaveMachineryType,
+  apiDeleteMachineryType,
   apiSaveItemConsumption,
   apiDeleteItemConsumption,
 } from './api/client';
@@ -561,6 +565,7 @@ export default function App() {
   // Store Management Data State
   const [categories, setCategories] = useState<ItemCategory[]>(() => loadCache('item_categories', initialItemCategories));
   const [unitTypes, setUnitTypes] = useState<ItemUnitType[]>(() => loadCache('item_units', initialItemUnits));
+  const [machineryTypes, setMachineryTypes] = useState<MachineryType[]>(() => loadCache('machinery_types', initialMachineryTypes));
   const [mines, setMines] = useState<MineRecord[]>(() => loadCache('item_mines', initialMines));
   const [vehicles, setVehicles] = useState<VehicleRecord[]>(() => loadCache('vehicles', initialVehicles));
   const [storeItems, setStoreItems] = useState<StoreItem[]>(() => loadCache('store_items', initialStoreItems));
@@ -685,6 +690,10 @@ export default function App() {
       if (data.itemUnits !== undefined) {
         setUnitTypes(data.itemUnits);
         saveCache('item_units', data.itemUnits);
+      }
+      if (data.machineryTypes !== undefined) {
+        setMachineryTypes(data.machineryTypes);
+        saveCache('machinery_types', data.machineryTypes);
       }
       if (data.itemConsumptions !== undefined) {
         setItemConsumptions(data.itemConsumptions);
@@ -2031,6 +2040,7 @@ export default function App() {
             <StoreSalesScreen
               categories={categories}
               unitTypes={unitTypes}
+              machineryTypes={machineryTypes}
               mines={mines}
               vehicles={vehicles}
               items={storeItems}
@@ -2090,6 +2100,31 @@ export default function App() {
                   return next;
                 });
                 apiDeleteItemUnitType(id);
+              }}
+              onAddMachineryType={(mt) => {
+                const newMt: MachineryType = { ...mt, id: `mt-${Date.now()}`, createdAt: new Date().toISOString() };
+                setMachineryTypes((prev) => {
+                  const next = [...prev, newMt];
+                  saveCache('machinery_types', next);
+                  return next;
+                });
+                apiSaveMachineryType(newMt);
+              }}
+              onUpdateMachineryType={(mt) => {
+                setMachineryTypes((prev) => {
+                  const next = prev.map((m) => (m.id === mt.id ? mt : m));
+                  saveCache('machinery_types', next);
+                  return next;
+                });
+                apiSaveMachineryType(mt);
+              }}
+              onDeleteMachineryType={(id) => {
+                setMachineryTypes((prev) => {
+                  const next = prev.filter((m) => m.id !== id);
+                  saveCache('machinery_types', next);
+                  return next;
+                });
+                apiDeleteMachineryType(id);
               }}
               onAddMine={(mine) => {
                 const newMine: MineRecord = { ...mine, id: `mine-${Date.now()}` };

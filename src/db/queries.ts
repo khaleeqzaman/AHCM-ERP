@@ -18,7 +18,10 @@ import type {
   VehicleRecord, 
   VehicleConsumptionRecord,
   VehicleConsumptionSummary,
-  ItemWiseStockSummary
+  ItemWiseStockSummary,
+  MachineryType,
+  ItemCategory,
+  ItemUnitType
 } from '../types/storeSales.ts';
 
 // ----------------- USERS -----------------
@@ -1656,6 +1659,154 @@ export async function dbGetItemWiseStockSummary(): Promise<ItemWiseStockSummary[
   } catch (error) {
     console.error('Failed to get item-wise stock summary:', error);
     throw new Error('Failed to fetch item-wise stock summary', { cause: error });
+  }
+}
+
+// ----------------- STORE ITEM SETTINGS: CATEGORIES, UNITS, MACHINERY TYPES -----------------
+export async function dbGetItemCategories(): Promise<ItemCategory[]> {
+  try {
+    const rows = await db.select().from(schema.itemCategories);
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description || '',
+      createdAt: r.createdAt || '',
+    }));
+  } catch (error) {
+    console.error('Failed to get item categories:', error);
+    throw new Error('Failed to fetch item categories', { cause: error });
+  }
+}
+
+export async function dbSaveItemCategory(cat: ItemCategory): Promise<ItemCategory> {
+  try {
+    await db
+      .insert(schema.itemCategories)
+      .values({
+        id: cat.id,
+        name: cat.name,
+        description: cat.description || '',
+        createdAt: cat.createdAt || new Date().toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: schema.itemCategories.id,
+        set: {
+          name: cat.name,
+          description: cat.description || '',
+        },
+      });
+    return cat;
+  } catch (error) {
+    console.error('Failed to save item category:', error);
+    throw new Error('Failed to save item category', { cause: error });
+  }
+}
+
+export async function dbDeleteItemCategory(id: string): Promise<void> {
+  try {
+    await db.delete(schema.itemCategories).where(eq(schema.itemCategories.id, id));
+  } catch (error) {
+    console.error('Failed to delete item category:', error);
+    throw new Error('Failed to delete item category', { cause: error });
+  }
+}
+
+export async function dbGetItemUnits(): Promise<ItemUnitType[]> {
+  try {
+    const rows = await db.select().from(schema.itemUnits);
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      symbol: r.symbol,
+      description: r.description || '',
+      createdAt: r.createdAt || '',
+    }));
+  } catch (error) {
+    console.error('Failed to get item units:', error);
+    throw new Error('Failed to fetch item units', { cause: error });
+  }
+}
+
+export async function dbSaveItemUnitType(unit: ItemUnitType): Promise<ItemUnitType> {
+  try {
+    await db
+      .insert(schema.itemUnits)
+      .values({
+        id: unit.id,
+        name: unit.name,
+        symbol: unit.symbol,
+        description: unit.description || '',
+        createdAt: unit.createdAt || new Date().toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: schema.itemUnits.id,
+        set: {
+          name: unit.name,
+          symbol: unit.symbol,
+          description: unit.description || '',
+        },
+      });
+    return unit;
+  } catch (error) {
+    console.error('Failed to save item unit:', error);
+    throw new Error('Failed to save item unit', { cause: error });
+  }
+}
+
+export async function dbDeleteItemUnitType(id: string): Promise<void> {
+  try {
+    await db.delete(schema.itemUnits).where(eq(schema.itemUnits.id, id));
+  } catch (error) {
+    console.error('Failed to delete item unit:', error);
+    throw new Error('Failed to delete item unit', { cause: error });
+  }
+}
+
+export async function dbGetMachineryTypes(): Promise<MachineryType[]> {
+  try {
+    const rows = await db.select().from(schema.machineryTypes);
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description || '',
+      createdAt: r.createdAt || '',
+    }));
+  } catch (error) {
+    console.error('Failed to get machinery types:', error);
+    throw new Error('Failed to fetch machinery types', { cause: error });
+  }
+}
+
+export async function dbSaveMachineryType(mt: MachineryType): Promise<MachineryType> {
+  try {
+    await db
+      .insert(schema.machineryTypes)
+      .values({
+        id: mt.id,
+        name: mt.name,
+        description: mt.description || '',
+        createdAt: mt.createdAt || new Date().toISOString(),
+      })
+      .onConflictDoUpdate({
+        target: schema.machineryTypes.id,
+        set: {
+          name: mt.name,
+          description: mt.description || '',
+        },
+      });
+    return mt;
+  } catch (error) {
+    console.error('Failed to save machinery type:', error);
+    throw new Error('Failed to save machinery type', { cause: error });
+  }
+}
+
+export async function dbDeleteMachineryType(id: string): Promise<void> {
+  try {
+    await db.delete(schema.machineryTypes).where(eq(schema.machineryTypes.id, id));
+  } catch (error) {
+    console.error('Failed to delete machinery type:', error);
+    throw new Error('Failed to delete machinery type', { cause: error });
   }
 }
 

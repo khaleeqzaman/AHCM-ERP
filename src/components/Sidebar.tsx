@@ -951,7 +951,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 }`}
                               >
                                 <Sliders className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>Item Settings (Categories, Units)</span>
+                                <span>Item Settings (Categories, Units, Machinery)</span>
                               </button>
 
                               {/* Store Reports */}

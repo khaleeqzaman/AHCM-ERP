@@ -335,6 +335,14 @@ CREATE TABLE IF NOT EXISTS public.company_settings (
     email TEXT
 );
 
+-- 19. Store & Sales: Machinery / Equipment Types Table
+CREATE TABLE IF NOT EXISTS public.machinery_types (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT
+);
+
 -- ====================================================================
 -- SEED ESSENTIAL PRODUCTION DATA (Idempotent)
 -- ====================================================================
@@ -400,6 +408,7 @@ ALTER TABLE IF EXISTS public.vehicles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.vehicle_consumptions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.company_settings DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.coal_production_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.machinery_types DISABLE ROW LEVEL SECURITY;
 
 -- Reload Supabase PostgREST schema cache immediately
 NOTIFY pgrst, 'reload schema';

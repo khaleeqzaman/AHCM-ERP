@@ -3,6 +3,7 @@ import {
   Settings, 
   Layers, 
   Scale, 
+  Truck,
   Plus, 
   Trash2, 
   Edit2, 
@@ -15,6 +16,7 @@ import {
 import { 
   ItemCategory, 
   ItemUnitType, 
+  MachineryType,
   ItemSettingSubTab,
   MineRecord,
   VehicleRecord
@@ -26,6 +28,7 @@ import { exportUniversalCsv } from '../../utils/exportCsv';
 interface ItemSettingsViewProps {
   categories: ItemCategory[];
   unitTypes: ItemUnitType[];
+  machineryTypes?: MachineryType[];
   mines?: MineRecord[];
   vehicles?: VehicleRecord[];
   onAddCategory: (cat: ItemCategory) => void;
@@ -34,6 +37,9 @@ interface ItemSettingsViewProps {
   onAddUnit: (unit: ItemUnitType) => void;
   onUpdateUnit: (unit: ItemUnitType) => void;
   onDeleteUnit: (id: string) => void;
+  onAddMachineryType?: (mt: MachineryType) => void;
+  onUpdateMachineryType?: (mt: MachineryType) => void;
+  onDeleteMachineryType?: (id: string) => void;
   onAddMine?: (mine: MineRecord) => void;
   onUpdateMine?: (mine: MineRecord) => void;
   onDeleteMine?: (id: string) => void;
@@ -45,12 +51,16 @@ interface ItemSettingsViewProps {
 export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
   categories = [],
   unitTypes = [],
+  machineryTypes = [],
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
   onAddUnit,
   onUpdateUnit,
   onDeleteUnit,
+  onAddMachineryType,
+  onUpdateMachineryType,
+  onDeleteMachineryType,
 }) => {
   const [activeTab, setActiveTab] = useState<ItemSettingSubTab>('categories');
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,6 +77,11 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
   const [unitName, setUnitName] = useState('');
   const [unitSymbol, setUnitSymbol] = useState('');
   const [unitDesc, setUnitDesc] = useState('');
+
+  const [isMachineryTypeModalOpen, setIsMachineryTypeModalOpen] = useState(false);
+  const [editingMachineryType, setEditingMachineryType] = useState<MachineryType | null>(null);
+  const [mtName, setMtName] = useState('');
+  const [mtDesc, setMtDesc] = useState('');
 
   // Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{
@@ -100,6 +115,13 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
     const q = searchTerm.toLowerCase();
     return unitTypes.filter(u => u.name.toLowerCase().includes(q) || u.symbol.toLowerCase().includes(q));
   }, [unitTypes, searchTerm]);
+
+  const filteredMachineryTypes = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return machineryTypes.filter(
+      m => m.name.toLowerCase().includes(q) || (m.description || '').toLowerCase().includes(q)
+    );
+  }, [machineryTypes, searchTerm]);
 
   // -------------------------------------------------------------
   // Category CRUD
@@ -237,6 +259,72 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
     });
   };
 
+  // -------------------------------------------------------------
+  // Machinery / Equipment Types CRUD
+  // -------------------------------------------------------------
+  const handleOpenAddMachineryType = () => {
+    setEditingMachineryType(null);
+    setMtName('');
+    setMtDesc('');
+    setIsMachineryTypeModalOpen(true);
+  };
+
+  const handleOpenEditMachineryType = (mt: MachineryType) => {
+    setEditingMachineryType(mt);
+    setMtName(mt.name);
+    setMtDesc(mt.description || '');
+    setIsMachineryTypeModalOpen(true);
+  };
+
+  const submitMachineryTypeForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mtName.trim()) return;
+
+    const isEdit = !!editingMachineryType;
+    setConfirmModal({
+      isOpen: true,
+      title: isEdit ? 'Confirm Machinery Type Update' : 'Confirm New Machinery Type',
+      message: isEdit
+        ? `Are you sure you want to update machinery / equipment type "${editingMachineryType.name}" to "${mtName.trim()}"?`
+        : `Are you sure you want to create new machinery / equipment type "${mtName.trim()}"?`,
+      confirmText: isEdit ? 'Update Machinery Type' : 'Save Machinery Type',
+      variant: 'primary',
+      action: () => {
+        if (isEdit && editingMachineryType) {
+          onUpdateMachineryType?.({
+            ...editingMachineryType,
+            name: mtName.trim(),
+            description: mtDesc.trim(),
+          });
+          showToast(`Machinery / equipment type "${mtName.trim()}" updated successfully.`);
+        } else {
+          onAddMachineryType?.({
+            id: `mt-${Date.now()}`,
+            name: mtName.trim(),
+            description: mtDesc.trim(),
+            createdAt: new Date().toISOString(),
+          });
+          showToast(`Machinery / equipment type "${mtName.trim()}" added successfully.`);
+        }
+        setIsMachineryTypeModalOpen(false);
+      },
+    });
+  };
+
+  const handleDeleteMachineryTypePrompt = (mt: MachineryType) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Machinery / Equipment Type',
+      message: `Are you sure you want to permanently delete machinery / equipment type "${mt.name}"?`,
+      confirmText: 'Delete Machinery Type',
+      variant: 'danger',
+      action: () => {
+        onDeleteMachineryType?.(mt.id);
+        showToast(`Machinery / equipment type "${mt.name}" deleted.`);
+      },
+    });
+  };
+
   // CSV Export
   const handleExportCSV = () => {
     let headers: string[] = [];
@@ -249,11 +337,16 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
       rows = filteredCategories.map(c => [c.id, c.name, c.description || '']);
       filename = 'Item_Categories.csv';
       tableName = 'Item Categories Master Register';
-    } else {
+    } else if (activeTab === 'units') {
       headers = ['ID', 'Unit Name', 'Symbol', 'Description'];
       rows = filteredUnits.map(u => [u.id, u.name, u.symbol, u.description || '']);
       filename = 'Item_Unit_Types.csv';
       tableName = 'Measurement Unit Types Master Register';
+    } else {
+      headers = ['ID', 'Machinery / Equipment Type', 'Description'];
+      rows = filteredMachineryTypes.map(m => [m.id, m.name, m.description || '']);
+      filename = 'Machinery_Equipment_Types.csv';
+      tableName = 'Machinery / Equipment Types Master Register';
     }
 
     exportUniversalCsv(filename, {
@@ -295,7 +388,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
             <span>Item Settings & Master References</span>
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
-            Configure Item Categories and Measurement Units linked to the item catalog & inventory.
+            Configure Item Categories, Measurement Units, and Machinery / Equipment Types linked to inventory & fleet registration.
           </p>
         </div>
 
@@ -311,8 +404,18 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
           <button
             type="button"
             onClick={() => {
-              const tableId = activeTab === 'categories' ? 'printable-categories-table' : 'printable-units-table';
-              const title = activeTab === 'categories' ? 'Item Categories Master' : 'Measurement Unit Types Master';
+              const tableId =
+                activeTab === 'categories'
+                  ? 'printable-categories-table'
+                  : activeTab === 'units'
+                  ? 'printable-units-table'
+                  : 'printable-machinery-types-table';
+              const title =
+                activeTab === 'categories'
+                  ? 'Item Categories Master'
+                  : activeTab === 'units'
+                  ? 'Measurement Unit Types Master'
+                  : 'Machinery / Equipment Types Master';
               printConcernedTable(tableId, title, {
                 tableName: title,
                 reportDate: new Date().toLocaleDateString('en-GB'),
@@ -356,6 +459,20 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
             <span>Measurement Units</span>
             <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{unitTypes.length}</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => { setActiveTab('machinery_types'); setSearchTerm(''); }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'machinery_types'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Truck className="w-3.5 h-3.5" />
+            <span>Machinery / Equipment Types</span>
+            <span className="text-[10px] bg-black/15 px-1.5 py-0.2 rounded-full">{machineryTypes.length}</span>
+          </button>
         </div>
 
         {/* Action Button based on Tab */}
@@ -369,7 +486,7 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
               <Plus className="w-3.5 h-3.5" />
               <span>Add Category</span>
             </button>
-          ) : (
+          ) : activeTab === 'units' ? (
             <button
               type="button"
               onClick={handleOpenAddUnit}
@@ -377,6 +494,15 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Measurement Unit</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleOpenAddMachineryType}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Machinery Type</span>
             </button>
           )}
         </div>
@@ -389,7 +515,13 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
           type="text"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder={`Search ${activeTab === 'categories' ? 'categories' : 'units'}...`}
+          placeholder={`Search ${
+            activeTab === 'categories'
+              ? 'categories'
+              : activeTab === 'units'
+              ? 'units'
+              : 'machinery / equipment types'
+          }...`}
           className="w-full pl-9 pr-3.5 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
@@ -497,6 +629,64 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
                             onClick={() => handleDeleteUnitPrompt(unit)}
                             className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             title="Delete Unit"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT: 3. MACHINERY / EQUIPMENT TYPES */}
+      {activeTab === 'machinery_types' && (
+        <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table id="printable-machinery-types-table" className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="py-3 px-4 w-12 text-center">Sr.</th>
+                  <th className="py-3 px-4">Machinery / Equipment Type</th>
+                  <th className="py-3 px-4">Description</th>
+                  <th className="py-3 px-4 text-right no-print">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800">
+                {filteredMachineryTypes.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-10 text-center text-slate-400">
+                      No machinery / equipment types found. Click "Add Machinery Type" to define types for vehicle registration.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMachineryTypes.map((mt, idx) => (
+                    <tr key={mt.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 px-4 text-center font-mono text-slate-400">{idx + 1}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-900 flex items-center gap-2">
+                        <Truck className="w-3.5 h-3.5 text-teal-600" />
+                        <span>{mt.name}</span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 max-w-md">{mt.description || '—'}</td>
+                      <td className="py-3 px-4 text-right no-print">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditMachineryType(mt)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            title="Edit Machinery Type"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMachineryTypePrompt(mt)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete Machinery Type"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -647,6 +837,71 @@ export const ItemSettingsView: React.FC<ItemSettingsViewProps> = ({
                   className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
                 >
                   {editingUnit ? 'Save Changes' : 'Create Unit'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL: ADD/EDIT MACHINERY / EQUIPMENT TYPE
+          ========================================================= */}
+      {isMachineryTypeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-xl border border-slate-200 max-w-md w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-teal-600" />
+                <span>{editingMachineryType ? 'Edit Machinery / Equipment Type' : 'Add Machinery / Equipment Type'}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsMachineryTypeModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={submitMachineryTypeForm} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Machinery / Equipment Type Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={mtName}
+                  onChange={(e) => setMtName(e.target.value)}
+                  placeholder="e.g. Dump Truck, Excavator, Wheel Loader, Drill Rig"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={mtDesc}
+                  onChange={(e) => setMtDesc(e.target.value)}
+                  placeholder="Optional details (e.g. Heavy Haulage, Pithead Stockpile)..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsMachineryTypeModalOpen(false)}
+                  className="px-3.5 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer"
+                >
+                  {editingMachineryType ? 'Save Changes' : 'Create Machinery Type'}
                 </button>
               </div>
             </form>
