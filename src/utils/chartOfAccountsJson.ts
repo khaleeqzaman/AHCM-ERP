@@ -1,5 +1,6 @@
 import { ChartAccount, AccountType } from '../types/accounting';
 import { exportUniversalCsv } from './exportCsv';
+import { sortAccountsByCode } from './accountSort';
 
 export interface RawJsonAccount {
   accountNo?: string;
@@ -666,7 +667,7 @@ export function downloadCoaTemplateFile(): void {
  * Triggers browser download of current accounts in the user's JSON structure
  */
 export function exportAccountsToJsonFile(accounts: ChartAccount[]): void {
-  const jsonAccounts = accounts.map(formatChartAccountToJson);
+  const jsonAccounts = sortAccountsByCode(accounts).map(formatChartAccountToJson);
   const jsonString = JSON.stringify(jsonAccounts, null, 2);
   const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -698,7 +699,7 @@ export function exportAccountsToCsvFile(accounts: ChartAccount[]): void {
     'Status',
   ];
 
-  const rows = accounts.map((acc) => [
+  const rows = sortAccountsByCode(accounts).map((acc) => [
     acc.accountNo || acc.code,
     acc.name,
     acc.accountType,

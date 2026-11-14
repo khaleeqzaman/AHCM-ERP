@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   FileSpreadsheet, 
   Plus, 
@@ -10,8 +10,7 @@ import {
   Check,
   Scale,
   ShieldCheck,
-  Calendar,
-  Layers,
+  ChevronDown,
   Search
 } from 'lucide-react';
 import { 
@@ -22,6 +21,280 @@ import {
   VoucherStatus
 } from '../../types/accounting';
 import { formatWholeNumber } from '../../utils/formatters';
+import { getAccountCode, sortAccountsByCode } from '../../utils/accountSort';
+
+interface AccountHeadComboboxProps {
+  accounts: ChartAccount[];
+  selectedAccountId: string;
+  onSelect: (accountId: string) => void;
+}
+
+const AccountHeadCombobox: React.FC<AccountHeadComboboxProps> = ({
+  accounts,
+  selectedAccountId,
+  onSelect,
+}) => {
+  const selectedAccount = useMemo(
+    () => accounts.find((a) => a.id === selectedAccountId),
+    [accounts, selectedAccountId]
+  );
+
+  const formatDisplay = (acc?: ChartAccount) =>
+    acc ? `[${getAccountCode(acc)}] ${acc.name} (${acc.accountType})` : '';
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [dropdownRect, setDropdownRect] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const updatePosition = () => {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    const openUpwards = spaceBelow < 220 && spaceAbove > spaceBelow;
+    const maxHeight = Math.min(300, Math.max(160, openUpwards ? spaceAbove : spaceBelow));
+    const top = openUpwards ? Math.max(8, rect.top - maxHeight - 4) : rect.bottom + 4;
+    setDropdownRect({
+      top,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 360) - 8)),
+      width: Math.max(rect.width, 360),
+      maxHeight,
+    });
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updatePosition();
+    const handleScrollOrResize = () => updatePosition();
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        containerRef.current?.contains(target) ||
+        listRef.current?.contains(target)
+      ) {
+        return;
+      }
+      // If user typed an exact code before clicking outside, auto-select it
+      const trimmed = query.trim().toLowerCase();
+      if (trimmed) {
+        const exactMatch = accounts.find(
+          (a) => getAccountCode(a).toLowerCase() === trimmed
+        );
+        if (exactMatch) {
+          onSelect(exactMatch.id);
+        }
+      }
+      setIsOpen(false);
+      setQuery('');
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [isOpen, query, accounts, onSelect]);
+
+  const filteredAccounts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return accounts;
+
+    const exactMatches: ChartAccount[] = [];
+    const prefixMatches: ChartAccount[] = [];
+    const otherMatches: ChartAccount[] = [];
+
+    for (const acc of accounts) {
+      const code = getAccountCode(acc).toLowerCase();
+      const name = (acc.name || '').toLowerCase();
+      const type = (acc.accountType || '').toLowerCase();
+      if (code === q) {
+        exactMatches.push(acc);
+      } else if (code.startsWith(q)) {
+        prefixMatches.push(acc);
+      } else if (code.includes(q) || name.includes(q) || type.includes(q)) {
+        otherMatches.push(acc);
+      }
+    }
+
+    return [...exactMatches, ...prefixMatches, ...otherMatches];
+  }, [accounts, query]);
+
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [query, isOpen]);
+
+  const commitSelection = (acc: ChartAccount) => {
+    onSelect(acc.id);
+    setIsOpen(false);
+    setQuery('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen && (e.key === 'ArrowDown' || e.key === 'Enter')) {
+      e.preventDefault();
+      setIsOpen(true);
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((prev) =>
+        filteredAccounts.length === 0 ? 0 : Math.min(prev + 1, filteredAccounts.length - 1)
+      );
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const trimmed = query.trim().toLowerCase();
+      const exactMatch = trimmed
+        ? accounts.find((a) => getAccountCode(a).toLowerCase() === trimmed)
+        : undefined;
+      const target = exactMatch || filteredAccounts[highlightedIndex] || filteredAccounts[0];
+      if (target) {
+        commitSelection(target);
+      }
+    } else if (e.key === 'Tab') {
+      const trimmed = query.trim().toLowerCase();
+      if (isOpen && trimmed) {
+        const exactMatch = accounts.find((a) => getAccountCode(a).toLowerCase() === trimmed);
+        if (exactMatch) {
+          onSelect(exactMatch.id);
+        } else if (filteredAccounts.length === 1) {
+          onSelect(filteredAccounts[0].id);
+        }
+      }
+      setIsOpen(false);
+      setQuery('');
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+      setQuery('');
+      inputRef.current?.blur();
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative flex items-center">
+        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={isOpen ? query : formatDisplay(selectedAccount)}
+          placeholder="Type account code (e.g. 1101001) or name..."
+          onFocus={() => {
+            setIsOpen(true);
+            setQuery('');
+          }}
+          onChange={(e) => {
+            const val = e.target.value;
+            setQuery(val);
+            if (!isOpen) setIsOpen(true);
+            const trimmed = val.trim().toLowerCase();
+            if (trimmed) {
+              const exact = accounts.find((a) => getAccountCode(a).toLowerCase() === trimmed);
+              if (exact) {
+                onSelect(exact.id);
+              }
+            }
+          }}
+          onKeyDown={handleKeyDown}
+          className="w-full pl-8 pr-7 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900 font-medium"
+          title="Type an account code (e.g. 1101001) or search by account name"
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            if (isOpen) {
+              setIsOpen(false);
+              setQuery('');
+            } else {
+              setIsOpen(true);
+              setQuery('');
+              inputRef.current?.focus();
+            }
+          }}
+          className="absolute right-1.5 p-0.5 text-slate-400 hover:text-slate-700 cursor-pointer"
+          title="Toggle Chart of Accounts list"
+        >
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+
+      {isOpen && dropdownRect && (
+        <div
+          ref={listRef}
+          style={{
+            position: 'fixed',
+            top: dropdownRect.top,
+            left: dropdownRect.left,
+            width: dropdownRect.width,
+            maxHeight: dropdownRect.maxHeight,
+          }}
+          className="z-50 bg-white border border-slate-300 rounded-xl shadow-xl overflow-y-auto divide-y divide-slate-100"
+        >
+          {filteredAccounts.length === 0 ? (
+            <div className="px-3 py-4 text-center text-xs text-slate-500">
+              No account matches "<span className="font-mono font-semibold text-slate-700">{query}</span>".
+            </div>
+          ) : (
+            filteredAccounts.map((acc, i) => {
+              const code = getAccountCode(acc);
+              const isSelected = acc.id === selectedAccountId;
+              const isHighlighted = i === highlightedIndex;
+              return (
+                <button
+                  key={acc.id}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    commitSelection(acc);
+                  }}
+                  onMouseEnter={() => setHighlightedIndex(i)}
+                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between gap-2 transition-colors cursor-pointer ${
+                    isHighlighted
+                      ? 'bg-emerald-50 text-emerald-950'
+                      : isSelected
+                      ? 'bg-slate-50 text-slate-900'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0">
+                      {code}
+                    </span>
+                    <span className="truncate font-medium text-slate-900">{acc.name}</span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
+                    {acc.accountType}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface VoucherEntryFormProps {
   accounts: ChartAccount[];
@@ -73,6 +346,8 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
     initialVoucher?.narration || ''
   );
 
+  const sortedAccounts = useMemo(() => sortAccountsByCode(accounts), [accounts]);
+
   // Default lines: 2 lines for double-entry
   const [lines, setLines] = useState<VoucherLine[]>(
     initialVoucher?.lines && initialVoucher.lines.length > 0
@@ -81,9 +356,9 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
           {
             id: `line-${Date.now()}-1`,
             srNo: 1,
-            accountId: accounts[0]?.id || '',
-            accountCode: accounts[0]?.code || '',
-            accountName: accounts[0]?.name || '',
+            accountId: sortedAccounts[0]?.id || '',
+            accountCode: sortedAccounts[0]?.code || '',
+            accountName: sortedAccounts[0]?.name || '',
             description: '',
             debit: 0,
             credit: 0,
@@ -91,9 +366,9 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
           {
             id: `line-${Date.now()}-2`,
             srNo: 2,
-            accountId: accounts[1]?.id || accounts[0]?.id || '',
-            accountCode: accounts[1]?.code || accounts[0]?.code || '',
-            accountName: accounts[1]?.name || accounts[0]?.name || '',
+            accountId: sortedAccounts[1]?.id || sortedAccounts[0]?.id || '',
+            accountCode: sortedAccounts[1]?.code || sortedAccounts[0]?.code || '',
+            accountName: sortedAccounts[1]?.name || sortedAccounts[0]?.name || '',
             description: '',
             debit: 0,
             credit: 0,
@@ -124,14 +399,14 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
   };
 
   const handleAccountSelect = (lineIndex: number, accountId: string) => {
-    const targetAccount = accounts.find((a) => a.id === accountId);
+    const targetAccount = sortedAccounts.find((a) => a.id === accountId);
     if (!targetAccount) return;
 
     const updated = [...lines];
     updated[lineIndex] = {
       ...updated[lineIndex],
       accountId: targetAccount.id,
-      accountCode: targetAccount.code,
+      accountCode: getAccountCode(targetAccount),
       accountName: targetAccount.name,
     };
     setLines(updated);
@@ -163,12 +438,12 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
   };
 
   const handleAddLine = () => {
-    const nextAccount = accounts[0];
+    const nextAccount = sortedAccounts[0];
     const newLine: VoucherLine = {
       id: `line-${Date.now()}-${lines.length + 1}`,
       srNo: lines.length + 1,
       accountId: nextAccount?.id || '',
-      accountCode: nextAccount?.code || '',
+      accountCode: nextAccount ? getAccountCode(nextAccount) : '',
       accountName: nextAccount?.name || '',
       description: narration,
       debit: 0,
@@ -467,17 +742,11 @@ export const VoucherEntryForm: React.FC<VoucherEntryFormProps> = ({
                   {/* Account Selector from Chart of Accounts */}
                   <td className="py-2.5 px-3">
                     <div className="space-y-1">
-                      <select
-                        value={line.accountId}
-                        onChange={(e) => handleAccountSelect(idx, e.target.value)}
-                        className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-emerald-500 focus:bg-white text-slate-900 font-medium"
-                      >
-                        {accounts.map((acc) => (
-                          <option key={acc.id} value={acc.id}>
-                            [{acc.code}] {acc.name} ({acc.accountType})
-                          </option>
-                        ))}
-                      </select>
+                      <AccountHeadCombobox
+                        accounts={sortedAccounts}
+                        selectedAccountId={line.accountId}
+                        onSelect={(accountId) => handleAccountSelect(idx, accountId)}
+                      />
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-500 px-1 font-mono">
                         <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
                           {line.accountCode}

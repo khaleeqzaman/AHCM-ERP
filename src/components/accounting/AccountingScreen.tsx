@@ -23,6 +23,7 @@ import { VoucherEntryForm } from './VoucherEntryForm';
 import { VouchersListView } from './VouchersListView';
 import { LedgersView } from './LedgersView';
 import { TrialBalanceView } from './TrialBalanceView';
+import { sortAccountsByCode } from '../../utils/accountSort';
 
 interface AccountingScreenProps {
   navTarget?: NavTarget | null;
@@ -114,6 +115,8 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
     setIsEditBannerActive(false);
     setActiveTab('voucher_entry');
   };
+
+  const sortedAccounts = React.useMemo(() => sortAccountsByCode(accounts), [accounts]);
 
   const totalVoucherVolume = vouchers.reduce((sum, v) => sum + v.totalDebit, 0);
 
@@ -255,7 +258,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
       <div>
         {activeTab === 'chart_of_accounts' && (
           <ChartOfAccountsView
-            accounts={accounts}
+            accounts={sortedAccounts}
             vouchers={vouchers}
             initialOpenAdd={openAddAccount}
             onAddAccount={onAddAccount}
@@ -267,7 +270,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
 
         {activeTab === 'voucher_entry' && (
           <VoucherEntryForm
-            accounts={accounts}
+            accounts={sortedAccounts}
             initialVoucher={editingVoucher}
             existingVouchers={vouchers}
             onSaveVoucher={(v) => {
@@ -297,7 +300,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
 
         {activeTab === 'ledgers' && (
           <LedgersView
-            accounts={accounts}
+            accounts={sortedAccounts}
             vouchers={vouchers}
             onViewVoucherDetails={() => {
               setActiveTab('vouchers_list');
@@ -307,7 +310,7 @@ export const AccountingScreen: React.FC<AccountingScreenProps> = ({
 
         {activeTab === 'trial_balance' && (
           <TrialBalanceView
-            accounts={accounts}
+            accounts={sortedAccounts}
             vouchers={vouchers}
           />
         )}

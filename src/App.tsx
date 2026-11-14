@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Menu, 
   BarChart3, 
@@ -1315,23 +1315,44 @@ export default function App() {
     apiSaveCashBookEntry(updatedEntry);
   };
 
+  const pendingCashBookEditsRef = useRef<Record<string, CashBookEntry>>({});
+
   const handleUpdateCashBookEntry = (
     id: string,
     field: 'date' | 'description' | 'credit' | 'debit',
     value: string | number
   ) => {
-    let targetEntry: CashBookEntry | null = null;
+    const baseEntry =
+      pendingCashBookEditsRef.current[id] ||
+      cashBookEntries.find((entry) => entry.id === id);
+
+    if (baseEntry) {
+      const wasPending = Boolean(pendingCashBookEditsRef.current[id]);
+      const updatedEntry: CashBookEntry = { ...baseEntry, [field]: value };
+      updatedEntry.balance = (Number(updatedEntry.credit) || 0) - (Number(updatedEntry.debit) || 0);
+      pendingCashBookEditsRef.current[id] = updatedEntry;
+
+      if (!wasPending) {
+        queueMicrotask(() => {
+          const finalEntry = pendingCashBookEditsRef.current[id];
+          delete pendingCashBookEditsRef.current[id];
+          if (finalEntry) {
+            apiSaveCashBookEntry(finalEntry);
+          }
+        });
+      }
+    }
+
     setCashBookEntries((prev) => {
       const next = prev.map((entry) => {
         if (entry.id !== id) return entry;
-        targetEntry = { ...entry, [field]: value };
-        targetEntry.balance = (Number(targetEntry.credit) || 0) - (Number(targetEntry.debit) || 0);
-        return targetEntry;
+        const updated = { ...entry, [field]: value };
+        updated.balance = (Number(updated.credit) || 0) - (Number(updated.debit) || 0);
+        return updated;
       });
       saveCache('cash_book', next);
       return next;
     });
-    if (targetEntry) apiSaveCashBookEntry(targetEntry);
   };
 
   const handleDeleteCashBookEntry = (id: string) => {
@@ -1428,33 +1449,106 @@ export default function App() {
     apiDeleteBankAccount(id);
   };
 
+  const recalculateBankAccountBalancesChronological = (
+    acc: BankAccountRecord,
+    txs: BankTransaction[],
+    renumberSrNo = false
+  ): BankAccountRecord => {
+    const parseDateMs = (dStr: string): number => {
+      if (!dStr || !String(dStr).trim()) return Number.POSITIVE_INFINITY;
+      const str = String(dStr).trim();
+      const dmy = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+      if (dmy) {
+        const [, d, m, y] = dmy;
+        const ms = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
+        return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+      }
+      const ymd = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+      if (ymd) {
+        const [, y, m, d] = ymd;
+        const ms = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
+        return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+      }
+      const ms = new Date(str).getTime();
+      return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+    };
+
+    const getTs = (tx: BankTransaction): number => {
+      const m = String(tx.id || '').match(/^tx-(\d+)/);
+      return m ? Number(m[1]) || 0 : 0;
+    };
+
+    const chronological = [...txs].sort((a, b) => {
+      const diff = parseDateMs(a.date) - parseDateMs(b.date);
+      if (diff !== 0) return diff;
+      const tsA = getTs(a);
+      const tsB = getTs(b);
+      if (tsA !== 0 && tsB !== 0 && tsA !== tsB) return tsA - tsB;
+      return (Number(a.srNo) || 0) - (Number(b.srNo) || 0);
+    });
+
+    let running = Number(acc.openingBalance) || 0;
+    const balanceMap = new Map<string, number>();
+    chronological.forEach((tx) => {
+      const deposit = Number(tx.depositDebit) || 0;
+      const withdrawal = Number(tx.withdrawalPayment) || 0;
+      running = Number((running + deposit - withdrawal).toFixed(2));
+      balanceMap.set(tx.id, running);
+    });
+
+    const withBalances = txs.map((tx, idx) => ({
+      ...tx,
+      srNo: renumberSrNo ? idx + 1 : tx.srNo,
+      balance: balanceMap.get(tx.id) ?? running,
+    }));
+
+    return {
+      ...acc,
+      transactions: withBalances,
+    };
+  };
+
+  const pendingBankAccountsRef = useRef<Record<string, BankAccountRecord>>({});
+
+  const scheduleBankAccountSave = (updatedAcc: BankAccountRecord) => {
+    const wasPending = Boolean(pendingBankAccountsRef.current[updatedAcc.id]);
+    pendingBankAccountsRef.current[updatedAcc.id] = updatedAcc;
+    if (!wasPending) {
+      queueMicrotask(() => {
+        const finalAcc = pendingBankAccountsRef.current[updatedAcc.id];
+        delete pendingBankAccountsRef.current[updatedAcc.id];
+        if (finalAcc) {
+          apiSaveBankAccount(finalAcc);
+        }
+      });
+    }
+  };
+
   const handleAddBankTransaction = (accountId: string, transaction: BankTransaction) => {
-    let targetAccount: BankAccountRecord | null = null;
+    const baseAcc =
+      pendingBankAccountsRef.current[accountId] ||
+      bankAccounts.find((a) => a.id === accountId);
+    if (baseAcc) {
+      const updated = recalculateBankAccountBalancesChronological(
+        baseAcc,
+        [...baseAcc.transactions, transaction],
+        true
+      );
+      scheduleBankAccountSave(updated);
+    }
+
     setBankAccounts((prev) => {
       const next = prev.map((acc) => {
         if (acc.id !== accountId) return acc;
-        const combined = [...acc.transactions, transaction];
-        let running = Number(acc.openingBalance) || 0;
-        const withBalances = combined.map((t, idx) => {
-          const deposit = Number(t.depositDebit) || 0;
-          const withdrawal = Number(t.withdrawalPayment) || 0;
-          running = Number((running + deposit - withdrawal).toFixed(2));
-          return {
-            ...t,
-            srNo: idx + 1,
-            balance: running,
-          };
-        });
-        targetAccount = {
-          ...acc,
-          transactions: withBalances,
-        };
-        return targetAccount;
+        return recalculateBankAccountBalancesChronological(
+          acc,
+          [...acc.transactions, transaction],
+          true
+        );
       });
       saveCache('bank_accounts', next);
       return next;
     });
-    if (targetAccount) apiSaveBankAccount(targetAccount);
   };
 
   const handleUpdateBankTransaction = (
@@ -1463,63 +1557,49 @@ export default function App() {
     field: 'date' | 'payeeDescription' | 'category' | 'depositDebit' | 'withdrawalPayment',
     value: string | number
   ) => {
-    let targetAccount: BankAccountRecord | null = null;
+    const baseAcc =
+      pendingBankAccountsRef.current[accountId] ||
+      bankAccounts.find((a) => a.id === accountId);
+    if (baseAcc) {
+      const updatedTxs = baseAcc.transactions.map((tx) =>
+        tx.id === transactionId ? { ...tx, [field]: value } : tx
+      );
+      const updated = recalculateBankAccountBalancesChronological(baseAcc, updatedTxs, false);
+      scheduleBankAccountSave(updated);
+    }
+
     setBankAccounts((prev) => {
       const next = prev.map((acc) => {
         if (acc.id !== accountId) return acc;
-        const updatedTxs = acc.transactions.map((tx) => {
-          if (tx.id !== transactionId) return tx;
-          return { ...tx, [field]: value };
-        });
-        let running = Number(acc.openingBalance) || 0;
-        const withBalances = updatedTxs.map((tx) => {
-          const deposit = Number(tx.depositDebit) || 0;
-          const withdrawal = Number(tx.withdrawalPayment) || 0;
-          running = Number((running + deposit - withdrawal).toFixed(2));
-          return {
-            ...tx,
-            balance: running,
-          };
-        });
-        targetAccount = {
-          ...acc,
-          transactions: withBalances,
-        };
-        return targetAccount;
+        const updatedTxs = acc.transactions.map((tx) =>
+          tx.id === transactionId ? { ...tx, [field]: value } : tx
+        );
+        return recalculateBankAccountBalancesChronological(acc, updatedTxs, false);
       });
       saveCache('bank_accounts', next);
       return next;
     });
-    if (targetAccount) apiSaveBankAccount(targetAccount);
   };
 
   const handleDeleteBankTransaction = (accountId: string, transactionId: string) => {
-    let targetAccount: BankAccountRecord | null = null;
+    const baseAcc =
+      pendingBankAccountsRef.current[accountId] ||
+      bankAccounts.find((a) => a.id === accountId);
+    if (baseAcc) {
+      const filtered = baseAcc.transactions.filter((tx) => tx.id !== transactionId);
+      const updated = recalculateBankAccountBalancesChronological(baseAcc, filtered, true);
+      scheduleBankAccountSave(updated);
+    }
+
     setBankAccounts((prev) => {
       const next = prev.map((acc) => {
         if (acc.id !== accountId) return acc;
         const filtered = acc.transactions.filter((tx) => tx.id !== transactionId);
-        let running = Number(acc.openingBalance) || 0;
-        const withBalances = filtered.map((tx, idx) => {
-          const deposit = Number(tx.depositDebit) || 0;
-          const withdrawal = Number(tx.withdrawalPayment) || 0;
-          running = Number((running + deposit - withdrawal).toFixed(2));
-          return {
-            ...tx,
-            srNo: idx + 1,
-            balance: running,
-          };
-        });
-        targetAccount = {
-          ...acc,
-          transactions: withBalances,
-        };
-        return targetAccount;
+        return recalculateBankAccountBalancesChronological(acc, filtered, true);
       });
       saveCache('bank_accounts', next);
       return next;
     });
-    if (targetAccount) apiSaveBankAccount(targetAccount);
   };
 
   // 100% ISOLATED STORE & SALES HANDLERS

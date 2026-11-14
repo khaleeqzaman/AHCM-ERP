@@ -1801,6 +1801,11 @@ export async function apiSaveCashBookEntry(entry: CashBookEntry): Promise<CashBo
   try {
     const row = mapCashBookEntryToRow(entry);
     if (!isSupabaseConfigured()) {
+      fetch('/api/treasury/cash-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+      }).catch(() => {});
       return entry;
     }
     const res = await diagnosticSupabaseOperation<any>(
@@ -1820,6 +1825,9 @@ export async function apiSaveCashBookEntry(entry: CashBookEntry): Promise<CashBo
 export async function apiDeleteCashBookEntry(id: string): Promise<boolean> {
   try {
     if (!isSupabaseConfigured()) {
+      fetch(`/api/treasury/cash-book/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
       return true;
     }
     const res = await diagnosticSupabaseOperation<any>(
@@ -1918,6 +1926,11 @@ export async function apiSaveBankAccount(acc: BankAccountRecord): Promise<BankAc
   try {
     const row = mapBankAccountToRow(acc);
     if (!isSupabaseConfigured()) {
+      fetch('/api/treasury/bank-accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(acc),
+      }).catch(() => {});
       return acc;
     }
     const res = await diagnosticSupabaseOperation<any>(
@@ -1937,6 +1950,9 @@ export async function apiSaveBankAccount(acc: BankAccountRecord): Promise<BankAc
 export async function apiDeleteBankAccount(id: string): Promise<boolean> {
   try {
     if (!isSupabaseConfigured()) {
+      fetch(`/api/treasury/bank-accounts/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
       return true;
     }
     const res = await diagnosticSupabaseOperation<any>(

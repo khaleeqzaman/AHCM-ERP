@@ -11,7 +11,9 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Search,
-  AlertTriangle
+  AlertTriangle,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { BankAccountRecord, BankTransaction } from '../../types/treasury';
 import { formatWholeNumber } from '../../utils/formatters';
@@ -32,6 +34,42 @@ interface BankAccountDetailsViewProps {
   onNavigateBack: () => void;
 }
 
+const parseBankTxDate = (dStr: string): number => {
+  if (!dStr || !String(dStr).trim()) return Number.POSITIVE_INFINITY;
+  const str = String(dStr).trim();
+  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    const ms = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
+    return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+  }
+  const ymdMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    const ms = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
+    return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+  }
+  const ms = new Date(str).getTime();
+  return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms;
+};
+
+const getBankTxTimestamp = (tx: BankTransaction): number => {
+  const match = String(tx.id || '').match(/^tx-(\d+)/);
+  return match ? Number(match[1]) || 0 : 0;
+};
+
+const compareBankTxChronological = (a: BankTransaction, b: BankTransaction): number => {
+  const timeDiff = parseBankTxDate(a.date) - parseBankTxDate(b.date);
+  if (timeDiff !== 0) return timeDiff;
+
+  const tsA = getBankTxTimestamp(a);
+  const tsB = getBankTxTimestamp(b);
+  if (tsA !== 0 && tsB !== 0 && tsA !== tsB) {
+    return tsA - tsB;
+  }
+  return (Number(a.srNo) || 0) - (Number(b.srNo) || 0);
+};
+
 export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
   accounts,
   selectedAccountId,
@@ -43,21 +81,29 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
 }) => {
   const [notification, setNotification] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateSortOrder, setDateSortOrder] = useState<'desc' | 'asc'>('desc');
   const [txToDelete, setTxToDelete] = useState<{
     id: string;
     srNo: number;
     payeeDescription: string;
   } | null>(null);
 
-  const getTodayDDMMYYYY = () => {
-    const d = new Date();
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
   const currentAccount = accounts.find((a) => a.id === selectedAccountId) || accounts[0];
+
+  // Calculate date-wise chronological cumulative running balances starting from Opening Balance
+  const runningBalancesMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    if (!currentAccount) return map;
+    let running = Number(currentAccount.openingBalance) || 0;
+    const chronological = [...currentAccount.transactions].sort(compareBankTxChronological);
+    chronological.forEach((tx) => {
+      const deposit = Number(tx.depositDebit) || 0;
+      const withdrawal = Number(tx.withdrawalPayment) || 0;
+      running = Number((running + deposit - withdrawal).toFixed(2));
+      map.set(tx.id, running);
+    });
+    return map;
+  }, [currentAccount]);
 
   if (!currentAccount) {
     return (
@@ -88,19 +134,6 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
   const netTransactionBalance = totalDeposit - totalWithdrawal;
   const currentBalance = currentAccount.openingBalance + netTransactionBalance;
 
-  // Calculate cumulative running balances for all transactions starting from Opening Balance
-  const runningBalancesMap = React.useMemo(() => {
-    const map = new Map<string, number>();
-    let running = Number(currentAccount.openingBalance) || 0;
-    currentAccount.transactions.forEach((tx) => {
-      const deposit = Number(tx.depositDebit) || 0;
-      const withdrawal = Number(tx.withdrawalPayment) || 0;
-      running = Number((running + deposit - withdrawal).toFixed(2));
-      map.set(tx.id, running);
-    });
-    return map;
-  }, [currentAccount.openingBalance, currentAccount.transactions]);
-
   const handleAddNewTransaction = () => {
     // Row fields are not pre-filled; all fields are empty for user input, placed on top
     const newTx: BankTransaction = {
@@ -118,14 +151,20 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const filteredTransactions = currentAccount.transactions.filter((t) => {
-    const term = searchTerm.toLowerCase();
-    return (
-      t.payeeDescription.toLowerCase().includes(term) ||
-      t.category.toLowerCase().includes(term) ||
-      t.date.includes(term)
+  const filteredTransactions = [...currentAccount.transactions]
+    .filter((t) => {
+      const term = searchTerm.toLowerCase();
+      return (
+        t.payeeDescription.toLowerCase().includes(term) ||
+        t.category.toLowerCase().includes(term) ||
+        t.date.includes(term)
+      );
+    })
+    .sort((a, b) =>
+      dateSortOrder === 'desc'
+        ? compareBankTxChronological(b, a)
+        : compareBankTxChronological(a, b)
     );
-  });
 
   return (
     <div className="space-y-6">
@@ -248,15 +287,31 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
 
       {/* Transaction Controls Bar */}
       <div className="bg-white p-3.5 border border-slate-200 rounded-xl shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search payee, description, category, date..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900"
-          />
+        <div className="flex flex-wrap items-center gap-2.5 flex-1">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search payee, description, category, date..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-900"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider hidden sm:inline">
+              Date Sort:
+            </span>
+            <select
+              value={dateSortOrder}
+              onChange={(e) => setDateSortOrder(e.target.value as 'asc' | 'desc')}
+              className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 font-medium text-slate-700"
+            >
+              <option value="desc">Date (Newest First)</option>
+              <option value="asc">Date (Oldest First)</option>
+            </select>
+          </div>
         </div>
 
         <button
@@ -276,7 +331,21 @@ export const BankAccountDetailsView: React.FC<BankAccountDetailsViewProps> = ({
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
                 <th className="py-3 px-3 w-14 text-center">Sr.</th>
-                <th className="py-3 px-4 w-36">Date (DD-MM-YYYY)</th>
+                <th className="py-3 px-4 w-36">
+                  <button
+                    type="button"
+                    onClick={() => setDateSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                    className="inline-flex items-center gap-1 font-semibold text-slate-700 hover:text-blue-700 cursor-pointer"
+                    title="Click to toggle Date Sort"
+                  >
+                    <span>Date (DD-MM-YYYY)</span>
+                    {dateSortOrder === 'desc' ? (
+                      <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
+                    ) : (
+                      <ArrowUp className="w-3.5 h-3.5 text-blue-600" />
+                    )}
+                  </button>
+                </th>
                 <th className="py-3 px-4">Payee / Transaction Description</th>
                 <th className="py-3 px-4 w-44">Category</th>
                 <th className="py-3 px-4 w-36 text-right">Deposit / Debit (+)</th>

@@ -15,6 +15,7 @@ import { formatWholeNumber } from '../../utils/formatters';
 import { exportUniversalCsv } from '../../utils/exportCsv';
 import { printConcernedTable } from '../../utils/printTable';
 import { PrintDocumentHeader } from '../common/PrintDocumentHeader';
+import { sortAccountsForTrialBalance } from '../../utils/accountSort';
 
 interface TrialBalanceViewProps {
   accounts: ChartAccount[];
@@ -29,7 +30,8 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
   const [exportSuccess, setExportSuccess] = useState(false);
 
   // Compute net balance for each account: opening balance + posted debits/credits
-  const trialBalanceRows = accounts.map((acc) => {
+  // Ordered strictly by Account Type: Assets -> Liability -> Capital/Equity -> Revenue -> Expense (then by Account Code)
+  const trialBalanceRows = sortAccountsForTrialBalance(accounts).map((acc) => {
     let debits = 0;
     let credits = 0;
 

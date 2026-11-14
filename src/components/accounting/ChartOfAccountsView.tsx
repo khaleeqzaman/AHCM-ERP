@@ -43,6 +43,7 @@ import {
 } from '../../utils/chartOfAccountsJson';
 import { printConcernedTable } from '../../utils/printTable';
 import { PrintDocumentHeader } from '../common/PrintDocumentHeader';
+import { compareAccountCodes } from '../../utils/accountSort';
 
 interface ChartOfAccountsViewProps {
   accounts: ChartAccount[];
@@ -462,11 +463,7 @@ export const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = ({
       const matchesTrans = transTypeFilter === 'All' || (a.transType || 'T') === transTypeFilter;
 
       return matchesSearch && matchesType && matchesLevel && matchesTrans;
-    }).sort((a, b) => {
-      const codeA = a.code || a.accountNo || '';
-      const codeB = b.code || b.accountNo || '';
-      return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: 'base' });
-    });
+    }).sort(compareAccountCodes);
   }, [accounts, searchTerm, typeFilter, levelFilter, transTypeFilter]);
 
   // =========================================================

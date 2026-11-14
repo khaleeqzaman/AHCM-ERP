@@ -59,6 +59,53 @@ const getTodayFormatted = () => {
   return `${day}-${month}-${year}`;
 };
 
+// Helper date parser (DD-MM-YYYY, YYYY-MM-DD, slashes or dashes)
+const parseEntryDate = (dStr: string): number => {
+  if (!dStr) return 0;
+  const str = String(dStr).trim();
+  // DD-MM-YYYY or D-M-YYYY or DD/MM/YYYY or D/M/YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
+  }
+  // YYYY-MM-DD or YYYY/MM/DD
+  const ymdMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+  if (ymdMatch) {
+    const [, y, m, d] = ymdMatch;
+    return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
+  }
+  return new Date(str).getTime() || 0;
+};
+
+// Helper to extract creation order from entry ID (cb-<timestamp>-<batchIdx>-...) with srNo fallback
+const getEntryOrderKey = (entry: CashBookEntry): { ts: number; batchIdx: number; srNo: number } => {
+  const match = String(entry.id || '').match(/^cb-(\d+)(?:-(\d+))?/);
+  if (match) {
+    return {
+      ts: Number(match[1]) || 0,
+      batchIdx: match[2] !== undefined ? Number(match[2]) : 0,
+      srNo: Number(entry.srNo) || 0,
+    };
+  }
+  return { ts: 0, batchIdx: 0, srNo: Number(entry.srNo) || 0 };
+};
+
+// Chronological comparator (oldest -> newest) for carry-forward balance & sorting
+const compareChronological = (a: CashBookEntry, b: CashBookEntry): number => {
+  const timeDiff = parseEntryDate(a.date) - parseEntryDate(b.date);
+  if (timeDiff !== 0) return timeDiff;
+
+  const orderA = getEntryOrderKey(a);
+  const orderB = getEntryOrderKey(b);
+  if (orderA.ts !== 0 && orderB.ts !== 0) {
+    if (orderA.ts !== orderB.ts) return orderA.ts - orderB.ts;
+    if (orderA.batchIdx !== orderB.batchIdx) return orderA.batchIdx - orderB.batchIdx;
+  }
+  // New entries are prepended with srNo 1..N, so higher srNo means older
+  return orderB.srNo - orderA.srNo;
+};
+
 export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
   entries,
   initialMode = 'add_transaction',
@@ -273,24 +320,17 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
   // Print Modal State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  // Helper date parser (DD-MM-YYYY, YYYY-MM-DD, slashes or dashes)
-  const parseEntryDate = (dStr: string): number => {
-    if (!dStr) return 0;
-    const str = String(dStr).trim();
-    // DD-MM-YYYY or D-M-YYYY or DD/MM/YYYY or D/M/YYYY
-    const dmyMatch = str.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
-    if (dmyMatch) {
-      const [, d, m, y] = dmyMatch;
-      return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
+  // Compute date-wise carry-forward running balance across all entries chronologically
+  const runningBalanceMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const chronological = [...entries].sort(compareChronological);
+    let running = 0;
+    for (const entry of chronological) {
+      running += (Number(entry.credit) || 0) - (Number(entry.debit) || 0);
+      map.set(entry.id, running);
     }
-    // YYYY-MM-DD or YYYY/MM/DD
-    const ymdMatch = str.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
-    if (ymdMatch) {
-      const [, y, m, d] = ymdMatch;
-      return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T00:00:00`).getTime();
-    }
-    return new Date(str).getTime() || 0;
-  };
+    return map;
+  }, [entries]);
 
   // Filter & Sort View Cash Book Entries
   const filteredAndSortedEntries = useMemo(() => {
@@ -315,13 +355,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
         return matchesSearch && matchesDate;
       })
       .sort((a, b) => {
-        const timeA = parseEntryDate(a.date);
-        const timeB = parseEntryDate(b.date);
-        if (dateSortOrder === 'desc') {
-          return timeB - timeA || b.srNo - a.srNo;
-        } else {
-          return timeA - timeB || a.srNo - b.srNo;
-        }
+        return dateSortOrder === 'desc' ? compareChronological(b, a) : compareChronological(a, b);
       });
   }, [entries, searchTerm, startDate, endDate, dateSortOrder]);
 
@@ -364,7 +398,7 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
       e.description,
       Math.round(e.credit),
       Math.round(e.debit),
-      Math.round((Number(e.credit) || 0) - (Number(e.debit) || 0)),
+      Math.round(runningBalanceMap.get(e.id) ?? ((Number(e.credit) || 0) - (Number(e.debit) || 0))),
     ]);
 
     const dateRangeLabel = startDate || endDate
@@ -966,8 +1000,10 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                       </td>
                     </tr>
                   ) : (
-                    paginatedEntries.map((entry, index) => {
-                      const rowBalance = (Number(entry.credit) || 0) - (Number(entry.debit) || 0);
+                    paginatedEntries.map((entry) => {
+                      const rowBalance =
+                        runningBalanceMap.get(entry.id) ??
+                        ((Number(entry.credit) || 0) - (Number(entry.debit) || 0));
 
                       return (
                         <tr key={entry.id} className="hover:bg-amber-50/20 transition-colors">
@@ -1464,7 +1500,9 @@ export const CashBookRegisterView: React.FC<CashBookRegisterViewProps> = ({
                   </thead>
                   <tbody className="divide-y divide-slate-200">
                     {filteredAndSortedEntries.map((e) => {
-                      const rowBalance = (Number(e.credit) || 0) - (Number(e.debit) || 0);
+                      const rowBalance =
+                        runningBalanceMap.get(e.id) ??
+                        ((Number(e.credit) || 0) - (Number(e.debit) || 0));
                       return (
                         <tr key={e.id} className="text-slate-800">
                           <td className="py-1.5 px-2 text-center font-mono">{e.srNo}</td>
